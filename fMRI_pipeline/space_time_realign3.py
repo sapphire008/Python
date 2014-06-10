@@ -136,9 +136,12 @@ def space_time_realign(Images,TR=2,numslices=None,SliceTime='asc_alt_2',RefScan=
 #          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/mid/subjects/funcs/M3038_CNI_022414/block1/6358_6_.nii',
 #          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/mid/subjects/funcs/M3038_CNI_022414/block2/6358_7_1.nii']
           
-Images = ['/hsgs/projects/jhyoon1/midbrain_Stanford_3T/dicoms/M3020_CNI_011314_new_recon_alg/4_1_BOLD_mux3_17mm_2s/6093_4_1.nii',
-          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/RestingState/subjects/funcs/M3020_CNI_0131314_new_recon/6093_9_1.nii']
-fname = space_time_realign(Images,TR=2,numslices=(3,25),SliceTime='asc_alt_2',RefScan=0,Prefix='ra')
+Images = ['/hsgs/projects/jhyoon1/midbrain_Stanford_3T/test_drive/funcs/M3038_CNI_030614/1_MUX2_TE34/6420_5_1.nii',
+          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/test_drive/funcs/M3038_CNI_030614/2_EPI_TE34/6420_9_1.nii',
+          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/test_drive/funcs/M3038_CNI_030614/3_EPI_TE36/6420_10_1.nii',
+          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/test_drive/funcs/M3038_CNI_030614/4_MUX2_TE36/6420_12_1.nii',
+          '/hsgs/projects/jhyoon1/midbrain_Stanford_3T/test_drive/funcs/M3038_CNI_030614/5_MUX2_2_TE34/6420_13_1.nii']
+fname = space_time_realign(Images,TR=2,numslices=(2,25),SliceTime='asc_alt_2',RefScan=0,Prefix='ra')
 
 ## slab 1
 #Images = ['/hsgs/projects/jhyoon1/midbrain_Stanford_3T/RestingState/subjects/funcs/M3020_CNI_011314/0001_1.nii.gz'];
