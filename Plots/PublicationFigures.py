@@ -13,8 +13,9 @@ from beeswarm import *
 
 #sys.path.append('C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots')
 
-#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/beeswarm.txt'
 dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/lineplot.txt'
+#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/beeswarm.txt'
+#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/timeseries.txt'
 
 class FigureData(object):
     """Parse input text file data for figures
@@ -32,7 +33,7 @@ class FigureData(object):
         """Load data in text file"""
         with open(dataFile, 'rb') as fid:
             for line in fid: # iterate each line
-                if line[0] == "#":
+                if not line.strip() or line[0] == "#":
                     continue  # skip comments
                 # split comma delimited string
                 # series code, series name,@datatype, data1, data2, data3, ...
@@ -99,9 +100,27 @@ class PublicationFigures(object):
             self.SavePath = os.path.join(os.getcwd(),'Figure.eps')
         self.fig.savefig(self.SavePath)
         
-    def TimeSeries(self, Style='Vstack'):
-        """Plot time series / voltage and current traces"""
-        return
+    """ ####################### Plot utilities ####################### """      
+    def Traces(self, groupings=None, scalebar=True, annotation=None):
+        """Plot time series / voltage and current traces
+        groupings: grouping of y data. E.g [[1,2],[3]] will result two
+        subplots, where y1 and y2 are in the same subplot above, and y3 below.
+                
+        """
+        m = 0
+        n = 0
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n])
+        # set aspect ratio
+        self.SetAspectRatio(2,1)
+        if scalebar: # Use scale bar instead of axis
+            self.AddTraceScaleBar(hline[0], xunit=self.data.names['x'][m], 
+                                  yunit=self.data.names['y'][m]) 
+        else:
+            self.SetDefaultAxis() # use default axis
+        if annotation:
+            self.TextAnnotation(text=annotation) # description of the trace
+        
        
     def Histogram(self):
         """Plot histogram"""
@@ -135,26 +154,19 @@ class PublicationFigures(object):
             self.LinePlotVstack()
         elif Style == "Twin":
             self.LinePlotTwin()
-        self.SetLinePlotStyle()
+        self.AdjustCategoricalXAxis() # make some space for each category
   
-    def LinePlotTwin(self):
+    def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
         self.x = range(1,len(self.data.series['x'][0])+1)
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         self.axs = [self.axs, self.axs.twinx()]
-        colors = ('k','r')
-        spineName = ('left','right')
         for n, ax in enumerate(self.axs):
              # Plot error bar
             ax.errorbar(self.x,self.data.series['y'][n],
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color=colors[n])
-            # For twin Plot
-            ax.xaxis.set_ticks_position('bottom')
-            ax.yaxis.label.set_color(colors[n])
-            ax.tick_params(axis='y',colors=colors[n])
-            ax.spines[spineName[n]].set_color(colors[n])
-        self.axs[0].set_xlabel(self.data.names['x'][0]) # x label
+        self.SetTwinPlotAxis(colors = colors) # set twin plot subplot axes
 
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
@@ -166,32 +178,9 @@ class PublicationFigures(object):
             ax.errorbar(self.x,self.data.series['y'][n],
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color='k')
-            # For Vstack
-            ax.yaxis.set_ticks_position('left')
-            ax.spines['right'].set_visible(False)
-            if n < (self.data.num['y']-1): # first several plots
-                ax.xaxis.set_ticks_position('none')
-                ax.spines['bottom'].set_visible(False)
-            else: # last plot
-                ax.xaxis.set_ticks_position('bottom')
-        self.axs[-1].set_xlabel(self.data.names['x'][0]) # x label
+        self.SetVstackAxis() # set vertical stacked subplot axes
         
     """ ####################### Axis schemas ####################### """
-    def SetLinePlotStyle(self):
-        for n, ax in enumerate(self.axs):
-            # Set ylabel
-            ax.set_ylabel(self.data.names['y'][n])
-            # make sure axis tickmark points out
-            ax.tick_params(axis='both',direction='out')
-            # Set axis visibility
-            ax.spines['top'].set_visible(False)
-        # change the x lim on the last, most buttom subplot
-        ax.set_xlim([0,len(self.data.series['x'][0])+1])
-        plt.xticks(self.x, self.data.series['x'][0])
-        # Add some margins to the plot so that it is not touching the axes
-        plt.margins(0.02,0.02)
-        self.fig.tight_layout() # enforce tight layout
-        
     def SetDefaultAxis(self):
         """Set default axis appearance"""
         def SDA(ax): # short for set default axis
@@ -212,36 +201,126 @@ class PublicationFigures(object):
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
             ax.spines['bottom'].set_visible(False)
-            ax.xaxis.set_ticks_position('none')
-            ax.yaxis.set_ticks_position('none')
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
         TOA_vec = np.vectorize(TOA) # vectorize the closure
         TOA_vec(self.axs)
         
-    def SetDiscontinousAxis(self, x=None, y = None):
+    def SetTwinPlotAxis(self, colors=('k', 'r')):
+        spineName = ('left','right')
+        for n, ax in enumerate(self.axs):             # For twin Plot
+            ax.tick_params(axis='both',direction='out') # tick mark out
+            ax.spines['top'].set_visible(False) # remove top boundary
+            ax.xaxis.set_ticks_position('bottom') # keep only bottom ticks
+            ax.set_ylabel(self.data.names['y'][n]) # set y label
+            ax.yaxis.label.set_color(colors[n]) # set y label color
+            ax.tick_params(axis='y',colors=colors[n]) # set y tick color
+            ax.spines[spineName[n]].set_color(colors[n]) # set y spine color
+        self.axs[0].set_xlabel(self.data.names['x'][0]) # x label
+        
+    def SetVstackAxis(self):
+        for n, ax in enumerate(self.axs):             # For Vstack
+            ax.tick_params(axis='both', direction='out') #tick mark out
+            ax.spines['top'].set_visible(False) # remove top boundary
+            ax.spines['right'].set_visible(False) # remove right spine
+            ax.yaxis.set_ticks_position('left') # keep only left ticks
+            if ax.is_last_row():     #keep only bottom ticks       
+                ax.xaxis.set_ticks_position('bottom') 
+                ax.set_xlabel(self.data.names['x'][0]) # x label
+            else:
+                ax.xaxis.set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+                     
+                
+    def AdjustCategoricalXAxis(self): # additional for plots with categorical data
+        # change the x lim on the last, most buttom subplot
+        self.axs[-1].set_xlim([0,len(self.data.series['x'][0])+1])
+        plt.xticks(self.x, self.data.series['x'][0])
+        # Add some margins to the plot so that it is not touching the axes
+        plt.margins(0.02,0.02)
+        self.fig.tight_layout() # enforce tight layout
+        
+    def SetDiscontinousAxis(self, x=None, y=None):
         """Plot with discontious axis. Allows one discontinuity for each axis.
         Assume there is only 1 plot in the figure
         x: x break point
         y: y break point
         """
         if x is not None and y is not None:
-            f,(ax,ax2) = plt.subplots(2,2,sharex=True,sharey=True)
+            f,axs = plt.subplots(2,2,sharex=True,sharey=True)
         elif x is not None and y is None:
-            f,(ax,ax2) = plt.subplots(2,1,sharey=True)
+            f,axs = plt.subplots(2,1,sharey=True)
         elif x is None and y is not None:
-            f,(ax,ax2) = plt.subplots(2,1,sharex=True)
-        ax, ax2 = self.axs, self.axs
-        ax.spines['bottom'].set_visible(False)
-        ax2.spines['top'].set_visible(False)
-        self.fig = f
-        self.axs = [ax, ax2]
-    def SetScalarBar(self):
-        self.TurnOffAxis() # turn off axis
-        X, Y = self.axs.get_xticks, self.axs.get_yticks# get x, y range
-        X = 
+            f,axs = plt.subplots(2,1,sharex=True)
+        line = self.axs.get_lines()
+        # plot the same data in all the subplots
+        [ax.add_line(line) for ax in axs]
+        # set axis
+        self.SetVstackAxis() # set vertical stacked subplot axes
+        for ax in self.axs:
+            if not ax.is_first_col:
+                ax.yaxis.set_visible(False)
+                ax.spines['left'].set_visible(False)
+        # add slashes between two plots
         
+    def SetAspectRatio(self, xr=2, yr=1):
+        def SAR(ax):
+            X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks()) 
+            ax.set_aspect(X/Y/xr*yr)
+        SAR_vec = np.vectorize(SAR) # vectorize the closure
+        SAR_vec(self.axs)
         
-    
     """ ####################### Annotations ####################### """
+    def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
+        def roundto125(x): # helper static function
+            """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
+            5mV, 10mV, 20mV, etc.
+            5pA, 10pA, 20pA, 50pA, etc."""
+            r = np.array([1,2,5,10])
+            x = int(x)/5
+            p = int(np.log10(x)) # power of 10
+            y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
+            return(y*(10**p))
+        def scalebarlabel(x, unitstr):
+            if unitstr.lower()[0] == 'm':
+                return(str(x)+unitstr if x<1000 else str(x/1000)+
+                    unitstr.replace('m',''))
+            elif unitstr.lower()[0] == 'p':
+                return(str(x)+unitstr if x<1000 else str(x/1000)+
+                    unitstr.replace('p','n'))
+
+        self.TurnOffAxis() # turn off axis
+        X, Y = np.ptp(self.axs.get_xticks()), np.ptp(self.axs.get_yticks())
+        # calculate scale bar unit length
+        X, Y = roundto125(X), roundto125(Y)
+        # Parse scale bar labels
+        xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
+        # Get color of the scalebar
+        color = plt.getp(hline,'color')
+        # Calculate position of the scale bar
+        xi = np.max(self.axs.get_xticks()) + X/10.0
+        yi = np.mean(self.axs.get_yticks())
+        # calculate position of text
+        xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
+        xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
+        # Draw text
+        txt1 = self.axs.text(xtext1, ytext1, xlab, ha='center',va='top', color=color)
+        self.AdjustText(txt1)
+        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center', color=color)
+        self.AdjustText(txt2)
+        # Draw Scale bar
+        self.axs.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
+                          xytext=(xi+X,yi), textcoords = 'data', 
+                          annotation_clip=False,arrowprops=dict(arrowstyle="-",
+                          connectionstyle="arc3", shrinkA=0, shrinkB=0, color=color))
+        self.axs.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
+                          xytext=(xi+X,yi+Y), textcoords = 'data', 
+                          annotation_clip=False,arrowprops=dict(arrowstyle="-",
+                          connectionstyle="arc3", shrinkA=0, shrinkB=0, color=color))
+        
+    def TextAnnotation(self, text="", position='south'):
+        return
+    
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
         bar graph. Annotate several groups at a time.
@@ -249,7 +328,7 @@ class PublicationFigures(object):
         text: text annotation above the group. Default is an asterisk '*'
         vpos: y value of the text annotation, where text is positioned. Default
               is calculated by this method. For aesthetic reason, vpos will be
-              applied to all groups specified in i
+              applied to all groups specified in m
         """
         # Calculate default value of vpos
         if vpos is None:
@@ -315,10 +394,12 @@ class PublicationFigures(object):
     def RemoveAnnotation(self):
         """Remove all annotation and start over"""
         self.axs.texts = []
-            
+        
+
+savefolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/'
 if __name__ == "__main__":
     # Load data
-    K = PublicationFigures(dataFile=dataFile, SavePath='C:/QQDownload/asdf_beeswarm.png')
+    K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(savefolder,'timeseries.png'))
     # Beeswarm example
     #K.Beeswarm()
     #K.AnnotateOnGroup(m=[0,1])
@@ -326,7 +407,9 @@ if __name__ == "__main__":
     #K.axs.set_ylim([-3,7])
     
     # Line plot example
-    K.LinePlot()
-    #K.axs[0].set_ylim([0,2.0])
-    #K.axs[1].set_ylim([0.05, 0.25])
-
+    K.LinePlot(Style='Twin')
+    K.axs[0].set_ylim([0,2.0])
+    K.axs[1].set_ylim([0.05, 0.25])
+    
+    # Time series example
+    #K.Traces()
