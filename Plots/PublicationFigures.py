@@ -15,7 +15,7 @@ from beeswarm import *
 
 dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/lineplot.txt'
 #dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/beeswarm.txt'
-#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/timeseries.txt'
+#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/trace.txt'
 
 class FigureData(object):
     """Parse input text file data for figures
@@ -101,16 +101,20 @@ class PublicationFigures(object):
         self.fig.savefig(self.SavePath)
         
     """ ####################### Plot utilities ####################### """      
-    def Traces(self, groupings=None, scalebar=True, annotation=None):
+    def Traces(self, groupings=None, scalebar=True, annotation=None, 
+               color=('#000000','#FF9966','#3399FF','#FF0000','#00FF99',
+               '#FF33CC','#CC99FF')):
         """Plot time series / voltage and current traces
         groupings: grouping of y data. E.g [[1,2],[3]] will result two
         subplots, where y1 and y2 are in the same subplot above, and y3 below.
+        color: default (black, orange, blue, red, green, magenta, purple)
                 
         """
-        m = 0
-        n = 0
+        m = 0 # row, indexing y axis data
+        n = 0 # column, indexing x axis or time data
+        c = 0 # indexing color cycle or traces in a subplot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n])
+        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n], color=color[c%len(color)])
         # set aspect ratio
         self.SetAspectRatio(2,1)
         if scalebar: # Use scale bar instead of axis
@@ -224,20 +228,20 @@ class PublicationFigures(object):
             ax.spines['top'].set_visible(False) # remove top boundary
             ax.spines['right'].set_visible(False) # remove right spine
             ax.yaxis.set_ticks_position('left') # keep only left ticks
+            ax.set_ylabel(self.data.names['y'][n]) # set y label
             if ax.is_last_row():     #keep only bottom ticks       
                 ax.xaxis.set_ticks_position('bottom') 
                 ax.set_xlabel(self.data.names['x'][0]) # x label
             else:
                 ax.xaxis.set_visible(False)
-                ax.spines['bottom'].set_visible(False)
-                     
+                ax.spines['bottom'].set_visible(False)                   
                 
     def AdjustCategoricalXAxis(self): # additional for plots with categorical data
         # change the x lim on the last, most buttom subplot
         self.axs[-1].set_xlim([0,len(self.data.series['x'][0])+1])
         plt.xticks(self.x, self.data.series['x'][0])
         # Add some margins to the plot so that it is not touching the axes
-        plt.margins(0.02,0.02)
+        plt.margins(0.025,0.025)
         self.fig.tight_layout() # enforce tight layout
         
     def SetDiscontinousAxis(self, x=None, y=None):
@@ -400,16 +404,16 @@ savefolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/'
 if __name__ == "__main__":
     # Load data
     K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(savefolder,'timeseries.png'))
+
+    # Line plot example
+    K.LinePlot(Style='Vstack')
+    K.axs[0].set_ylim([0.5,1.5])
+    K.axs[1].set_ylim([0.05, 0.25])
+    
     # Beeswarm example
     #K.Beeswarm()
     #K.AnnotateOnGroup(m=[0,1])
     #K.AnnotateBetweenGroups()
-    #K.axs.set_ylim([-3,7])
-    
-    # Line plot example
-    K.LinePlot(Style='Twin')
-    K.axs[0].set_ylim([0,2.0])
-    K.axs[1].set_ylim([0.05, 0.25])
     
     # Time series example
     #K.Traces()
