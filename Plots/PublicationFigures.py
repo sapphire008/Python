@@ -4,70 +4,20 @@ Created on Sat Jun 06 13:35:08 2015
 
 @author: Edward
 """
+DEBUG = True
+
+
+
 import os
 import numpy as np
-#import matplotlib
-#matplotlib.use('Agg') # use 'Agg' backend
+from beeswarm import beeswarm
+from ImportData import NeuroData
+
 import matplotlib.pyplot as plt
-from beeswarm import *
 
-#sys.path.append('C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots')
+plot_type = 'lineplot'
+exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
-dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/lineplot.txt'
-#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/beeswarm.txt'
-#dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/trace.txt'
-
-class FigureData(object):
-    """Parse input text file data for figures
-    """
-    def __init__(self, dataFile=None):
-        """Initialize class"""
-        self.series = {'x':[],'y':[],'z':[]} 
-        self.stats = {'x':{},'y':{},'z':{}}
-        self.names = {'x':[],'y':[],'z':[]}
-        self.num = {'x':[],'y':[],'z':[]} # count number of data sets
-        if dataFile is not None and isinstance(dataFile, str):
-            self.LoadData(dataFile)
-
-    def LoadData(self, dataFile):
-        """Load data in text file"""
-        with open(dataFile, 'rb') as fid:
-            for line in fid: # iterate each line
-                if not line.strip() or line[0] == "#":
-                    continue  # skip comments
-                # split comma delimited string
-                # series code, series name,@datatype, data1, data2, data3, ...
-                lst = [s.strip() for s in line.split(',')]
-                # Parse variable
-                v = lst[0][0] # variable name
-                stats = lst[0][1:-1]
-                # Read the data
-                seriesData = self.ReadData(lst[1][1:], lst[3:])
-                # Organize the data to structure
-                if stats != "": #stats, not empty
-                    if stats in self.stats[v].keys(): # key exists already
-                        self.stats[v][stats].append(seriesData)
-                    else: # add new key / create new list
-                        self.stats[v][stats] = [seriesData]
-                else: # series data
-                    self.series[v].append(seriesData)
-                    self.names[v].append(lst[2][1:-1])
-
-            fid.close()
-            # Parse number of data set
-            for v in self.series.keys():
-                self.num[v] = len(self.series[v])
-
-    @staticmethod
-    def ReadData(valueType, seriesList):
-        if valueType == 'str':
-            return(np.array(seriesList))
-        elif valueType == 'float':
-            return(np.array(seriesList).astype(np.float))
-        elif valueType == 'int':
-            return(np.array(seriesList).astype(np.int))
-        else: # unrecognized type
-            BaseException('Unrecognized data type')    
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -85,13 +35,14 @@ class PublicationFigures(object):
         """
         if isinstance(dataFile, str):
             self.LoadData(dataFile) # load data
-        elif isinstance(dataFile, FigureData):
+        elif isinstance(dataFile, NeuroData):
             self.data = dataFile
         self.SavePath = SavePath
+        # Set basic plot properties
         
     def LoadData(self, dataFile):
         """To be called after object creation"""
-        self.data = FigureData(dataFile)
+        self.data = NeuroData(dataFile)
         
     def Save(self, SavePath=None):
         if SavePath is not None: # overwrite with new savepath
@@ -163,7 +114,7 @@ class PublicationFigures(object):
     def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
         self.x = range(1,len(self.data.series['x'][0])+1)
-        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True, figsize=(10,5))
         self.axs = [self.axs, self.axs.twinx()]
         for n, ax in enumerate(self.axs):
              # Plot error bar
@@ -176,7 +127,7 @@ class PublicationFigures(object):
         """ Line plots stacked vertically"""
         self.x = range(1,len(self.data.series['x'][0])+1)
         self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
-                                          sharex=True)
+                                          sharex=True, figsize=(10, 5))
         for n, ax in enumerate(self.axs):
             # Plot error bar
             ax.errorbar(self.x,self.data.series['y'][n],
@@ -267,12 +218,13 @@ class PublicationFigures(object):
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
         
-    def SetAspectRatio(self, xr=2, yr=1):
+    def SetAspectRatio(self, r=2, adjustable='box-forced'):
         def SAR(ax):
             X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks()) 
-            ax.set_aspect(X/Y/xr*yr)
+            ax.set_aspect(X/Y/r, adjustable=adjustable)
         SAR_vec = np.vectorize(SAR) # vectorize the closure
         SAR_vec(self.axs)
+        
         
     """ ####################### Annotations ####################### """
     def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
@@ -398,15 +350,20 @@ class PublicationFigures(object):
     def RemoveAnnotation(self):
         """Remove all annotation and start over"""
         self.axs.texts = []
+    
+    def CleanUpFont(self):
+        # clean up font 
+        return
         
 
-savefolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/'
 if __name__ == "__main__":
+    dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
     # Load data
-    K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(savefolder,'timeseries.png'))
+    K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
 
     # Line plot example
-    K.LinePlot(Style='Vstack')
+    K.LinePlot(Style='Twin')
+    #K.SetAspectRatio(2)
     K.axs[0].set_ylim([0.5,1.5])
     K.axs[1].set_ylim([0.05, 0.25])
     
