@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg') # use 'Agg' backend
 
-plotType = 'barplot'
-Style = 'Vstack'
+plotType = 'beeswarm'
+Style = 'Twin'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 
@@ -130,16 +130,15 @@ class PublicationFigures(object):
         """Plot histogram"""
         return
         
-    def Beeswarm(self, Style='swarm',colors=('#3399FF','#FF33CC','#CC99FF',
-                                             '#FF9966','#00FF99')):
+    def Beeswarm(self, Style='swarm',colors=['blue','magenta','purple','orange','green']):
         """Beeswarm style boxplot
         color: blue, magenta, purple, orange, green
         """
         # boardcasting color cycle
-        num = self.data.num['x']
+        num = self.data.num['y']
         colors = num/len(colors)*colors+colors[0:num%len(colors)]
-        self.bs, self.axs = beeswarm(self.data.series['x'], method=Style, 
-                                     labels=self.data.names['x'],col=colors)
+        self.bs, self.axs = beeswarm(self.data.series['y'], method=Style, 
+                                     labels=self.data.series['x'][0],col=colors)
         # Format style
         # make sure axis tickmark points out
         self.axs.tick_params(axis='both',direction='out')
@@ -149,7 +148,7 @@ class PublicationFigures(object):
         self.axs.yaxis.set_ticks_position('left')
         # Set Y label, if exsit
         try:
-            self.axs.set_ylabel(self.data.names['y'][0])
+            self.axs.set_ylabel(self.data.names['x'][0])
         except:
             pass
         self.SetAspectRatio(r=0.5, adjustable='box-forced',continuous=True)
@@ -356,7 +355,7 @@ class PublicationFigures(object):
         if vpos is None:
             I = self.axs.get_yticks()
             yinc = I[1]-I[0] # y tick increment
-            Y = [max(x) for x in self.data.series['x']]
+            Y = [max(x) for x in self.data.series['y']]
             vpos = max([Y[k] for k in m])+yinc/5.0
         X = self.axs.get_xticks()
         for k in m:
@@ -378,7 +377,7 @@ class PublicationFigures(object):
         # Calculate Locus Position
         X = self.axs.get_xticks()
         I = self.axs.get_yticks()
-        Y = [max(x) for x in self.data.series['x']]
+        Y = [max(x) for x in self.data.series['y']]
         yinc = I[1]-I[0] # y tick increment
         ytop = max(I) + yinc/10.0 # top of the annotation
         yoffset = (ytop-max(Y[m],Y[n]))/2.0
@@ -443,8 +442,8 @@ class PublicationFigures(object):
             itemDict = {'title':[ax.title], 'xlab':[ax.xaxis.label], 
                         'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
                         'ytick':ax.get_yticklabels(), 'anno':ax.texts, 
-                        'legend':ax.legend_.get_texts(), 
-                        'legendtitle':[ax.legend_.get_title()]}
+                        'legend': [] if ax.legend_ is None else ax.legend_.get_texts(), 
+                        'legendtitle':[] if ax.legend_ is None else [ax.legend_.get_title()]}
             itemList = []
             if items is None:
                 for v in itemDict.itervalues():
@@ -459,17 +458,16 @@ class PublicationFigures(object):
         CF_vec(self.axs)
     
     @classmethod
-    def ColorCycle(cname, codeOnly=True):
+    def ColorCycle(cname, returnOnly='code'):
         """Color cycle dictionary"""
         colors = {'jet':  (1,1.1),
                   'warm': (2,2.1),
                   'cold': (3,3.1),
                   'dark': (4,4.1)
                      }.get(cname, (9,1))
-        if codeOnly:
-            return(colors[0])
-        else:
-            return(colors)
+        return({'code': colors[0],
+                'name': colors[1]
+                }.get(returnOnly, colors))
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
@@ -478,8 +476,8 @@ if __name__ == "__main__":
     if plotType == 'lineplot':
         # Line plot example
         K.LinePlot(Style=Style)
-        #K.axs[0].set_ylim([0.50000000001,1.5000000001])
-        #K.axs[1].set_ylim([0.05, 0.25])
+        K.axs[0].set_ylim([0.50000000001,1.5000000001])
+        K.axs[1].set_ylim([0.05, 0.25])
     elif plotType == 'beeswarm':
         # Beeswarm example
         K.Beeswarm()
