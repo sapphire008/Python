@@ -9,6 +9,7 @@ Created on Sat Jun 27 19:02:40 2015
 
 #import os, glob, shutil
 #import matplotlib
+# matplotlib.use('Agg') # use 'Agg' backend
 
 #__all__ = ['FigureData', 'PublicationFigures']
 
@@ -29,7 +30,7 @@ Created on Sat Jun 27 19:02:40 2015
 #except: # use alternative ways to set up the font
 #    # use a different backend, as the default backend may not work
 #    print('Do not have permission to copy the file. Use alternative solution')
-#    matplotlib.use('Agg') # use 'Agg' backend
+#    
 #    prop = matplotlib.font_manager.FontProperties(fname=resourcepath)    
 
 

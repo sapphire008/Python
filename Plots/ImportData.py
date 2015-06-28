@@ -40,9 +40,6 @@ class NeuroData(object):
     def LoadDataFile(self, dataFile):
         """Read zipped data file (new format)"""
         return
-        
-    def WriteDataFile(self, dataFile, data):
-        return
     
     def LoadOldDataFile(self, dataFile, numChannels=4, infoOnly=False):
         """Read Old .dat format data file"""
@@ -139,9 +136,6 @@ class NeuroData(object):
         
         # close file
         fid.close()
-        
-    def WriteOldDataFile(self, dataFile, data):
-        return
         
     @staticmethod
     def readVBString(fid):

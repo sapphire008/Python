@@ -14,10 +14,20 @@ from beeswarm import beeswarm
 from ImportData import FigureData
 
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg') # use 'Agg' backend
 
-plotType = 'beeswarm'
+plotType = 'barplot'
+Style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
+
+# global variables
+# Set font style. Can also be done by copying the .ttf font file to 
+# {matplotlib.matplotlib_fname()}/../fonts/ttf and change the rc file 
+# {matplotlib.matplotlib_fname()} permanently
+fontname = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resource/Helvetica.ttf')) # font .ttf file path
+fontsize = 12 # font size
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -65,9 +75,10 @@ class PublicationFigures(object):
         n = 0 # column, indexing x axis or time data
         c = 0 # indexing color cycle or traces in a subplot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n], color=color[c%len(color)])
+        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n], 
+                         color=color[c%len(color)])
         # set aspect ratio
-        self.SetAspectRatio(2,1)
+        self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
         if scalebar: # Use scale bar instead of axis
             self.AddTraceScaleBar(hline[0], xunit=self.data.names['x'][m], 
                                   yunit=self.data.names['y'][m]) 
@@ -75,17 +86,55 @@ class PublicationFigures(object):
             self.SetDefaultAxis() # use default axis
         if annotation:
             self.TextAnnotation(text=annotation) # description of the trace
-        self.ChangeFont() # change to default font
+    
+    def BarPlot(self, Style='Vertical', width=0.27, color=('#3399FF','#FF33CC',
+                                                           '#CC99FF','#FF9966',
+                                                           '#00FF99')):
+        """Plot bar graph
+        Style: style of bar graph, can choose 'Vertical' and 'Horizontal'
+        width: width of bar. Default 0.27
+        space: space between bar. Default 0.
+        color: blue, magenta, purple, orange, green
+        """
+        # Get bar plot function according to style
+        nseries = len(self.data.names['y']) # group labels
+        # number of series
+        ngroups = max([np.size(k) for k in self.data.series['y']])
+        # leftmost position of bars
+        pos = np.arange(ngroups)-nseries/2*width
+        self.x = range(0,len(self.data.series['x'][0]))
+        # initialize plot
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        # plot each series at a time      
+        for n, s in enumerate(self.data.series['y']):
+            if self.data.stats['y']: # check not empty
+                error =[self.data.stats['y']['ebp'][n],
+                        self.data.stats['y']['ebn'][n]]
+            else:
+                error = None
+            if Style=='Vertical':      
+                self.axs.bar(pos+n*width, s, width,  yerr=error, alpha=0.4,
+                             color=color[n%len(color)], align='center',
+                                         label=self.data.names['y'][n])
+            else:
+                self.axs.barh(pos+n*width, s, width, xerr=error, alpha=0.4,
+                              color=color[n%len(color)], align='center',
+                                          label=self.data.names['y'][n])
         
+        self.SetDefaultAxis()
+        self.axs.xaxis.set_ticks_position('none')
+        plt.xticks(self.x, self.data.series['x'][0])
+        self.axs.legend(loc=0)
        
     def Histogram(self):
         """Plot histogram"""
-        self.ChangeFont()
         return
         
-    def Beeswarm(self, Style='swarm'):
-        """Beeswarm style boxplot"""
-        colors = ['red','cyan','green','magenta','blue','black']
+    def Beeswarm(self, Style='swarm',colors=('#3399FF','#FF33CC','#CC99FF',
+                                             '#FF9966','#00FF99')):
+        """Beeswarm style boxplot
+        color: blue, magenta, purple, orange, green
+        """
         # boardcasting color cycle
         num = self.data.num['x']
         colors = num/len(colors)*colors+colors[0:num%len(colors)]
@@ -103,22 +152,24 @@ class PublicationFigures(object):
             self.axs.set_ylabel(self.data.names['y'][0])
         except:
             pass
+        self.SetAspectRatio(r=0.5, adjustable='box-forced',continuous=True)
         # save current figure handle
         self.fig = plt.gcf()
-        self.ChangeFont() # change to default font
      
     def LinePlot(self, Style='Vstack'):
         if Style == "Vstack":
             self.LinePlotVstack()
         elif Style == "Twin":
             self.LinePlotTwin()
-        self.AdjustCategoricalXAxis() # make some space for each category
-        
-  
+        else:
+            TypeError('Unrecognized Line Plot Style')
+        self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
+        self.SetLineXAxis() # make some space for each category        
+
     def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
         self.x = range(1,len(self.data.series['x'][0])+1)
-        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True, figsize=(10,5))
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         self.axs = [self.axs, self.axs.twinx()]
         for n, ax in enumerate(self.axs):
              # Plot error bar
@@ -126,20 +177,18 @@ class PublicationFigures(object):
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color=colors[n])
         self.SetTwinPlotAxis(colors = colors) # set twin plot subplot axes
-        self.ChangeFont() # change to default font
 
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
         self.x = range(1,len(self.data.series['x'][0])+1)
         self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
-                                          sharex=True, figsize=(10, 5))
+                                          sharex=True)
         for n, ax in enumerate(self.axs):
             # Plot error bar
             ax.errorbar(self.x,self.data.series['y'][n],
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color='k')
         self.SetVstackAxis() # set vertical stacked subplot axes
-        self.ChangeFont() # change to default font
         
     """ ####################### Axis schemas ####################### """
     def SetDefaultAxis(self):
@@ -191,15 +240,16 @@ class PublicationFigures(object):
                 ax.set_xlabel(self.data.names['x'][0]) # x label
             else:
                 ax.xaxis.set_visible(False)
-                ax.spines['bottom'].set_visible(False)                   
-                
-    def AdjustCategoricalXAxis(self): # additional for plots with categorical data
+                ax.spines['bottom'].set_visible(False)   
+        self.fig.tight_layout(h_pad=0.01)
+                       
+    def SetLineXAxis(self): # additional for plots with categorical data
         # change the x lim on the last, most buttom subplot
         self.axs[-1].set_xlim([0,len(self.data.series['x'][0])+1])
-        plt.xticks(self.x, self.data.series['x'][0])
+        plt.xticks(self.x, self.data.series['x'][0]) # x label
         # Add some margins to the plot so that it is not touching the axes
         plt.margins(0.025,0.025)
-        self.fig.tight_layout() # enforce tight layout
+        
         
     def SetDiscontinousAxis(self, x=None, y=None):
         """Plot with discontious axis. Allows one discontinuity for each axis.
@@ -224,25 +274,30 @@ class PublicationFigures(object):
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
         
-    def SetAspectRatio(self, r=2, adjustable='box-forced'):
+    def SetAspectRatio(self, r=2, adjustable='box-forced', continuous=True):
         def SAR(ax):
-            X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks()) 
-            ax.set_aspect(X/Y/r, adjustable=adjustable)
+            if not isinstance(r, str) and continuous:
+                X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
+                aspect = X/Y/r
+            else:
+                aspect = r
+            ax.set_aspect(aspect=aspect, adjustable=adjustable)
         SAR_vec = np.vectorize(SAR) # vectorize the closure
         SAR_vec(self.axs)
+        #self.fig.tight_layout(h_pad=0.05) # enforce tight layout
+    
+    def SetYTickLabelIncrement(self): ###???? need to consider
+        def SYTLI(ax):        
+            Y = ax.get_yticks()
+            minY, maxY = self.roundto125(np.min(Y)), self.roundto125(np.max(Y))
+            
+        SYTLI_vec = np.vectorize(SYTLI) # vectorize closure
+        SYTLI_vec(self.axs)
         
         
     """ ####################### Annotations ####################### """
     def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
-        def roundto125(x): # helper static function
-            """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
-            5mV, 10mV, 20mV, etc.
-            5pA, 10pA, 20pA, 50pA, etc."""
-            r = np.array([1,2,5,10])
-            x = int(x)/5
-            p = int(np.log10(x)) # power of 10
-            y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
-            return(y*(10**p))
+       
         def scalebarlabel(x, unitstr):
             if unitstr.lower()[0] == 'm':
                 return(str(x)+unitstr if x<1000 else str(x/1000)+
@@ -254,7 +309,7 @@ class PublicationFigures(object):
         self.TurnOffAxis() # turn off axis
         X, Y = np.ptp(self.axs.get_xticks()), np.ptp(self.axs.get_yticks())
         # calculate scale bar unit length
-        X, Y = roundto125(X), roundto125(Y)
+        X, Y = self.roundto125(X/5), self.roundto125(Y/5)
         # Parse scale bar labels
         xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
         # Get color of the scalebar
@@ -266,22 +321,27 @@ class PublicationFigures(object):
         xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
         xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
         # Draw text
-        txt1 = self.axs.text(xtext1, ytext1, xlab, ha='center',va='top', color=color)
+        txt1 = self.axs.text(xtext1, ytext1, xlab, ha='center',va='top', 
+                             color=color)
         self.AdjustText(txt1)
-        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center', color=color)
+        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center', 
+                             color=color)
         self.AdjustText(txt2)
         # Draw Scale bar
         self.axs.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
                           xytext=(xi+X,yi), textcoords = 'data', 
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
-                          connectionstyle="arc3", shrinkA=0, shrinkB=0, color=color))
+                          connectionstyle="arc3", shrinkA=0, shrinkB=0, 
+                          color=color))
         self.axs.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
                           xytext=(xi+X,yi+Y), textcoords = 'data', 
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
-                          connectionstyle="arc3", shrinkA=0, shrinkB=0, color=color))
+                          connectionstyle="arc3", shrinkA=0, shrinkB=0, 
+                          color=color))
         
     def TextAnnotation(self, text="", position='south'):
-        return
+        return # not done yet
+        
     
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
@@ -328,7 +388,7 @@ class PublicationFigures(object):
         # position of annotation text
         xtext, ytext = (X[m]+X[n])/2.0, ytop+yinc/10.0
         # Draw text
-        txt = self.axs.text(xtext,ytext, text, ha='center',va='top')
+        txt = self.axs.text(xtext,ytext, text, ha='center',va='bottom')
         # adjust text so that it is not overlapping with data or title
         self.AdjustText(txt)
         # Draw Bracket
@@ -357,24 +417,59 @@ class PublicationFigures(object):
     def RemoveAnnotation(self):
         """Remove all annotation and start over"""
         self.axs.texts = []
+        
+        
+    """ ####################### Misc ####################### """
+    @staticmethod
+    def roundto125(x, r=np.array([1,2,5,10])): # helper static function
+        """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
+        5mV, 10mV, 20mV, etc.
+        5pA, 10pA, 20pA, 50pA, etc."""
+        p = int(np.floor(np.log10(x))) # power of 10
+        y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
+        return(y*(10**p))
     
-    def ChangeFont(self, fontsize=12, 
-                    fontname=os.path.abspath(os.path.join(os.path.dirname(
-                    __file__), 'resource/Helvetica.ttf'))):
+    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None):
         """Change font properties of all axes
-        fontsize: size of the font, default 12
-        fontname: fullpath of the font. Default is Helvetica.ttf
+        fontsize: size of the font, specified in the global variable
+        fontname: fullpath of the font, specified in the global variable
+        textsOnly: for annotation texts only, avoid iterating over other items
         """
+        if (fontname is None) and (fontsize is None):
+            return
         import matplotlib.font_manager as fm
         fontprop = fm.FontProperties(fname=fontname, size=fontsize)
         def CF(ax):
-            for item in ([ax.title, ax.xaxis.label, ax.yaxis.label]+
-                 ax.get_xticklabels() + ax.get_yticklabels()) + ax.texts:
-                item.set_fontproperties(fontprop)
+            itemDict = {'title':[ax.title], 'xlab':[ax.xaxis.label], 
+                        'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
+                        'ytick':ax.get_yticklabels(), 'anno':ax.texts, 
+                        'legend':ax.legend_.get_texts(), 
+                        'legendtitle':[ax.legend_.get_title()]}
+            itemList = []
+            if items is None:
+                for v in itemDict.itervalues():
+                    itemList += v # add everything
+            else:
+                for v in items:
+                    itemList += itemDict[v] # add only specified in items
+            for item in itemList:
+                item.set_fontproperties(fontprop) # change font for all items
                 
         CF_vec = np.vectorize(CF) # vectorize the closure
         CF_vec(self.axs)
-        
+    
+    @classmethod
+    def ColorCycle(cname, codeOnly=True):
+        """Color cycle dictionary"""
+        colors = {'jet':  (1,1.1),
+                  'warm': (2,2.1),
+                  'cold': (3,3.1),
+                  'dark': (4,4.1)
+                     }.get(cname, (9,1))
+        if codeOnly:
+            return(colors[0])
+        else:
+            return(colors)
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
@@ -382,10 +477,9 @@ if __name__ == "__main__":
     K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
     if plotType == 'lineplot':
         # Line plot example
-        K.LinePlot(Style='Twin')
-        #K.SetAspectRatio(2)
-        K.axs[0].set_ylim([0.5,1.5])
-        K.axs[1].set_ylim([0.05, 0.25])
+        K.LinePlot(Style=Style)
+        #K.axs[0].set_ylim([0.50000000001,1.5000000001])
+        #K.axs[1].set_ylim([0.05, 0.25])
     elif plotType == 'beeswarm':
         # Beeswarm example
         K.Beeswarm()
@@ -394,3 +488,8 @@ if __name__ == "__main__":
     elif plotType == 'trace':
         # Time series example
         K.Traces()
+    elif plotType == 'barplot':
+        K.BarPlot()
+    # Final clean up
+    K.SetFont() # change to specified font properties
+    K.fig.set_size_inches(9, 6) # set it for now.
