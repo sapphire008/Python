@@ -11,11 +11,11 @@ DEBUG = True
 import os
 import numpy as np
 from beeswarm import beeswarm
-from ImportData import NeuroData
+from ImportData import FigureData
 
 import matplotlib.pyplot as plt
 
-plot_type = 'lineplot'
+plotType = 'beeswarm'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 
@@ -35,14 +35,14 @@ class PublicationFigures(object):
         """
         if isinstance(dataFile, str):
             self.LoadData(dataFile) # load data
-        elif isinstance(dataFile, NeuroData):
+        elif isinstance(dataFile, FigureData):
             self.data = dataFile
         self.SavePath = SavePath
         # Set basic plot properties
         
     def LoadData(self, dataFile):
         """To be called after object creation"""
-        self.data = NeuroData(dataFile)
+        self.data = FigureData(dataFile)
         
     def Save(self, SavePath=None):
         if SavePath is not None: # overwrite with new savepath
@@ -75,10 +75,12 @@ class PublicationFigures(object):
             self.SetDefaultAxis() # use default axis
         if annotation:
             self.TextAnnotation(text=annotation) # description of the trace
+        self.ChangeFont() # change to default font
         
        
     def Histogram(self):
         """Plot histogram"""
+        self.ChangeFont()
         return
         
     def Beeswarm(self, Style='swarm'):
@@ -103,6 +105,7 @@ class PublicationFigures(object):
             pass
         # save current figure handle
         self.fig = plt.gcf()
+        self.ChangeFont() # change to default font
      
     def LinePlot(self, Style='Vstack'):
         if Style == "Vstack":
@@ -110,6 +113,7 @@ class PublicationFigures(object):
         elif Style == "Twin":
             self.LinePlotTwin()
         self.AdjustCategoricalXAxis() # make some space for each category
+        
   
     def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
@@ -122,6 +126,7 @@ class PublicationFigures(object):
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color=colors[n])
         self.SetTwinPlotAxis(colors = colors) # set twin plot subplot axes
+        self.ChangeFont() # change to default font
 
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
@@ -134,6 +139,7 @@ class PublicationFigures(object):
                 yerr = [self.data.stats['y']['ebp'][n],
                 self.data.stats['y']['ebn'][n]], color='k')
         self.SetVstackAxis() # set vertical stacked subplot axes
+        self.ChangeFont() # change to default font
         
     """ ####################### Axis schemas ####################### """
     def SetDefaultAxis(self):
@@ -338,6 +344,7 @@ class PublicationFigures(object):
                           xytext=(xb,yb), textcoords = 'data', 
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0))
+                          
     def AdjustText(self,txt):
         """Adjust text so that it is not overlapping with data or title"""
         txt.set_bbox(dict(facecolor='w', alpha=0, boxstyle='round, pad=1'))
@@ -351,26 +358,39 @@ class PublicationFigures(object):
         """Remove all annotation and start over"""
         self.axs.texts = []
     
-    def CleanUpFont(self):
-        # clean up font 
-        return
+    def ChangeFont(self, fontsize=12, 
+                    fontname=os.path.abspath(os.path.join(os.path.dirname(
+                    __file__), 'resource/Helvetica.ttf'))):
+        """Change font properties of all axes
+        fontsize: size of the font, default 12
+        fontname: fullpath of the font. Default is Helvetica.ttf
+        """
+        import matplotlib.font_manager as fm
+        fontprop = fm.FontProperties(fname=fontname, size=fontsize)
+        def CF(ax):
+            for item in ([ax.title, ax.xaxis.label, ax.yaxis.label]+
+                 ax.get_xticklabels() + ax.get_yticklabels()) + ax.texts:
+                item.set_fontproperties(fontprop)
+                
+        CF_vec = np.vectorize(CF) # vectorize the closure
+        CF_vec(self.axs)
         
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
     # Load data
     K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
-
-    # Line plot example
-    K.LinePlot(Style='Twin')
-    #K.SetAspectRatio(2)
-    K.axs[0].set_ylim([0.5,1.5])
-    K.axs[1].set_ylim([0.05, 0.25])
-    
-    # Beeswarm example
-    #K.Beeswarm()
-    #K.AnnotateOnGroup(m=[0,1])
-    #K.AnnotateBetweenGroups()
-    
-    # Time series example
-    #K.Traces()
+    if plotType == 'lineplot':
+        # Line plot example
+        K.LinePlot(Style='Twin')
+        #K.SetAspectRatio(2)
+        K.axs[0].set_ylim([0.5,1.5])
+        K.axs[1].set_ylim([0.05, 0.25])
+    elif plotType == 'beeswarm':
+        # Beeswarm example
+        K.Beeswarm()
+        #K.AnnotateOnGroup(m=[0,1])
+        K.AnnotateBetweenGroups(text='p=0.01234')
+    elif plotType == 'trace':
+        # Time series example
+        K.Traces()
