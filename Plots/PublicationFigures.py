@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg') # use 'Agg' backend
 
-plotType = 'beeswarm'
-Style = 'Twin'
+plotType = 'barplot'
+Style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 
@@ -59,7 +59,7 @@ class PublicationFigures(object):
             self.SavePath = SavePath
         if self.SavePath is None: # save to current working directory
             self.SavePath = os.path.join(os.getcwd(),'Figure.eps')
-        self.fig.savefig(self.SavePath)
+        self.fig.savefig(self.SavePath, bbox_inches='tight')
         
     """ ####################### Plot utilities ####################### """      
     def Traces(self, groupings=None, scalebar=True, annotation=None, 
@@ -123,8 +123,10 @@ class PublicationFigures(object):
         
         self.SetDefaultAxis()
         self.axs.xaxis.set_ticks_position('none')
-        plt.xticks(self.x, self.data.series['x'][0])
-        self.axs.legend(loc=0)
+        #plt.xticks(self.x, self.data.series['x'][0])
+        self.SetCategoricalXAxis()
+        if n>0: # for multiple series, add legend
+            self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
        
     def Histogram(self):
         """Plot histogram"""
@@ -156,6 +158,7 @@ class PublicationFigures(object):
         self.fig = plt.gcf()
      
     def LinePlot(self, Style='Vstack'):
+        self.x = range(len(self.data.series['x'][0])) # set categorical x
         if Style == "Vstack":
             self.LinePlotVstack()
         elif Style == "Twin":
@@ -163,30 +166,30 @@ class PublicationFigures(object):
         else:
             TypeError('Unrecognized Line Plot Style')
         self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
-        self.SetLineXAxis() # make some space for each category        
+        self.SetCategoricalXAxis() # make some space for each category
+        # Add some margins to the plot so that it is not touching the axes
+        plt.margins(0.25,0.25)
 
     def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
-        self.x = range(1,len(self.data.series['x'][0])+1)
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         self.axs = [self.axs, self.axs.twinx()]
         for n, ax in enumerate(self.axs):
              # Plot error bar
-            ax.errorbar(self.x,self.data.series['y'][n],
-                yerr = [self.data.stats['y']['ebp'][n],
-                self.data.stats['y']['ebn'][n]], color=colors[n])
+            ax.errorbar(self.x, self.data.series['y'][n], color=colors[n],
+                        yerr = [self.data.stats['y']['ebp'][n],
+                                self.data.stats['y']['ebn'][n]])
         self.SetTwinPlotAxis(colors = colors) # set twin plot subplot axes
 
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
-        self.x = range(1,len(self.data.series['x'][0])+1)
         self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
                                           sharex=True)
         for n, ax in enumerate(self.axs):
             # Plot error bar
-            ax.errorbar(self.x,self.data.series['y'][n],
-                yerr = [self.data.stats['y']['ebp'][n],
-                self.data.stats['y']['ebn'][n]], color='k')
+            ax.errorbar(self.x,self.data.series['y'][n], color='k',
+                        yerr = [self.data.stats['y']['ebp'][n],
+                                self.data.stats['y']['ebn'][n]])
         self.SetVstackAxis() # set vertical stacked subplot axes
         
     """ ####################### Axis schemas ####################### """
@@ -242,13 +245,17 @@ class PublicationFigures(object):
                 ax.spines['bottom'].set_visible(False)   
         self.fig.tight_layout(h_pad=0.01)
                        
-    def SetLineXAxis(self): # additional for plots with categorical data
+    def SetCategoricalXAxis(self): # additional for plots with categorical data        
         # change the x lim on the last, most buttom subplot
-        self.axs[-1].set_xlim([0,len(self.data.series['x'][0])+1])
-        plt.xticks(self.x, self.data.series['x'][0]) # x label
-        # Add some margins to the plot so that it is not touching the axes
-        plt.margins(0.025,0.025)
-        
+        if isinstance(self.axs, np.ndarray):
+            ax = self.axs[-1]
+        else: # single axis object
+            ax = self.axs
+        if ax.get_xlim()[0] >= self.x[0]:
+            ax.set_xlim(ax.get_xticks()[0]-1,ax.get_xlim()[-1])
+        if ax.get_xlim()[-1] <= self.x[-1]:
+            ax.set_xlim(ax.get_xlim()[0], ax.get_xticks()[-1]+1)
+        plt.xticks(self.x, self.data.series['x'][0])       
         
     def SetDiscontinousAxis(self, x=None, y=None):
         """Plot with discontious axis. Allows one discontinuity for each axis.
@@ -288,8 +295,7 @@ class PublicationFigures(object):
     def SetYTickLabelIncrement(self): ###???? need to consider
         def SYTLI(ax):        
             Y = ax.get_yticks()
-            minY, maxY = self.roundto125(np.min(Y)), self.roundto125(np.max(Y))
-            
+            minY, maxY = self.roundto125(np.min(Y)), self.roundto125(np.max(Y))    
         SYTLI_vec = np.vectorize(SYTLI) # vectorize closure
         SYTLI_vec(self.axs)
         
@@ -321,11 +327,11 @@ class PublicationFigures(object):
         xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
         # Draw text
         txt1 = self.axs.text(xtext1, ytext1, xlab, ha='center',va='top', 
+                             color=color)        
+        self.AdjustText(txt1) # adjust texts just added
+        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center',
                              color=color)
-        self.AdjustText(txt1)
-        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center', 
-                             color=color)
-        self.AdjustText(txt2)
+        self.AdjustText(txt2) # adjust texts just added
         # Draw Scale bar
         self.axs.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
                           xytext=(xi+X,yi), textcoords = 'data', 
@@ -337,11 +343,13 @@ class PublicationFigures(object):
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0, 
                           color=color))
+        #txtbb = txt1.get_bbox_patch().get_window_extent()
+        #print(txtbb.bounds)
+        #print(self.axs.transData.inverted().transform(txtbb).ravel())
         
     def TextAnnotation(self, text="", position='south'):
         return # not done yet
         
-    
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
         bar graph. Annotate several groups at a time.
@@ -360,8 +368,8 @@ class PublicationFigures(object):
         X = self.axs.get_xticks()
         for k in m:
             txt = self.axs.text(X[k], vpos, text, ha='center',va='top')
-        # adjust text so that it is not overlapping with data or title
-        self.AdjustText(txt)
+            # adjust text so that it is not overlapping with data or title
+            self.AdjustText(txt)
     
     def AnnotateBetweenGroups(self, m=0, n=1, text='*', hgap=0):
         """Help annotate statistical significance between two groups in the
@@ -405,14 +413,23 @@ class PublicationFigures(object):
                           connectionstyle="arc3", shrinkA=0, shrinkB=0))
                           
     def AdjustText(self,txt):
-        """Adjust text so that it is not overlapping with data or title"""
+        """Adjust text so that it is not being cutoff"""
+        #renderer = plt.gca().get_renderer_cache()
         txt.set_bbox(dict(facecolor='w', alpha=0, boxstyle='round, pad=1'))
-        txtbb = txt.get_bbox_patch().get_window_extent()
-        ymax = self.axs.transData.inverted().transform(txtbb).ravel()[-1]
-        ybnd = self.axs.get_ybound()
+        plt.draw() # update the text draw
+        txtbb = txt.get_bbox_patch().get_window_extent() # can specify render
+        xmin, ymin, xmax, ymax = tuple(self.axs.transData.inverted().
+                                        transform(txtbb).ravel())
+        xbnd, ybnd = self.axs.get_xbound(), self.axs.get_ybound()
+        if xmax > xbnd[-1]:
+            self.axs.set_xbound(xbnd[0], xmax)
+        if xmin < xbnd[0]:
+            self.axs.set_xbound(xmin, xbnd[-1])
         if ymax > ybnd[-1]:
             self.axs.set_ybound(ybnd[0], ymax)
-            
+        if ymin < ybnd[0]:
+            self.axs.set_ybound(ymin, ybnd[-1])
+        
     def RemoveAnnotation(self):
         """Remove all annotation and start over"""
         self.axs.texts = []
@@ -432,7 +449,8 @@ class PublicationFigures(object):
         """Change font properties of all axes
         fontsize: size of the font, specified in the global variable
         fontname: fullpath of the font, specified in the global variable
-        textsOnly: for annotation texts only, avoid iterating over other items
+        items: select a list of items to change font. ['title', 'xlab','ylab',
+               'xtick','ytick', 'texts','legend','legendtitle']
         """
         if (fontname is None) and (fontsize is None):
             return
@@ -441,9 +459,11 @@ class PublicationFigures(object):
         def CF(ax):
             itemDict = {'title':[ax.title], 'xlab':[ax.xaxis.label], 
                         'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
-                        'ytick':ax.get_yticklabels(), 'anno':ax.texts, 
-                        'legend': [] if ax.legend_ is None else ax.legend_.get_texts(), 
-                        'legendtitle':[] if ax.legend_ is None else [ax.legend_.get_title()]}
+                        'ytick':ax.get_yticklabels(), 'texts':ax.texts, 
+                        'legend': [] if ax.legend_ is None 
+                                        else ax.legend_.get_texts(), 
+                        'legendtitle':[] if ax.legend_ is None 
+                                            else [ax.legend_.get_title()]}
             itemList = []
             if items is None:
                 for v in itemDict.itervalues():
@@ -491,3 +511,4 @@ if __name__ == "__main__":
     # Final clean up
     K.SetFont() # change to specified font properties
     K.fig.set_size_inches(9, 6) # set it for now.
+    K.Save()

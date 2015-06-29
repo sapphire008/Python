@@ -16,25 +16,28 @@ class Protocol(object): # for composition
 class NeuroData(object):
     """Read electrophysiology data file
     """
-    def __init__(self, dataFile=None):
+    def __init__(self, dataFile=None, old=False):
         """Initialize class"""
         self.Voltage = {}
         self.Current = {}
         self.Stimulus = {}
         self.Protocol = Protocol() # composition
         if dataFile is not None and isinstance(dataFile, str):
-            self.LoadNeuroData(dataFile)
+            # load directly if all the conditions are met
+            self.LoadData(dataFile=dataFile, old=old) 
         else:
             IOError('Unrecognized data file input')
 
-    def LoadNeuroData(self, dataFile):
+    def LoadData(self, dataFile, old=False):
         """Load data in text file"""
         # check file exists
         if not os.path.isfile(dataFile):
             IOError('%s does not exist' %dataFile)
-        # Check data format to evoke proper load method
-        #self.LoadDataFile(dataFile)
-        self.LoadOldDataFile(dataFile)
+        # Evoke proper load method
+        if old:
+            self.LoadOldDataFile(dataFile)
+        else:
+            self.LoadDataFile(dataFile)
             
     
     def LoadDataFile(self, dataFile):
@@ -45,6 +48,7 @@ class NeuroData(object):
         """Read Old .dat format data file"""
         
         self.Protocol.numChannels = numChannels # hard set
+        self.Protocol.readDataFrom = os.path.abspath(dataFile).replace('\\','/') # store read location
         with open(dataFile, 'rb') as fid:
             fid.seek(6, 0) # set to position 6 from the beginning of the file
             self.Protocol.infoBytes = np.fromfile(fid, np.int32, 1) # size of header
@@ -83,9 +87,9 @@ class NeuroData(object):
             self.Protocol.drugName=self.readVBString(fid)
             self.Protocol.exptDesc=self.readVBString(fid)
             self.Protocol.computerName=self.readVBString(fid)
-            self.Protocol.savedFileName=self.readVBString(fid)
+            self.Protocol.savedFileName=os.path.abspath(self.readVBString(fid)).replace('\\','/')
             self.Protocol.fileName = self.Protocol.savedFileName
-            self.Protocol.linkedFileName=self.readVBString(fid)
+            self.Protocol.linkedFileName=os.path.abspath(self.readVBString(fid)).replace('\\','/')
             self.Protocol.acquisitionDeviceName=self.readVBString(fid)
             self.Protocol.traceKeys=self.readVBString(fid)
             self.Protocol.traceInitValuesStr=self.readVBString(fid)
@@ -156,9 +160,6 @@ class ImageData(object):
         self.Protocol = {}
         if dataFile is not None and isinstance(dataFile, str):
             self.LoadImageData(dataFile)
-        else:
-            IOError('Unrecognized image file input')
-    
 
 class FigureData(object):
     """Data for plotting
@@ -170,9 +171,7 @@ class FigureData(object):
         self.names = {'x':[],'y':[],'z':[]}
         self.num = {'x':[],'y':[],'z':[]} # count number of data sets
         if dataFile is not None and isinstance(dataFile, str):
-            self.LoadFigureData(dataFile)
-        else:
-            IOError('Unrecognized data file input')
+            self.LoadFigureData(dataFile)        
             
     def LoadFigureData(self, dataFile):
         """Read text data for figure plotting"""
@@ -219,6 +218,85 @@ class FigureData(object):
         else: # unrecognized type
             TypeError('Unrecognized data type')
             
+    def Neuro2Figure(self, data, channels=None, streams=None):
+        """Use NeuroData method to load and parse trace data to be plotted
+        data: an instance of NeuroData, ro a list of instances
+        channels: list of channels to plot, e.g. ['A','C','D']
+        streams: list of data streams, e.g. ['V','C','S']
+        """
+        # Check instance
+        if isinstance(data, NeuroData):
+            data = [data] # convert to list
+
+        # initialize notes, stored in stats attribute        
+        self.stats['y']['notes'] = []
+        notes = "%s %.1f mV %d pA channel %s WCTime %s min"
+        for n, d in enumerate(data): # iterate over all data
+             # Time data
+            self.series['x'].append(np.arange(0, d.Protocol.sweepWindow+
+                          d.Protocol.msPerPoint, d.Protocol.msPerPoint))
+            self.names['x'].append('ms') # label unit
+             # iterate over all the channels
+            for c in channels:
+                # iterate over data streams
+                for s in streams:
+                    tmp = {'V': d.Voltage, 'C':d.Current, 'S': d.Stimulus}.get(s)
+                    if tmp is None or not bool(tmp):
+                        continue
+                    tmp = tmp[c]
+                    if tmp is None:
+                        continue
+                    self.series['y'].append(tmp)
+                    self.names['y'].append((s, c))
+                    if s == 'V':
+                        volt_i = tmp[0]
+                    if s == 'C':
+                        cur_i = tmp[0]
+                dtime = self.sec2hhmmss(d.Protocol.WCtime)
+                # Notes: {path} Initial: {voltage 0.1f mV} {current %d pA} \
+                #                   WC Time: 1:12:30.0 min 
+                notesstr = notes %(d.Protocol.readDataFrom,  volt_i, cur_i, c,dtime)
+                self.stats['y']['notes'].append(notesstr)
+    
+    @staticmethod
+    def sec2hhmmss(sec):
+         m, s = divmod(sec, 60)
+         h, m = divmod(m, 60)
+         return("%d:%d:%0.1f" % (h, m, s))
+
+      
             
 if __name__ == '__main__':
-    K = NeuroData(dataFile)
+    data = NeuroData(dataFile, old=True)
+    figdata = FigureData()
+    figdata.Neuro2Figure(data, channels=['A','C','D'], streams=['V','C','S'])
+    # data.Voltage = {}
+    # data.Current = {}
+    # data.Stimulus = {}
+    # data.Protocol = Protocol()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

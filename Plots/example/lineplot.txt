@@ -7,7 +7,7 @@
 # xebn: x axis series negative error bar
 # yebp: y axis series positive error bar
 # yebn: y axis series negative error bar
-x1,@str,'Presynaptic AP#',1,2,3,4
+x1,@str,'Presynaptic AP#',I, II, III, IV
 y1,@float,'EPSP Amp (mV)',1.0,1.2,0.9,0.75
 y2,@float,'Postsynaptic Spike Prob',0.1,0.15,0.13,0.09
 yebp1,@float,'',0.1,0.2,0.1,0.1
