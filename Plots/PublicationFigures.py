@@ -61,7 +61,8 @@ class PublicationFigures(object):
             self.SavePath = os.path.join(os.getcwd(),'Figure.eps')
         self.fig.savefig(self.SavePath, bbox_inches='tight')
         
-    """ ####################### Plot utilities ####################### """      
+    """ ####################### Plot utilities ####################### """ 
+
     def Traces(self, groupings=None, scalebar=True, annotation=None, 
                color=('#000000','#FF9966','#3399FF','#FF0000','#00FF99',
                '#FF33CC','#CC99FF')):
@@ -122,17 +123,14 @@ class PublicationFigures(object):
                                           label=self.data.names['y'][n])
         
         self.SetDefaultAxis()
-        self.axs.xaxis.set_ticks_position('none')
-        #plt.xticks(self.x, self.data.series['x'][0])
         self.SetCategoricalXAxis()
+        self.AdjustBarPlotXAxis() # position of axis label based on data
+        
         if n>0: # for multiple series, add legend
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-       
-    def Histogram(self):
-        """Plot histogram"""
-        return
         
-    def Beeswarm(self, Style='swarm',colors=['blue','magenta','purple','orange','green']):
+    def Beeswarm(self, Style='swarm',colors=['blue','magenta','purple',
+                                             'orange','green']):
         """Beeswarm style boxplot
         color: blue, magenta, purple, orange, green
         """
@@ -156,24 +154,48 @@ class PublicationFigures(object):
         self.SetAspectRatio(r=0.5, adjustable='box-forced',continuous=True)
         # save current figure handle
         self.fig = plt.gcf()
+        
+    def Histogram(self, Style='Hstack'):
+        """Plot histogram"""
+        n, bins, patches = P.hist(x, 50, normed=1, histtype='stepfilled')
+        P.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
+        return     
+    
+    def HistogramHstack(self):
+        return
+        
+    def HistogramMirror(self):
+        return
      
     def LinePlot(self, Style='Vstack'):
         self.x = range(len(self.data.series['x'][0])) # set categorical x
-        if Style == "Vstack":
+        if Style=='Vstack' or self.data.num['y'] < 2:
             self.LinePlotVstack()
-        elif Style == "Twin":
-            self.LinePlotTwin()
         else:
-            TypeError('Unrecognized Line Plot Style')
+            self.LinePlotTwin()
         self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
         self.SetCategoricalXAxis() # make some space for each category
         # Add some margins to the plot so that it is not touching the axes
         plt.margins(0.25,0.25)
+        
+    def LinePlotVstack(self):
+        """ Line plots stacked vertically"""
+        self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
+                                          sharex=True)
+        boolmultiplot = isinstance(self.axs, np.ndarray)
+        self.axs = np.array([self.axs]) if not boolmultiplot else self.axs
+        for n, ax in enumerate(self.axs):
+            # Plot error bar
+            ax.errorbar(self.x,self.data.series['y'][n], color='k',
+                        yerr = [self.data.stats['y']['ebp'][n],
+                                self.data.stats['y']['ebn'][n]])
+        self.axs = self.axs[0] if not boolmultiplot else self.axs
+        self.SetVstackAxis() # set vertical stacked subplot axes
 
     def LinePlotTwin(self, colors=('k','r')):
         """ Line plots with 2 y-axis"""
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        self.axs = [self.axs, self.axs.twinx()]
+        self.axs = np.array([self.axs, self.axs.twinx()])
         for n, ax in enumerate(self.axs):
              # Plot error bar
             ax.errorbar(self.x, self.data.series['y'][n], color=colors[n],
@@ -181,19 +203,8 @@ class PublicationFigures(object):
                                 self.data.stats['y']['ebn'][n]])
         self.SetTwinPlotAxis(colors = colors) # set twin plot subplot axes
 
-    def LinePlotVstack(self):
-        """ Line plots stacked vertically"""
-        self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
-                                          sharex=True)
-        for n, ax in enumerate(self.axs):
-            # Plot error bar
-            ax.errorbar(self.x,self.data.series['y'][n], color='k',
-                        yerr = [self.data.stats['y']['ebp'][n],
-                                self.data.stats['y']['ebn'][n]])
-        self.SetVstackAxis() # set vertical stacked subplot axes
-        
     """ ####################### Axis schemas ####################### """
-    def SetDefaultAxis(self):
+    def SetDefaultAxis(self, ax=None):
         """Set default axis appearance"""
         def SDA(ax): # short for set default axis
             ax.tick_params(axis='both',direction='out')
@@ -204,9 +215,12 @@ class PublicationFigures(object):
             ax.xaxis.set_ticks_position('bottom')
             ax.yaxis.set_ticks_position('left')
         SDA_vec = np.vectorize(SDA) # vectorize the closure
-        SDA_vec(self.axs)
+        if ax is None:
+            SDA_vec(self.axs)
+        else:
+            SDA_vec(ax)
         
-    def TurnOffAxis(self):
+    def TurnOffAxis(self, ax=None):
         """Turn off all axis"""
         def TOA(ax): # short for turn off axis
             ax.spines['left'].set_visible(False)
@@ -216,9 +230,13 @@ class PublicationFigures(object):
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
         TOA_vec = np.vectorize(TOA) # vectorize the closure
-        TOA_vec(self.axs)
+        if ax is None:        
+            TOA_vec(self.axs)
+        else:
+            TOA_vec(ax)
         
     def SetTwinPlotAxis(self, colors=('k', 'r')):
+        """Axis style  of 2 plots sharing y axis"""
         spineName = ('left','right')
         for n, ax in enumerate(self.axs):             # For twin Plot
             ax.tick_params(axis='both',direction='out') # tick mark out
@@ -231,26 +249,48 @@ class PublicationFigures(object):
         self.axs[0].set_xlabel(self.data.names['x'][0]) # x label
         
     def SetVstackAxis(self):
-        for n, ax in enumerate(self.axs):             # For Vstack
+        """Axis style of vertically stacked subplots"""
+        def SVsA(ax, n):
             ax.tick_params(axis='both', direction='out') #tick mark out
             ax.spines['top'].set_visible(False) # remove top boundary
             ax.spines['right'].set_visible(False) # remove right spine
             ax.yaxis.set_ticks_position('left') # keep only left ticks
-            ax.set_ylabel(self.data.names['y'][n]) # set y label
+            ax.set_ylabel(self.data.names['y'][n]) # set different y labels
             if ax.is_last_row():     #keep only bottom ticks       
                 ax.xaxis.set_ticks_position('bottom') 
                 ax.set_xlabel(self.data.names['x'][0]) # x label
             else:
                 ax.xaxis.set_visible(False)
-                ax.spines['bottom'].set_visible(False)   
-        self.fig.tight_layout(h_pad=0.01)
-                       
-    def SetCategoricalXAxis(self): # additional for plots with categorical data        
+                ax.spines['bottom'].set_visible(False)
+        SVsA_vec = np.vectorize(SVsA)
+        num_axs = len(self.axs) if isinstance(self.axs, np.ndarray) else 1
+        SVsA_vec(self.axs, range(num_axs))
+        self.fig.tight_layout(h_pad=0.01) # pad height
+    
+    def SetHstackAxis(self):
+        """Axis style of horizontally stacked / concatenated subplots"""
+        def SHsA(ax, n):
+            ax.tick_params(axis='both', direction='out') # tick mark out
+            ax.spine['top'].set_visible(False) #remove top boundary
+            ax.spine['right'].set_visible(False) # remove right spine
+            ax.yaxis.set_ticks_position('left') # keep only left ticks
+            ax.set_xlabel(self.data.names['x'][n]) # set different x labels
+            if ax.is_first_col(): # keep only first ticks
+                ax.yaxis.set_ticks_position('left')
+                ax.set_ylabel(self.data.names['y'][0]) # y label
+            else:
+                ax.yaxis.set_visible(False)
+                ax.spines['left'].set_visible(False)
+        SHsA_vec = np.vectorize(SHsA)
+        num_axs = len(self.axs) if isinstance(self.axs, np.ndarray) else 1
+        SHsA_vec(self.axs, range(num_axs))
+        self.fig.tight_layout(w_pad=0.01) # pad width
+            
+    def SetCategoricalXAxis(self, ax=None):
+        """Additional settings for plots with categorical data""" 
         # change the x lim on the last, most buttom subplot
-        if isinstance(self.axs, np.ndarray):
-            ax = self.axs[-1]
-        else: # single axis object
-            ax = self.axs
+        if ax is None: # last axis, or self.axs is a single axis
+            ax = self.axs[-1] if isinstance(self.axs, np.ndarray) else self.axs
         if ax.get_xlim()[0] >= self.x[0]:
             ax.set_xlim(ax.get_xticks()[0]-1,ax.get_xlim()[-1])
         if ax.get_xlim()[-1] <= self.x[-1]:
@@ -302,7 +342,8 @@ class PublicationFigures(object):
         
     """ ####################### Annotations ####################### """
     def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
-       
+        """Add scale bar on trace. Specifically designed for voltage / 
+        current / stimulus vs. time traces."""
         def scalebarlabel(x, unitstr):
             if unitstr.lower()[0] == 'm':
                 return(str(x)+unitstr if x<1000 else str(x/1000)+
@@ -350,6 +391,25 @@ class PublicationFigures(object):
     def TextAnnotation(self, text="", position='south'):
         return # not done yet
         
+    def AdjustBarPlotXAxis(self):
+        """Adjust bar plot's x axis"""
+        # get y axis extent
+        ymin, ymax = self.axs.get_ybound()
+        if ymax <= 0.0: # only negative data present
+            # flip label to top
+            self.axs.spines['bottom'].set_position('zero') # zero the x axis
+            self.axs.tick_params(labelbottom=False, labeltop=True)
+        elif ymin >= 0.0: # only positive data present. Default
+            self.axs.spines['bottom'].set_position('zero') # zero the x axis
+        else: # mix of positive an negative data : set all label to bottoms
+            self.axs.spines['bottom'].set_visible(False)            
+            zeroax = self.axs.twiny()# create another subplot
+            self.TurnOffAxis(ax=zeroax)
+            zeroax.spines['bottom'].set_visible(True)
+            zeroax.spines['bottom'].set_position('zero')
+            
+        self.axs.xaxis.set_ticks_position('none')
+            
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
         bar graph. Annotate several groups at a time.
@@ -414,7 +474,7 @@ class PublicationFigures(object):
                           
     def AdjustText(self,txt):
         """Adjust text so that it is not being cutoff"""
-        #renderer = plt.gca().get_renderer_cache()
+        #renderer = self.axs.get_renderer_cache()
         txt.set_bbox(dict(facecolor='w', alpha=0, boxstyle='round, pad=1'))
         plt.draw() # update the text draw
         txtbb = txt.get_bbox_patch().get_window_extent() # can specify render
@@ -496,8 +556,8 @@ if __name__ == "__main__":
     if plotType == 'lineplot':
         # Line plot example
         K.LinePlot(Style=Style)
-        K.axs[0].set_ylim([0.50000000001,1.5000000001])
-        K.axs[1].set_ylim([0.05, 0.25])
+        #K.axs[0].set_ylim([0.5,1.5])
+        #K.axs[1].set_ylim([0.05, 0.25])
     elif plotType == 'beeswarm':
         # Beeswarm example
         K.Beeswarm()
