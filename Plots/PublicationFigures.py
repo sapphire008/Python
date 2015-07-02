@@ -6,28 +6,23 @@ Created on Sat Jun 06 13:35:08 2015
 """
 DEBUG = True
 
-
-
 import os
 import numpy as np
-from beeswarm import beeswarm
 from ImportData import FigureData
-
+import PlotStyles
+# import matplotlib
+# matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg') # use 'Agg' backend
 
-plotType = 'barplot'
+plotType = 'scatter'
 Style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
-
 # global variables
-# Set font style. Can also be done by copying the .ttf font file to 
-# {matplotlib.matplotlib_fname()}/../fonts/ttf and change the rc file 
-# {matplotlib.matplotlib_fname()} permanently
 fontname = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resource/Helvetica.ttf')) # font .ttf file path
 fontsize = 12 # font size
+color = PlotStyles.Colors(cname='tableau20_odd') # color cycle
+marker = PlotStyles.Markers(mname='filled') # scatter plot line marker cycle
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -64,13 +59,11 @@ class PublicationFigures(object):
     """ ####################### Plot utilities ####################### """ 
 
     def Traces(self, groupings=None, scalebar=True, annotation=None, 
-               color=('#000000','#FF9966','#3399FF','#FF0000','#00FF99',
-               '#FF33CC','#CC99FF')):
+               color=PlotStyles.Colors(cname='matlab')):
         """Plot time series / voltage and current traces
         groupings: grouping of y data. E.g [[1,2],[3]] will result two
         subplots, where y1 and y2 are in the same subplot above, and y3 below.
-        color: default (black, orange, blue, red, green, magenta, purple)
-                
+        color: default MATLAB's color scheme
         """
         m = 0 # row, indexing y axis data
         n = 0 # column, indexing x axis or time data
@@ -87,10 +80,42 @@ class PublicationFigures(object):
             self.SetDefaultAxis() # use default axis
         if annotation:
             self.TextAnnotation(text=annotation) # description of the trace
-    
-    def BarPlot(self, Style='Vertical', width=0.27, color=('#3399FF','#FF33CC',
-                                                           '#CC99FF','#FF9966',
-                                                           '#00FF99')):
+            
+    def Scatter(self, color=color, marker=marker):
+        """2D Scatter plot
+        color = blue, magenta, purple, orange, green
+        marker = circle, pentagon, pentagram star,star, + sign
+        """
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1)
+        for n in range(self.data.num['x']): # add each set of data as different points
+            label = self.data.stats['x']['group'][n][0] \
+                    if 'group' in self.data.stats['x'] else None
+            print(color[n%len(color)])
+            plt.scatter(self.data.series['x'][n], 
+                        self.data.series['y'][n],  alpha=0.5, s=50,
+                        marker=marker[n%len(marker)], 
+                        color=color[n%len(color)], label=label)
+        self.SetDefaultAxis()
+        self.axs.set_xlabel(self.data.names['x'][0])
+        self.axs.set_ylabel(self.data.names['y'][0])
+        if self.data.num['x']>1: # set legend
+            self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+            
+    def Scatter3D(self, color=color, marker=marker):
+        from mpl_toolkits.mplot3d import Axes3D # for 3D plots only
+        self.fig = plt.figure()
+        self.axs = self.fig.add_subplot(111, projection='3d')
+        for n in range(self.data.num['x']):
+            label = self.data.stats['x']['group'][n][0] \
+                        if 'group' in self.data.stats['x'] else None
+            Axes3D.scatter(self.data.series['x'][n], 
+                       self.data.series['y'][n],
+                       self.data.series['z'][n],
+                       zdir=u'z', s=20, c=u'b', depthshade=True,  
+                       marker=marker[n%len(marker)], 
+                       color=color[n%len(color)], label=label)
+                       
+    def BarPlot(self, Style='Vertical', width=0.27, color=color):
         """Plot bar graph
         Style: style of bar graph, can choose 'Vertical' and 'Horizontal'
         width: width of bar. Default 0.27
@@ -117,28 +142,32 @@ class PublicationFigures(object):
                 self.axs.bar(pos+n*width, s, width,  yerr=error, alpha=0.4,
                              color=color[n%len(color)], align='center',
                                          label=self.data.names['y'][n])
+                    
             else:
                 self.axs.barh(pos+n*width, s, width, xerr=error, alpha=0.4,
                               color=color[n%len(color)], align='center',
                                           label=self.data.names['y'][n])
-        
         self.SetDefaultAxis()
-        self.SetCategoricalXAxis()
-        self.AdjustBarPlotXAxis() # position of axis label based on data
-        
+        if Style=='Vertical':
+            self.SetCategoricalXAxis()
+            self.AdjustBarPlotXAxis()  
+        else: # horizontal
+            self.AdjustBarPlotYAxis()
+            self.SetCategoricalYAxis()
+            
         if n>0: # for multiple series, add legend
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         
-    def Beeswarm(self, Style='swarm',colors=['blue','magenta','purple',
-                                             'orange','green']):
+    def Beeswarm(self, Style='swarm',color=color):
         """Beeswarm style boxplot
         color: blue, magenta, purple, orange, green
         """
+        from beeswarm import beeswarm
         # boardcasting color cycle
         num = self.data.num['y']
-        colors = num/len(colors)*colors+colors[0:num%len(colors)]
+        color = num/len(color)*color+color[0:num%len(color)]
         self.bs, self.axs = beeswarm(self.data.series['y'], method=Style, 
-                                     labels=self.data.series['x'][0],col=colors)
+                                     labels=self.data.series['x'][0],col=color)
         # Format style
         # make sure axis tickmark points out
         self.axs.tick_params(axis='both',direction='out')
@@ -217,7 +246,7 @@ class PublicationFigures(object):
         SDA_vec = np.vectorize(SDA) # vectorize the closure
         if ax is None:
             SDA_vec(self.axs)
-        else:
+        else:  # allow this function to be called outside class
             SDA_vec(ax)
         
     def TurnOffAxis(self, ax=None):
@@ -232,8 +261,32 @@ class PublicationFigures(object):
         TOA_vec = np.vectorize(TOA) # vectorize the closure
         if ax is None:        
             TOA_vec(self.axs)
-        else:
+        else: # allow this function to be called outside class
             TOA_vec(ax)
+            
+    def AdjustBarPlotXAxis(self):
+        """Adjust bar plot's x axis for categorical axis"""
+        # get y axis extent
+        ymin, ymax = self.axs.get_ybound()
+        if ymax <= 0.0: # only negative data present
+            # flip label to top
+            self.axs.spines['bottom'].set_position('zero') # zero the x axis
+            self.axs.tick_params(labelbottom=False, labeltop=True)
+        elif ymin >= 0.0: # only positive data present. Default
+            self.axs.spines['bottom'].set_position('zero') # zero the x axis
+        else: # mix of positive an negative data : set all label to bottoms
+            self.axs.spines['bottom'].set_visible(False) 
+            self.axs.spines['top'].set_visible(True)
+            self.axs.spines['top'].set_position('zero')
+        self.axs.xaxis.set_ticks_position('none')
+        
+    def AdjustBarPlotYAxis(self):
+        """Adjust bar plot's y axis for categorical axis"""
+        #set all label to left
+        self.axs.spines['left'].set_visible(False)
+        self.axs.spines['right'].set_visible(True)
+        self.axs.spines['right'].set_position('zero')            
+        self.axs.yaxis.set_ticks_position('none')
         
     def SetTwinPlotAxis(self, colors=('k', 'r')):
         """Axis style  of 2 plots sharing y axis"""
@@ -295,7 +348,17 @@ class PublicationFigures(object):
             ax.set_xlim(ax.get_xticks()[0]-1,ax.get_xlim()[-1])
         if ax.get_xlim()[-1] <= self.x[-1]:
             ax.set_xlim(ax.get_xlim()[0], ax.get_xticks()[-1]+1)
-        plt.xticks(self.x, self.data.series['x'][0])       
+        plt.xticks(self.x, self.data.series['x'][0])
+        
+    def SetCategoricalYAxis(self, ax=None):
+        """Additional settings for plots with categorical data""" 
+        if ax is None: # last axis, or self.axs is a single axis
+            ax = self.axs[-1] if isinstance(self.axs, np.ndarray) else self.axs
+        if ax.get_ylim()[0] >= self.x[0]:
+            ax.set_ylim(ax.get_yticks()[0]-1,ax.get_ylim()[-1])
+        if ax.get_ylim()[-1] <= self.x[-1]:
+            ax.set_ylim(ax.get_ylim()[0], ax.get_yticks()[-1]+1)
+        plt.yticks(self.x, self.data.series['x'][0])
         
     def SetDiscontinousAxis(self, x=None, y=None):
         """Plot with discontious axis. Allows one discontinuity for each axis.
@@ -390,25 +453,6 @@ class PublicationFigures(object):
         
     def TextAnnotation(self, text="", position='south'):
         return # not done yet
-        
-    def AdjustBarPlotXAxis(self):
-        """Adjust bar plot's x axis"""
-        # get y axis extent
-        ymin, ymax = self.axs.get_ybound()
-        if ymax <= 0.0: # only negative data present
-            # flip label to top
-            self.axs.spines['bottom'].set_position('zero') # zero the x axis
-            self.axs.tick_params(labelbottom=False, labeltop=True)
-        elif ymin >= 0.0: # only positive data present. Default
-            self.axs.spines['bottom'].set_position('zero') # zero the x axis
-        else: # mix of positive an negative data : set all label to bottoms
-            self.axs.spines['bottom'].set_visible(False)            
-            zeroax = self.axs.twiny()# create another subplot
-            self.TurnOffAxis(ax=zeroax)
-            zeroax.spines['bottom'].set_visible(True)
-            zeroax.spines['bottom'].set_position('zero')
-            
-        self.axs.xaxis.set_ticks_position('none')
             
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
@@ -494,7 +538,6 @@ class PublicationFigures(object):
         """Remove all annotation and start over"""
         self.axs.texts = []
         
-        
     """ ####################### Misc ####################### """
     @staticmethod
     def roundto125(x, r=np.array([1,2,5,10])): # helper static function
@@ -536,18 +579,6 @@ class PublicationFigures(object):
                 
         CF_vec = np.vectorize(CF) # vectorize the closure
         CF_vec(self.axs)
-    
-    @classmethod
-    def ColorCycle(cname, returnOnly='code'):
-        """Color cycle dictionary"""
-        colors = {'jet':  (1,1.1),
-                  'warm': (2,2.1),
-                  'cold': (3,3.1),
-                  'dark': (4,4.1)
-                     }.get(cname, (9,1))
-        return({'code': colors[0],
-                'name': colors[1]
-                }.get(returnOnly, colors))
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
@@ -567,7 +598,11 @@ if __name__ == "__main__":
         # Time series example
         K.Traces()
     elif plotType == 'barplot':
-        K.BarPlot()
+        K.BarPlot(Style='Horizontal')
+    elif plotType == 'scatter':
+        K.Scatter()
+    elif plotType == 'scatter3D':
+        K.Scatter3D()
     # Final clean up
     K.SetFont() # change to specified font properties
     K.fig.set_size_inches(9, 6) # set it for now.

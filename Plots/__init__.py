@@ -10,6 +10,7 @@ Created on Sat Jun 27 19:02:40 2015
 #import os, glob, shutil
 #import matplotlib
 # matplotlib.use('Agg') # use 'Agg' backend
+# matplotlib.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 
 #__all__ = ['FigureData', 'PublicationFigures']
 
@@ -34,8 +35,18 @@ Created on Sat Jun 27 19:02:40 2015
 #    prop = matplotlib.font_manager.FontProperties(fname=resourcepath)    
 
 
+# get supported file type
+# import matplotlib.pyplot as plt
+# fig = plt.figure()
+# print(fig.canvas.get_supported_filetypes())
 
+# Get backend in current use
+# matplotlib.get_backend()
 
+# Get a list of available backends
+# matplotlib.rcsetup.interactive_bk
+# matplotlib.rcsetup.non_interactive_bk
+# matplotlib.rcsetup.all_backends
 
 
 
