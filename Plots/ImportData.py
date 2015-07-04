@@ -173,7 +173,7 @@ class FigureData(object):
         if dataFile is not None and isinstance(dataFile, str):
             self.LoadFigureData(dataFile)        
             
-    def LoadFigureData(self, dataFile):
+    def LoadFigureData(self, dataFile, delimiter=','):
         """Read text data for figure plotting"""
           # check file exists
         if not os.path.isfile(dataFile):
@@ -185,7 +185,7 @@ class FigureData(object):
                     continue  # skip comments
                 # split comma delimited string
                 # series code, series name,@datatype, data1, data2, data3, ...
-                lst = [s.strip() for s in line.split(',')]
+                lst = [s.strip() for s in line.split(delimiter)]
                 # Parse variable
                 v = lst[0][0] # variable name
                 stats = lst[0][1:-1]
@@ -270,10 +270,6 @@ if __name__ == '__main__':
     data = NeuroData(dataFile, old=True)
     figdata = FigureData()
     figdata.Neuro2Figure(data, channels=['A','C','D'], streams=['V','C','S'])
-    # data.Voltage = {}
-    # data.Current = {}
-    # data.Stimulus = {}
-    # data.Protocol = Protocol()
     
     
     

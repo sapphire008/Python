@@ -9,7 +9,6 @@ DEBUG = True
 import os
 import numpy as np
 from ImportData import FigureData
-import PlotStyles
 # import matplotlib
 # matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
@@ -20,9 +19,10 @@ exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/exam
 
 # global variables
 fontname = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resource/Helvetica.ttf')) # font .ttf file path
-fontsize = 12 # font size
-color = PlotStyles.Colors(cname='tableau20_odd') # color cycle
-marker = PlotStyles.Markers(mname='filled') # scatter plot line marker cycle
+fontsize = {'title':16, 'xlab':12, 'ylab':12, 'xtick':10,'ytick':10, 'texts':12, 
+            'legend': 12, 'legendtitle':12} # font size
+color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
+marker = ['o', 's', 'd', '^', '*', 'p']# scatter plot line marker cycle
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -36,7 +36,7 @@ class PublicationFigures(object):
                 Style: 'hex','swarm' (default),'center','square'
     """
     def __init__(self, dataFile=None, SavePath=None):
-        """Initialize class        
+        """Initialize class
         """
         if isinstance(dataFile, str):
             self.LoadData(dataFile) # load data
@@ -59,7 +59,8 @@ class PublicationFigures(object):
     """ ####################### Plot utilities ####################### """ 
 
     def Traces(self, groupings=None, scalebar=True, annotation=None, 
-               color=PlotStyles.Colors(cname='matlab')):
+               color=['#000000', '#ff0000', '#0000ff', '#ffa500', '#007f00', 
+               '#00bfbf', '#bf00bf']):
         """Plot time series / voltage and current traces
         groupings: grouping of y data. E.g [[1,2],[3]] will result two
         subplots, where y1 and y2 are in the same subplot above, and y3 below.
@@ -87,10 +88,9 @@ class PublicationFigures(object):
         marker = circle, pentagon, pentagram star,star, + sign
         """
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1)
-        for n in range(self.data.num['x']): # add each set of data as different points
+        for n in range(self.data.num['x']): # add each set of data
             label = self.data.stats['x']['group'][n][0] \
                     if 'group' in self.data.stats['x'] else None
-            print(color[n%len(color)])
             plt.scatter(self.data.series['x'][n], 
                         self.data.series['y'][n],  alpha=0.5, s=50,
                         marker=marker[n%len(marker)], 
@@ -558,23 +558,32 @@ class PublicationFigures(object):
         if (fontname is None) and (fontsize is None):
             return
         import matplotlib.font_manager as fm
-        fontprop = fm.FontProperties(fname=fontname, size=fontsize)
         def CF(ax):
             itemDict = {'title':[ax.title], 'xlab':[ax.xaxis.label], 
                         'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
-                        'ytick':ax.get_yticklabels(), 'texts':ax.texts, 
+                        'ytick':ax.get_yticklabels(), 
+                        'texts':ax.texts if isinstance(ax.texts, np.ndarray) 
+                                or isinstance(ax.texts, list) else [ax.texts], 
                         'legend': [] if ax.legend_ is None 
                                         else ax.legend_.get_texts(), 
                         'legendtitle':[] if ax.legend_ is None 
                                             else [ax.legend_.get_title()]}
-            itemList = []
-            if items is None:
-                for v in itemDict.itervalues():
-                    itemList += v # add everything
-            else:
-                for v in items:
-                    itemList += itemDict[v] # add only specified in items
-            for item in itemList:
+            itemList, keyList = [], []
+            if items is None: # get all items
+                for k, v in list(itemDict.items()):
+                    itemList += v
+                    keyList += [k]*len(v)
+                    print(v)
+            else: # get only specified item
+                for k in items:
+                    itemList += itemDict[k] # add only specified in items
+                    keyList += [k]*len(itemDict[k])
+            for n, item in enumerate(itemList):
+                if isinstance(fontsize, dict):
+                    fontprop = fm.FontProperties(fname=fontname, 
+                                                 size=fontsize[keyList[n]])
+                elif n <1:
+                    fontprop = fm.FontProperties(fname=fontname, size=fontsize)
                 item.set_fontproperties(fontprop) # change font for all items
                 
         CF_vec = np.vectorize(CF) # vectorize the closure
@@ -605,5 +614,5 @@ if __name__ == "__main__":
         K.Scatter3D()
     # Final clean up
     K.SetFont() # change to specified font properties
-    K.fig.set_size_inches(9, 6) # set it for now.
+    K.fig.set_size_inches(8, 6) # set it for now.
     K.Save()
