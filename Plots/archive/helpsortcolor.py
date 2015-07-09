@@ -22,7 +22,6 @@ def readColorBrewers(txtdir, lineexp=r'(\w+)(?:,|$)\[([^\]]+)\](?:,|$)\[([^\]]+)
             # change into integer
             rgb_list = [tuple([int(r) for r in s]) for s in rgb_list]
             
-            
             # print
             rgbstr = ""
             for n, rgb in enumerate(rgb_list):

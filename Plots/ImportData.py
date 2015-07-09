@@ -7,6 +7,7 @@ Created on Sat Jun 27 19:24:54 2015
 
 import numpy as np
 import os
+import zipfile
 
 dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/Cell B.10Feb15.S1.E28.dat'
 
@@ -38,11 +39,17 @@ class NeuroData(object):
             self.LoadOldDataFile(dataFile)
         else:
             self.LoadDataFile(dataFile)
-            
     
     def LoadDataFile(self, dataFile):
         """Read zipped data file (new format)"""
-        return
+        archive = zipfile.ZipFile(dataFile, 'r')
+        # Check if the file is a valid zipfile
+        if not archive.is_zipfile():
+            IOError('%s is not a valid zip file'%dataFile)
+        # read header txt file
+        fid = archive.read('header.txt','r')
+        self.Protocol.infoBytes = np.fromfile(fid, np.int32, 1) # size of header
+        # ... etc
     
     def LoadOldDataFile(self, dataFile, numChannels=4, infoOnly=False):
         """Read Old .dat format data file"""
@@ -182,7 +189,7 @@ class FigureData(object):
         with open(dataFile, 'rb') as fid:
             for line in fid: # iterate each line
                 if not line.strip() or line[0] == "#":
-                    continue  # skip comments
+                    continue  # skip comments and empty lines
                 # split comma delimited string
                 # series code, series name,@datatype, data1, data2, data3, ...
                 lst = [s.strip() for s in line.split(delimiter)]
@@ -264,6 +271,8 @@ class FigureData(object):
          h, m = divmod(m, 60)
          return("%d:%d:%0.1f" % (h, m, s))
 
+        
+    
       
             
 if __name__ == '__main__':

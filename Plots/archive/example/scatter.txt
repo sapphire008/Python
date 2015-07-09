@@ -1,0 +1,12 @@
+# Comments start with '#'
+# This example data file illustrates Greek letters usage in axis labels
+# Data row format
+# series code, @datatype, series name, data1, data2, data3, ...
+# x: x axis series: series:'name'. The name is series label, e.g. treatment
+# y: y axis series: series:'name'. The name is group label, e.g. response
+x1,@float,'[CCh] ($\mu$M)', 0.73056537,  0.37364704,  0.63943385,  0.53610359,  0.77223023, 0.26931064,  0.00341297,  0.27357925,  0.05472349,  0.84813697
+y1, @float, '[ML297] ($\mu$M)', 0.32159043,  0.26374081,  0.10986704,  0.96516267,  0.46892265, 0.43944232,  0.55802153,  0.05099298,  0.2794851 ,  0.3483225
+x2,@float,'',0.75398513,  0.21387606,  0.86941533,  0.87455997,  0.65320977, 0.28814926,  0.17500311,  0.08597621,  0.5961691 ,  0.87333331
+y2, @float,'',0.82462213,  0.17188863,  0.30735608,  0.55482837,  0.05392148, 0.20367986,  0.38091309,  0.63268273,  0.13272044,  0.49691292
+xgroup1,@str,'',ADP
+xgroup2,@str,'',ADP+Persistent

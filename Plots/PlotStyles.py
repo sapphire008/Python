@@ -63,7 +63,14 @@ def Tableau(cname='tableau10'):
     'tableau10blind':OrderedDict([('deepskyblue4',(0, 107, 164)),('darkorange1',(255, 128,  14)),('darkgray',(171, 171, 171)),('dimgray',( 89,  89,  89)),('skyblue3',( 95, 158, 209)),('chocolate3',(200,  82,   0)),('gray',(137, 137, 137)),('slategray1',(163, 200, 236)),('sandybrown',(255, 188, 121)),('lightgray',(207, 207, 207))]),
     'tableaugray5': OrderedDict([('gray1',(207,207,207)),('gray2',(165,172,175)),('gray3',(143,135,130)),('gray4',(96,99,106)),('gray5',(65,68,81))])
     }.get(cname))
-
+    
+def MATLAB(cname='matlabnew'):
+    """MATLAB color scheme"""
+    return({
+    'matlabnew': OrderedDict([('blue',(0, 114, 189)),('orange',(217, 83, 25)),('yellow',(237, 177, 31)), ('purple',(126, 47, 142)),('green',(119, 172, 48)),('skyblue',(77, 190, 238)),('crimson',(162, 19, 47))]),
+    'matlabold': OrderedDict([('black',(0,0,0)),('red',(255,0,0)),('blue',(0,0,255)), ('orange',(255,165,0)),('green',(0,127,0)), ('cyan', (0, 191,191)),('magenta', (191, 0, 191))])
+    }).get(cname)
+    
 def Colors(cname='tableau10', Hex=True, returnOnly='code', reverseOrder=False):
     """A list of colors in RGB
     cname: color name. Default 'tableau20'
@@ -77,11 +84,11 @@ def Colors(cname='tableau10', Hex=True, returnOnly='code', reverseOrder=False):
     elif cname in ['BuGn', 'BuPu', 'GnBu', 'OrRd', 'PuBu', 'PuBuGn', 'PuRd', 'RdPu', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'Blues', 'Greens', 'Greys', 'Oranges', 'Purples', 'Reds']:    
         # http://colorbrewer2.org/, used by web designers and R's ggplot
         colors = ColorBrewer(cname)
+    elif cname in ['matlabnew', 'matlabold']:
+        colors = MATLAB(cname)
     else:
         # Other custom colors
-        colors = {
-                  'matlab':OrderedDict([('black',(0,0,0)),('red',(255,0,0)),('blue',(0,0,255)), ('orange',(255,165,0)),('green',(0,127,0)), ('cyan', (0, 191,191)),('magenta', (191, 0, 191))])
-                  }.get(cname,Tableau('tableau20'))
+        colors = Tableau('tableau10')
     # invert the color order
     if reverseOrder:
         colors = OrderedDict(list(reversed(list(colors.items()))))

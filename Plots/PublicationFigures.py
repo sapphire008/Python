@@ -13,7 +13,7 @@ from ImportData import FigureData
 # matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'scatter'
+plotType = 'scatter3d'
 Style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
@@ -101,20 +101,24 @@ class PublicationFigures(object):
         if self.data.num['x']>1: # set legend
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
             
-    def Scatter3D(self, color=color, marker=marker):
+    def Scatter3D(self, color=color, marker=['.', '+', 'x', (5, 2), '4']):
         from mpl_toolkits.mplot3d import Axes3D # for 3D plots only
         self.fig = plt.figure()
         self.axs = self.fig.add_subplot(111, projection='3d')
         for n in range(self.data.num['x']):
             label = self.data.stats['x']['group'][n][0] \
                         if 'group' in self.data.stats['x'] else None
-            Axes3D.scatter(self.data.series['x'][n], 
-                       self.data.series['y'][n],
-                       self.data.series['z'][n],
-                       zdir=u'z', s=20, c=u'b', depthshade=True,  
-                       marker=marker[n%len(marker)], 
-                       color=color[n%len(color)], label=label)
-                       
+            self.axs.scatter(self.data.series['x'][n],self.data.series['y'][n],
+                             self.data.series['z'][n],zdir=u'z', s=144, 
+                             c='k', label=label,marker=marker[n%len(marker)],
+                             depthshade=True) # s=144 --> sqrt(s) point font
+        self.axs.set_xlabel(self.data.names['x'][0])
+        self.axs.set_ylabel(self.data.names['y'][0])
+        self.axs.set_zlabel(self.data.names['z'][0])
+        # Add annotations
+        self.AddRegions()
+        self.SetDefaultAxis3D() # default axis, view, and distance
+        
     def BarPlot(self, Style='Vertical', width=0.27, color=color):
         """Plot bar graph
         Style: style of bar graph, can choose 'Vertical' and 'Horizontal'
@@ -243,11 +247,32 @@ class PublicationFigures(object):
             ax.spines['bottom'].set_visible(True)
             ax.xaxis.set_ticks_position('bottom')
             ax.yaxis.set_ticks_position('left')
-        SDA_vec = np.vectorize(SDA) # vectorize the closure
+        SDA_vec = np.frompyfunc(SDA,1,1) # vectorize the closure
         if ax is None:
             SDA_vec(self.axs)
         else:  # allow this function to be called outside class
             SDA_vec(ax)
+            
+    def SetDefaultAxis3D(self, ax=None, elev=75, azim=30):
+        def SDA3D(ax): # short for set default axis 3d
+            ax.tick_params(axis='both', direction='out')
+            ax.view_init(elev=elev, azim=azim) # set perspective
+            ax.dist = 10 # use default axis distance 10
+            if ax.azim > 0: # z axis will be on the left
+                ax.zaxis.set_rotate_label(False) # prevent auto rotation
+                a = ax.zaxis.label.get_rotation()
+                ax.zaxis.label.set_rotation(90+a) # set custom rotation
+                ax.invert_xaxis() # make sure (0,0) in front
+                ax.invert_yaxis() # make sure (0,0) in front
+            else:
+                ax.invert_xaxis() # make sure (0,0) in front
+            #ax.zaxis.label.set_color('red')
+            #ax.yaxis._axinfo['label']['space_factor'] = 2.8
+        SDA3D_vec = np.frompyfunc(SDA3D,1,1)
+        if ax is None:
+            SDA3D_vec(self.axs)
+        else: # allow this function to be called outside class
+            SDA3D_vec(ax)
         
     def TurnOffAxis(self, ax=None):
         """Turn off all axis"""
@@ -258,7 +283,7 @@ class PublicationFigures(object):
             ax.spines['bottom'].set_visible(False)
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
-        TOA_vec = np.vectorize(TOA) # vectorize the closure
+        TOA_vec = np.frompyfunc(TOA,1,1) # vectorize the closure
         if ax is None:        
             TOA_vec(self.axs)
         else: # allow this function to be called outside class
@@ -315,7 +340,7 @@ class PublicationFigures(object):
             else:
                 ax.xaxis.set_visible(False)
                 ax.spines['bottom'].set_visible(False)
-        SVsA_vec = np.vectorize(SVsA)
+        SVsA_vec = np.frompyfunc(SVsA,2,1)
         num_axs = len(self.axs) if isinstance(self.axs, np.ndarray) else 1
         SVsA_vec(self.axs, range(num_axs))
         self.fig.tight_layout(h_pad=0.01) # pad height
@@ -334,7 +359,7 @@ class PublicationFigures(object):
             else:
                 ax.yaxis.set_visible(False)
                 ax.spines['left'].set_visible(False)
-        SHsA_vec = np.vectorize(SHsA)
+        SHsA_vec = np.frompyfunc(SHsA,2,1)
         num_axs = len(self.axs) if isinstance(self.axs, np.ndarray) else 1
         SHsA_vec(self.axs, range(num_axs))
         self.fig.tight_layout(w_pad=0.01) # pad width
@@ -391,16 +416,9 @@ class PublicationFigures(object):
             else:
                 aspect = r
             ax.set_aspect(aspect=aspect, adjustable=adjustable)
-        SAR_vec = np.vectorize(SAR) # vectorize the closure
+        SAR_vec = np.frompyfunc(SAR,1,1) # vectorize the closure
         SAR_vec(self.axs)
         #self.fig.tight_layout(h_pad=0.05) # enforce tight layout
-    
-    def SetYTickLabelIncrement(self): ###???? need to consider
-        def SYTLI(ax):        
-            Y = ax.get_yticks()
-            minY, maxY = self.roundto125(np.min(Y)), self.roundto125(np.max(Y))    
-        SYTLI_vec = np.vectorize(SYTLI) # vectorize closure
-        SYTLI_vec(self.axs)
         
         
     """ ####################### Annotations ####################### """
@@ -453,6 +471,11 @@ class PublicationFigures(object):
         
     def TextAnnotation(self, text="", position='south'):
         return # not done yet
+        
+    def PatchAnnotation(self, patch=None):
+        if patch is None:
+            patch = self.data.annotations.patch    
+        self.axs.add_artists(patch)
             
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
@@ -570,24 +593,35 @@ class PublicationFigures(object):
                                             else [ax.legend_.get_title()]}
             itemList, keyList = [], []
             if items is None: # get all items
-                for k, v in list(itemDict.items()):
+                for k, v in iter(itemDict.items()):
                     itemList += v
                     keyList += [k]*len(v)
-                    print(v)
             else: # get only specified item
                 for k in items:
                     itemList += itemDict[k] # add only specified in items
                     keyList += [k]*len(itemDict[k])
+            # initialize fontprop object
+            fontprop = fm.FontProperties(style='normal', weight='normal',
+                                         stretch = 'normal')
+            if os.path.isfile(fontname): # check if font is a file
+                fontprop.set_file(fontname)
+            else:# check if the name of font is available in the system
+                if not any([fontname.lower() in a.lower() for a in 
+                        fm.findSystemFonts(fontpaths=None, fontext='ttf')]):
+                    raise IOError('Cannot find specified font: %s' %(fontname))
+                fontprop.set_family(fontname) # set font name
+            # set font for each object
             for n, item in enumerate(itemList):
                 if isinstance(fontsize, dict):
-                    fontprop = fm.FontProperties(fname=fontname, 
-                                                 size=fontsize[keyList[n]])
-                elif n <1:
-                    fontprop = fm.FontProperties(fname=fontname, size=fontsize)
+                    fontprop.set_size(fontsize[keyList[n]])                                        
+                elif n <1: # set the properties only once
+                    fontprop.set_size(fontsize)
                 item.set_fontproperties(fontprop) # change font for all items
                 
-        CF_vec = np.vectorize(CF) # vectorize the closure
+        CF_vec = np.frompyfunc(CF,1,1) # vectorize the closure
         CF_vec(self.axs)
+        
+
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
@@ -610,9 +644,9 @@ if __name__ == "__main__":
         K.BarPlot(Style='Horizontal')
     elif plotType == 'scatter':
         K.Scatter()
-    elif plotType == 'scatter3D':
+    elif plotType == 'scatter3d':
         K.Scatter3D()
     # Final clean up
-    K.SetFont() # change to specified font properties
-    K.fig.set_size_inches(8, 6) # set it for now.
-    K.Save()
+    # K.SetFont() # change to specified font properties
+    #K.fig.set_size_inches(8, 6) # set it for now.
+    #K.Save()

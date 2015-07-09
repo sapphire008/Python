@@ -1,0 +1,16 @@
+# Comments start with '#'
+# Data row format
+# series code, @datatype, series name, data1, data2, data3, ...
+# x: x axis series: series:'name'
+# y: y axis series: series:'name'
+# xebp: x axis series positive error bar
+# xebn: x axis series negative error bar
+# yebp: y axis series positive error bar
+# yebn: y axis series negative error bar
+x1,@str,'Presynaptic AP#',I, II, III, IV
+y1,@float,'EPSP Amp (mV)',1.0,1.2,0.9,0.75
+y2,@float,'Postsynaptic Spike Prob',0.1,0.15,0.13,0.09
+yebp1,@float,'',0.1,0.2,0.1,0.1
+yebn1,@float,'',0.1,0.2,0.1,0.1
+yebp2,@float,'',0.04,0.05,0.05,0.03
+yebn2,@float,'',0.04,0.05,0.05,0.03
