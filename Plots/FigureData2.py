@@ -10,7 +10,7 @@ Created on Wed Jul 15 10:53:25 2015
 import pandas as pd
 import numpy as np
 
-dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/barplot.csv'
+dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/scatter3d.csv'
 
 class FigureData(object):
     def __init__(self, dataFile=None):
@@ -30,7 +30,7 @@ class FigureData(object):
         fid = open(dataFile, 'r')
         self.table = []
         for rownum, line in enumerate(fid): # iterate through each line
-            line = line.strip().strip(sep).replace('\t','')
+            line = line.strip().strip(sep).replace('\t','').replace('"','')
             if not line or line[0] == "#" or line==line[0]*len(line):
                 continue # skip comments and empty lines
             if line[0] == metachar: # metadata starts with "|"
@@ -40,7 +40,7 @@ class FigureData(object):
                 break
         # read in the rest of the data
         self.table = pd.read_csv(dataFile, sep=sep, comment="#",
-                                 skipinitialspace=True, skiprows=rownum-1,
+                                 skipinitialspace=True, skiprows=rownum,
                                  skip_blank_lines=True)
         # parse the data to variable
         self.parse_data()
@@ -99,7 +99,10 @@ class FigureData(object):
         m, v = line.split("=") # metavaraible, value
         m, v = m.strip(), v.strip()
         # parse value if it is a list
-        if v[0] == "[":
+        if v.lower() == "none":
+            self.meta[m] = None
+            return    
+        if "[" in v and "," in v:
             v = v.replace("[","").replace("]","").split(",")
             v = [x.strip() for x in v]
         self.meta[m] = v
@@ -110,7 +113,9 @@ class FigureData(object):
         cheader = list(self.table.columns.values)
         for key,val in iter(self.meta.items()):
             #if key in ['x','y','z']: continue
-            if isinstance(val, str):
+            if val is None:
+                continue
+            elif isinstance(val, str):
                 if val not in cheader:
                     continue
                 else:
@@ -124,9 +129,9 @@ class FigureData(object):
             elif any([v in cheader for v in val]):
                raise SyntaxError(\
                      "Some header reference to '%s' is spelled wrong"% (key))
-            else:
-                raise RuntimeError(\
-                        "Fall through. Check (key, value)=(%s, %s)"%(key,val))
+            #else:
+                #raise RuntimeError(\
+                #        "Fall through. Check (key, value)=(%s, %s)"%(key,val))
     def get_size(self):
         """Get the numel of each data series except the nan or empty string"""
         def checknumel(v):
@@ -153,8 +158,6 @@ class FigureData(object):
         self.num = {}
         for k in self.series.keys():
             self.num[k] = len(self.series[k])
-        
-                                   
             
 if __name__ == '__main__':
     K = FigureData(dataFile)
