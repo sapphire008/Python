@@ -13,7 +13,7 @@ import numpy as np
 def spm_matrix(P, order='T*R*Z*S'):
     """Python adaptaion of spm_matrix
      returns an affine transformation matrix
-     FORMAT [A] = spm_matrix(P, order)
+     FORMAT [A, T, R, Z, S] = spm_matrix(P, order)
      P(1)  - x translation
      P(2)  - y translation
      P(3)  - z translation
@@ -63,35 +63,35 @@ def spm_matrix(P, order='T*R*Z*S'):
     P  = np.concatenate((P,q[(np.size(P) + 1):12]))
     
     # Transformation matrices
-    T = np.array([[1,0,0,P[1]],  # translation
-                  [0,1,0,P[2]],
-                  [0,0,1,P[3]],
+    T = np.array([[1,0,0,P[0]],  # translation
+                  [0,1,0,P[1]],
+                  [0,0,1,P[2]],
                   [0,0,0,1]])
     
     R1 = np.array([[1,              0,              0,              0],
-                   [0,              np.cos(P[4]),   np.sin(P[4]),   0],
-                   [0,             -np.sin(P[4]),   np.cos(P[4]),   0],
+                   [0,              np.cos(P[3]),   np.sin(P[3]),   0],
+                   [0,             -np.sin(P[3]),   np.cos(P[3]),   0],
                    [0,              0,              0,              1]])
     
-    R2 = np.array([[np.cos(P[5]),   0,              np.sin(P[5]),   0],
+    R2 = np.array([[np.cos(P[4]),   0,              np.sin(P[4]),   0],
                    [0,              1,              0,              0],
-                   [-np.sin(P[5]),  0,              np.cos(P[5]),   0],
+                   [-np.sin(P[4]),  0,              np.cos(P[4]),   0],
                    [0,              0,              0,              1]])
     
-    R3 = np.array([[np.cos(P[6]),   np.sin(P[6]),   0,              0],
-                   [-np.sin(P[6]),  np.cos(P[6]),   0,              0],
+    R3 = np.array([[np.cos(P[5]),   np.sin(P[5]),   0,              0],
+                   [-np.sin(P[5]),  np.cos(P[5]),   0,              0],
                    [0,              0,              1,              0],
                    [0,              0,              0,              1]])
     
     R   = R1.dot(R2).dot(R3) # rotation
     
-    Z = np.array([[P[7],    0,      0,      0], # scale
-                  [0,       P[8],   0,      0],
-                  [0,       0,      P[9],   0,],
+    Z = np.array([[P[6],    0,      0,      0], # scale
+                  [0,       P[7],   0,      0],
+                  [0,       0,      P[8],   0,],
                   [0,       0,      0,      1]])
     
-    S = np.array([[1,   P[10],  P[11],  0], # shear
-                  [0,   1,      P[12],  0],
+    S = np.array([[1,   P[9],   P[10],  0], # shear
+                  [0,   1,      P[11],  0],
                   [0,   0,      1,      0],
                   [0,   0,      0,      1]])
 
@@ -108,4 +108,6 @@ def spm_matrix(P, order='T*R*Z*S'):
     if not is_numeric(A) or np.ndim(A)!=2 or any([s!=4 for s in np.shape(A)]):
         raise(IOError(\
         "Order expression '%s' did not return a valid 4x4 matrix."%(order)))
+
+    return(A, T, R, Z, S)
     

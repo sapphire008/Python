@@ -200,7 +200,7 @@ class ColorPalette(object):
             cls.palette_ax(axs[n], colors, pname, cname)
         plt.show()
         fig.tight_layout()
-        return(fig, ax)
+        return(fig, axs)
 
     @staticmethod
     def palette_ax(ax, colors, pname="", cname=[]):
@@ -222,41 +222,7 @@ class ColorPalette(object):
         ax.tick_params(axis='both', which='both', left='off',right='off',
                        top='off',bottom='off',
                        labelleft='off',labelbottom='off')
-        # annotate the colors
-        if not cname:
-            return
-        xtext = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1],1+2*len(colors))
-        xtext = xtext[1::2]
-        ytext = (ax.get_ylim()[1] - ax.get_ylim()[0])/4
-        for n,c in enumerate(cname):
-            ax.text(xtext[n],ytext, c, ha='center',va='center',fontsize=8
 
                 
 if __name__=="__main__":
     fig, ax = ColorPalette()._show_all_palette(palette='tableau')
-    
-    
-    """
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
-    import numpy as np
-    pname = 'tableau10'
-    colors = ColorPalette()._get_palette(palette=pname)
-    cname = ColorPalette()._get_palette(palette=pname,returnOnly='name')
-    fig = plt.figure()#(figsize=(9, npalette)) 
-    ax = plt.subplot(1, 1, 1)
-    colors = np.array([list(rgbint2decimal(c)) for c in Tableau().values()])
-    gradient = np.linspace(0, 1, len(colors))
-    gradient = np.vstack((gradient, gradient))
-    cmap = ListedColormap(colors)
-    ax.imshow(gradient,aspect='auto',cmap=cmap, origin='lower',
-               interpolation='none')
-    plt.xticks(range(len(colors)),cname,rotation='vertical')
-    ax.set_ylabel(pname)
-    ax.spines['top'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.tick_params(axis='both', which='both', left='off',right='off',
-                   labelleft='off', labelbottom='on')
-    """

@@ -8,12 +8,12 @@ DEBUG = True
 
 import os
 import numpy as np
-from ImportData import FigureData
+from FigureData2 import FigureData
 # import matplotlib
 # matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'scatter3d'
+plotType = 'barplot'
 Style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
@@ -127,30 +127,29 @@ class PublicationFigures(object):
         color: blue, magenta, purple, orange, green
         """
         # Get bar plot function according to style
-        nseries = len(self.data.names['y']) # group labels
+        nseries = self.data.num['y']
         # number of series
-        ngroups = max([np.size(k) for k in self.data.series['y']])
+        ngroups = max(self.data.size['y'])
         # leftmost position of bars
         pos = np.arange(ngroups)-nseries/2*width
         self.x = range(0,len(self.data.series['x'][0]))
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         # plot each series at a time      
-        for n, s in enumerate(self.data.series['y']):
-            if self.data.stats['y']: # check not empty
-                error =[self.data.stats['y']['ebp'][n],
-                        self.data.stats['y']['ebn'][n]]
-            else:
-                error = None
+        for n, s in enumerate(self.data.series['y']):    
+            try:
+                err = self.data.series['errorbar'][n] 
+            except: # lazy handling, error upon KeyError, IndexError
+                err = None
             if Style=='Vertical':      
-                self.axs.bar(pos+n*width, s, width,  yerr=error, alpha=0.4,
+                self.axs.bar(pos+n*width, s, width,  yerr=err, alpha=0.4,
                              color=color[n%len(color)], align='center',
-                                         label=self.data.names['y'][n])
+                                         label=self.data.meta['y'][n])
                     
             else:
-                self.axs.barh(pos+n*width, s, width, xerr=error, alpha=0.4,
+                self.axs.barh(pos+n*width, s, width, xerr=err, alpha=0.4,
                               color=color[n%len(color)], align='center',
-                                          label=self.data.names['y'][n])
+                                          label=self.data.meta['y'][n])
         self.SetDefaultAxis()
         if Style=='Vertical':
             self.SetCategoricalXAxis()
@@ -158,6 +157,9 @@ class PublicationFigures(object):
         else: # horizontal
             self.AdjustBarPlotYAxis()
             self.SetCategoricalYAxis()
+        # Set labels
+        self.axs.set_xlabel(self.data.meta['xlabel'])
+        self.axs.set_ylabel(self.data.meta['ylabel'])
             
         if n>0: # for multiple series, add legend
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -624,7 +626,7 @@ class PublicationFigures(object):
 
 
 if __name__ == "__main__":
-    dataFile = os.path.join(exampleFolder, '%s.txt' %plotType)
+    dataFile = os.path.join(exampleFolder, '%s.csv' %plotType)
     # Load data
     K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
     if plotType == 'lineplot':
@@ -641,7 +643,7 @@ if __name__ == "__main__":
         # Time series example
         K.Traces()
     elif plotType == 'barplot':
-        K.BarPlot(Style='Horizontal')
+        K.BarPlot(Style='Vertical')
     elif plotType == 'scatter':
         K.Scatter()
     elif plotType == 'scatter3d':

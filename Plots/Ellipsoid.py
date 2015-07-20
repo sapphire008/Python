@@ -8,6 +8,9 @@ Created on Sun Jul 05 21:07:31 2015
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import sys
+sys.path.append("C:/Users/Edward/Documents/Assignments/Scripts/Python/")
+from generic.spm_matrix import spm_matrix
 
 import time
 
@@ -36,6 +39,7 @@ def Ellipsoid(center, radii, rvec=np.eye(3), A=None, numgrid=100):
     # A = eigvec * diag(eigvalue) * inv(eigvec)
     if A is None:
         A = rvec.dot(np.diag(1.0/radii**2)).dot(np.linalg.inv(rvec))
+    # Note that this step is necessary to sort out x, y, z
     U, S, V = np.linalg.svd(A) # A = USV', V is returned as V'
     radii = 1.0/np.sqrt(S)
     # Spherical coordinate
@@ -46,73 +50,65 @@ def Ellipsoid(center, radii, rvec=np.eye(3), A=None, numgrid=100):
     y = radii[1] * np.outer(np.sin(u), np.sin(v))
     z = radii[2] * np.outer(np.ones_like(u), np.cos(v))
     X = np.rollaxis(np.array([x,y,z]), 0, 3)
-    X = X.dot(V) + center.reshape((1, 1, -1))
+    X = X.dot(V.T) + center.reshape((1, 1, -1)) # rotation and translation
     return(X[:,:,0], X[:,:,1], X[:,:,2])
 
-# Ellipsoid (x-v)'A(x-v) = 1
-#A = np.array([[1,0,0], [0,2,0], [0,0,2]])
-#c = np.array([0,0,0])
-#
-## find the rotation matrix and radii of the axes
-#U, S, V = np.linalg.svd(A) # USV'
-#radii = 1.0/np.sqrt(S)
-#
-## Polar coordinate
-#u = np.linspace(0.0, 2.0*np.pi, 100)
-#v = np.linspace(0, np.pi, 100)
-## Convert to Cartesian
-#x = radii[0] * np.outer(np.cos(u), np.sin(v))
-#y = radii[1] * np.outer(np.sin(u), np.sin(v))
-#z = radii[2] * np.outer(np.ones_like(u), np.cos(v))
-#
-#for i in range(len(x)):
-#    for j in range(len(x)):
-#        x[i,j], y[i,j], z[i,j] = np.dot([x[i,j], y[i,j], z[i,j]], V) + c
+def SimulateEllipsoid(P=None):        
+    if P is None:
+        P = np.array([1,2,3,np.pi/3, np.pi/4, np.pi/6,4,5,6,0,0,0])
+    A, _, R, _, _ = spm_matrix(P)
+    # make up data
+    X = np.concatenate((np.random.randn(1000,3), np.ones((1000,1))),axis=1)
+    # Transform data
+    X = X.dot(A.T)
+    # homogenize data
+    X = X[:,:-1] / X[:,-1][...,np.newaxis]
+    # Reverse to extract parameters
+    # mean
+    centroid = np.mean(X, axis=0)
+    # subtract mean
+    Y = X - centroid
+    # principle component analysis
+    U, S, V = np.linalg.svd(1.0/np.sqrt(Y.shape[0])*Y)
+    # retrieve radii
+    radii = S # variance = S**2
+    # retrieve rotation
+    rvec = V
+    return(X, centroid, radii, rvec)
 
-    def P2M(P):
-        """polynomail to matrix form"""
-        nd = (np.sqrt(np.size(P)*8+9)-3.0)/2.0
-        M = np.eye(1.0 + nd)
-        M = M*np.diag(np.concatenate((P[0:nd],np.array([-1.0]))))*0.5
-        count = nd
-        for ind in xrange(int(nd)):
-            M[(ind+1):-1, ind] = P[count:(count+nd-ind-1)]
-            count +=nd-ind-1
-        M[-1,:-1] = P[-nd:]
-        M = M + M.T
-        return(M)
-        
-    def M2P(M):
-        """Matrix to polynomial form"""
-        P = np.diag(M)[:-1]
-        for ind in xrange(np.shape(M)[0]): 
-            P = np.concatenate((P, M[(ind+1):-1, ind]), axis=1)
-        P = np.concatenate((P,M[-1,:-1]), axis=1)
-        return(P)
+def P2M(P):
+    """polynomail to matrix form"""
+    nd = (np.sqrt(np.size(P)*8+9)-3.0)/2.0
+    M = np.eye(1.0 + nd)
+    M = M*np.diag(np.concatenate((P[0:nd],np.array([-1.0]))))*0.5
+    count = nd
+    for ind in xrange(int(nd)):
+        M[(ind+1):-1, ind] = P[count:(count+nd-ind-1)]
+        count +=nd-ind-1
+    M[-1,:-1] = P[-nd:]
+    M = M + M.T
+    return(M)
+    
+def M2P(M):
+    """Matrix to polynomial form"""
+    P = np.diag(M)[:-1]
+    for ind in xrange(np.shape(M)[0]): 
+        P = np.concatenate((P, M[(ind+1):-1, ind]), axis=1)
+    P = np.concatenate((P,M[-1,:-1]), axis=1)
+    return(P)
 
 if __name__ == '__main__':
-#        
-    X = np.random.randn(1000,3)  * np.array([1,2,3]) + np.array([[6,7,8]])
-    X = np.dot(X, rotation((0,0,np.pi/4)).T)
-    x, y, z = X[:,0][...,np.newaxis], X[:,1][...,np.newaxis], X[:,2][...,np.newaxis]
-    # a,b,c = Y[:,0][...,np.newaxis], Y[:,1][...,np.newaxis], Y[:,2][...,np.newaxis]
-
-    #ax.scatter(x,y,z,s=20, c=u'k', depthshade=True)
-#    ax = fig.add_subplot(212,projection='3d')
-#    ax.scatter(a,b,c,s=20, c=u'k', depthshade=True)
-
-    # fit with ellipse
-    #c, radii, evecs, v, M = FitEllipsoid(X, flag=0)
-    #A = np.array([[1,0,0],[0,0.25,0],[0,0,0.25]]) # shape matrix
-    radii = np.array([1,4,9])
-    center = np.array([6,7,8])
-    rvec = np.array([[2,-2,1],[1,2,2],[2,1,-2]])
-    
-    x,y,z = Ellipsoid(center, radii, rvec)
-    
+    # Start figure
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
-    ax.plot_surface(x,y,z, rstride=4, cstride=4, color='b', linewidth=0, alpha=0.2)
+    # simulate data
+    X, center, radii, rvec = SimulateEllipsoid()
+    x, y, z = X[:,0], X[:,1], X[:,2]
+    ax.scatter(x, y, z, color='k', alpha=0.1)
+    
+    # calcualte ellipsoid fit
+    x,y,z = Ellipsoid(center, radii, rvec)
+    ax.plot_surface(x,y,z, rstride=4, cstride=4, color='b', linewidth=0, alpha=0.7)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
