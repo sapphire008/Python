@@ -30,7 +30,7 @@ class NeuroData(object):
         else:
             IOError('Unrecognized data file input')
 
-    def LoadData(self, dataFile, old=True): #old=True to be edited later
+    def LoadData(self, dataFile, old=False):
         """Load data in text file"""
         # check file exists
         if not os.path.isfile(dataFile):
@@ -54,6 +54,7 @@ class NeuroData(object):
 
     def LoadOldDataFile(self, dataFile, numChannels=4, infoOnly=False):
         """Read Old .dat format data file"""
+
         self.Protocol.numChannels = numChannels # hard set
         self.Protocol.readDataFrom = os.path.abspath(dataFile).replace('\\','/') # store read location
         with open(dataFile, 'rb') as fid:
@@ -157,7 +158,7 @@ class NeuroData(object):
             return(''.join(np.fromfile(fid, '|S1', stringLength)))
 
 
-""" 2photon image data"""
+
 class ImageData(object):
     """Read image data file
     """
@@ -168,153 +169,64 @@ class ImageData(object):
         if dataFile is not None and isinstance(dataFile, str):
             self.LoadImageData(dataFile)
 
-""" Publication figure data (csv file) """
 class FigureData(object):
+    """Data for plotting
+    """
     def __init__(self, dataFile=None):
         """Initialize class"""
         self.series = {'x':[],'y':[],'z':[]}
-        self.meta = {} # a list of meta parameters in the file
-
+        self.stats = {'x':{},'y':{},'z':{}}
+        self.names = {'x':[],'y':[],'z':[]}
+        self.num = {'x':[],'y':[],'z':[]} # count number of data sets
         if dataFile is not None and isinstance(dataFile, str):
-            # load directly if all the conditions are met
-            self.LoadFigureData(dataFile=dataFile)
+            self.LoadFigureData(dataFile)
 
-    def LoadFigureData(self, dataFile, sep=',', metachar="|"):
-        """Load data file"""
-        # check file exists
-        fid = open(dataFile, 'r')
-        self.table = []
-        for rownum, line in enumerate(fid): # iterate through each line
-            line = line.strip().strip(sep).replace('\t','').replace('"','')
-            if not line or line[0] == "#" or line==line[0]*len(line):
-                continue # skip comments and empty lines
-            if line[0] == metachar: # metadata starts with "|"
-                self.parse_meta(line, metachar)
-            else: # assuming the rest of the file is data table
-                fid.close()
-                break
-        # read in the rest of the data
-        self.table = pd.read_csv(dataFile, sep=sep, comment="#",
-                                 skipinitialspace=True, skiprows=rownum,
-                                 skip_blank_lines=True)
-        # parse the data to variable
-        self.parse_data()
-        # set more parameters
-        self.set_default_labels()
-        # Reorganize errorbar
-        self.parse_error_bar()
-        # Count number of data sets for each series
-        self.count_series()
-        self.get_shape()
-        self.get_size()
+    def LoadFigureData(self, dataFile, delimiter=','):
+        """Read text data for figure plotting"""
+          # check file exists
+        if not os.path.isfile(dataFile):
+            IOError('%s does not exist' %dataFile)
 
-    def set_default_labels(self,cat=None):
-        def copyvalue(meta, f, g, cat=None):
-            if f not in meta.keys() and g in meta.keys():
-                if isinstance(meta[g],list):
-                    meta[f] = cat.join(meta[g]) if cat is not None else ""
-                else:
-                    meta[f] = meta[g]
-            return(meta)
-        self.meta = copyvalue(self.meta, 'xlabel','x', cat=cat)
-        self.meta = copyvalue(self.meta, 'ylabel','y', cat=cat)
-        if self.series['z']:
-            self.meta = copyvalue(self.meta, 'zlabel','z', cat=cat)
+        with open(dataFile, 'rb') as fid:
+            for line in fid: # iterate each line
+                if not line.strip() or line[0] == "#":
+                    continue  # skip comments and empty lines
+                # split comma delimited string
+                # series code, series name,@datatype, data1, data2, data3, ...
+                lst = [s.strip() for s in line.split(delimiter)]
+                # Parse variable
+                v = lst[0][0] # variable name
+                stats = lst[0][1:-1]
+                # Read the data
+                seriesData = self.ParseFigureData(lst[1][1:], lst[3:])
+                # Organize the data to structure
+                if stats != "": #stats, not empty
+                    if stats in self.stats[v].keys(): # key exists already
+                        self.stats[v][stats].append(seriesData)
+                    else: # add new key / create new list
+                        self.stats[v][stats] = [seriesData]
+                else: # series data
+                    self.series[v].append(seriesData)
+                    self.names[v].append(lst[2][1:-1])
 
-    def parse_error_bar(self):
-        """Reorganize errorbar"""
-        vec = [0,0,0,0,0,0]
-        vec[0] = 1 if 'errorbar_pos' in self.series.keys() else 0
-        if vec[0] == 1:
-            vec[1] = 1 if self.series['errorbar_pos'] else 0
-        vec[2] = 1 if 'errorbar_neg' in self.series.keys() else 0
-        if vec[2] == 1:
-            vec[3] = 1 if self.series['errorbar_neg'] else 0
-        vec[4] = 1 if 'errorbar' in self.series.keys() else 0
-        if vec[4] == 1:
-            vec[5] = 1 if self.series['errorbar'] else 0
-        # both pos and neg exist, but not errorbar
-        if [vec[v] for v in [0,1,2,3,5]] == [1,1,1,1,0]:
-            self.series['errorbar'] = [np.array([x,y]) for x,y in zip(\
-                   self.series['errorbar_pos'], self.series['errorbar_neg'])]
-        # pos exist but not neg
-        elif [vec[v] for v in [0,1,3,5]] == [1,1,0,0]:
-            self.series['errorbar'] = self.series['errorbar_pos']
-        # neg exist but not pos
-        elif [vec[v] for v in [1,2,3,5]] == [0,1,1,0]:
-            self.series['errorbar'] == self.series['errorbar_neg']
+            fid.close()
+            # Parse number of data set
+            for v in self.series.keys():
+                self.num[v] = len(self.series[v])
 
-        # remove errorbar_pos and errorbar_neg
-        self.series.pop('errorbar_pos',None)
-        self.series.pop('errorbar_neg',None)
+    @staticmethod
+    def ParseFigureData(valueType, seriesList):
+        """Parse each line of read text"""
+        if valueType == 'str':
+            return(np.array(seriesList))
+        elif valueType == 'float':
+            return(np.array(seriesList).astype(np.float))
+        elif valueType == 'int':
+            return(np.array(seriesList).astype(np.int))
+        else: # unrecognized type
+            TypeError('Unrecognized data type')
 
-    def parse_meta(self, line,metachar="|"):
-        """Parse parameter"""
-        line = line.replace(metachar,"")
-        m, v = line.split("=") # metavaraible, value
-        m, v = m.strip(), v.strip()
-        # parse value if it is a list
-        if v.lower() == "none":
-            self.meta[m] = None
-            return
-        if "[" in v and "," in v:
-            v = v.replace("[","").replace("]","").split(",")
-            v = [x.strip() for x in v]
-        self.meta[m] = v
-
-    def parse_data(self):
-        """Put table data into series"""
-        # series
-        cheader = list(self.table.columns.values)
-        for key,val in iter(self.meta.items()):
-            #if key in ['x','y','z']: continue
-            if val is None:
-                continue
-            elif isinstance(val, str):
-                if val not in cheader:
-                    continue
-                else:
-                    self.series[key].append(np.array(\
-                                        list(self.table[val].values)))
-            elif all([v in cheader for v in val]): # assume it is a list
-                self.series[key] = []
-                for v in val:
-                    self.series[key].append(np.array(list(
-                                                    self.table[v].values)))
-            elif any([v in cheader for v in val]):
-               raise SyntaxError(\
-                     "Some header reference to '%s' is spelled wrong"% (key))
-            #else:
-                #raise RuntimeError(\
-                #        "Fall through. Check (key, value)=(%s, %s)"%(key,val))
-    def get_size(self):
-        """Get the numel of each data series except the nan or empty string"""
-        def checknumel(v):
-            if isinstance(v[0], np.string_): # check for empty
-                return(len([x for x in v if x]))
-            else:
-                try:
-                    return(np.count_nonzero(~np.isnan(v)))
-                except:
-                    raise TypeError("unrecognized type %s" %(type(v)))
-
-        self.size = {}
-        for k in self.series.keys():
-            self.size[k] = [checknumel(v) for v in self.series[k]]
-
-    def get_shape(self):
-        """Get shape of each series"""
-        self.shape = {}
-        for k in self.series.keys():
-            self.shape[k] = [v.shape for v in self.series[k]]
-
-    def count_series(self):
-        """Get number of series"""
-        self.num = {}
-        for k in self.series.keys():
-            self.num[k] = len(self.series[k])
-
-    def Neuro2Trace(self, data, channels=None, streams=None):
+    def Neuro2Figure(self, data, channels=None, streams=None):
         """Use NeuroData method to load and parse trace data to be plotted
         data: an instance of NeuroData, ro a list of instances
         channels: list of channels to plot, e.g. ['A','C','D']
@@ -323,34 +235,19 @@ class FigureData(object):
         # Check instance
         if isinstance(data, NeuroData):
             data = [data] # convert to list
-        elif isinstance(data, str): # file path
-            data = [NeuroData(data)]
-        elif isinstance(data, list): # a list of objects
-            if isinstance(data[0], NeuroData): # a list of NeuroData instances
-                pass
-            elif isinstance(data[0],str): # a list of file paths
-                data = [NeuroData(d) for d in data]
-            else:
-                raise TypeError(("Unrecognized data type"))
-        else:
-            raise TypeError(("Unrecognized data type"))
 
         # initialize notes, stored in stats attribute
-        self.meta.update({'notes':[], 'xunit':[],'yunit':[],'x':[], 'y':[]})
-        # file, voltage, current, channel, time
+        self.stats['y']['notes'] = []
         notes = "%s %.1f mV %d pA channel %s WCTime %s min"
         for n, d in enumerate(data): # iterate over all data
              # Time data
             self.series['x'].append(np.arange(0, d.Protocol.sweepWindow+
                           d.Protocol.msPerPoint, d.Protocol.msPerPoint))
-            self.meta['x'].append('time')
-            self.meta['xunit'].append('ms') # label unit
-            # iterate over all the channels
-            avail_channels = [x[-1] for x in d.Protocol.channelNames]
-            avail_streams = [x[0] for x in d.Protocol.channelNames]
-            for c in self.listintersect(channels, avail_channels):
+            self.names['x'].append('ms') # label unit
+             # iterate over all the channels
+            for c in channels:
                 # iterate over data streams
-                for s in self.listintersect(streams, avail_streams):
+                for s in streams:
                     tmp = {'V': d.Voltage, 'C':d.Current, 'S': d.Stimulus}.get(s)
                     if tmp is None or not bool(tmp):
                         continue
@@ -358,45 +255,28 @@ class FigureData(object):
                     if tmp is None:
                         continue
                     self.series['y'].append(tmp)
-                    self.meta['y'].append((s, c))
+                    self.names['y'].append((s, c))
                     if s == 'V':
                         volt_i = tmp[0]
-                        self.meta['yunit'].append('mV')
-                    elif s == 'C':
+                    if s == 'C':
                         cur_i = tmp[0]
-                        self.meta['yunit'].append('pA')
-                    else: #s == 'S'
-                        self.meta['yunit'].append('pA')
                 dtime = self.sec2hhmmss(d.Protocol.WCtime)
-                # Notes: file, voltage, current, channel, time
+                # Notes: {path} Initial: {voltage 0.1f mV} {current %d pA} \
+                #                   WC Time: 1:12:30.0 min
                 notesstr = notes %(d.Protocol.readDataFrom,  volt_i, cur_i, c,dtime)
-                self.meta['notes'].append(notesstr)
-
-    @staticmethod
-    def listintersect(*args):
-        """Find common elements in lists"""
-        args = [x for x in args if x is not None]
-        def LINT(A,B):  #short for list intersection
-            return list(set(A) & set(B))
-        if len(args) == 0:
-            return(None)
-        elif len(args) == 1:
-            return(args[0])
-        elif len(args) == 2:
-            return(LINT(args[0],args[1]))
-        else:
-            newargs = tuple([LINT(args[0], args[1])]) + args[2:]
-            return(listintersect(*newargs))
+                self.stats['y']['notes'].append(notesstr)
 
     @staticmethod
     def sec2hhmmss(sec):
-        """Converting seconds into hh:mm:ss"""
-        m, s = divmod(sec, 60)
-        h, m = divmod(m, 60)
-        return("%d:%d:%0.1f" % (h, m, s))
+         m, s = divmod(sec, 60)
+         h, m = divmod(m, 60)
+         return("%d:%d:%0.1f" % (h, m, s))
+
+
+
 
 
 if __name__ == '__main__':
     data = NeuroData(dataFile, old=True)
     figdata = FigureData()
-    figdata.Neuro2Trace(data, channels=['A','B','C','D'], streams=['V','C','S'])
+    figdata.Neuro2Figure(data, channels=['A','C','D'], streams=['V','C','S'])

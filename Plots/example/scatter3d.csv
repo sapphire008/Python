@@ -2,8 +2,10 @@
 # Command, start with pipe '|',,,,
 # Empty lines will be ignored when reading,,,,,
 # CSV format for data plot,,,,,
+# Double quote is not allowed, use single quote instead
 #  Type of plot,,,,,
 | type = scatter3d,,,,,
+# Plot data specification
 | x = [CCh1, CCh2],,,,
 | y = [ML2971," ML2972]""",,,,
 | z = [RMP1," RMP2]""",,,,
