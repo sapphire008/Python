@@ -13,8 +13,8 @@ from ImportData import FigureData
 # matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'barplot'
-Style = 'Vstack'
+plotType = 'beeswarm'
+style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 # global variables
@@ -32,11 +32,11 @@ class PublicationFigures(object):
         Data: FigureData, or data file path
         PlotType: currently supported plot types include:
             ~ LinePlot: for categorical data, with error bar
-                Style:
+                style:
                     'Twin' -- Same plot, 2 y-axis (left and right of plot)
                     'Vstacked' (default) -- vertically stacked subplots
             ~ Beeswarm: beeswarm plot; boxplot with scatter points
-                Style: 'hex','swarm' (default),'center','square'
+                style: 'hex','swarm' (default),'center','square'
     """
     def __init__(self, dataFile=None, SavePath=None):
         """Initialize class
@@ -51,13 +51,17 @@ class PublicationFigures(object):
     def LoadData(self, dataFile):
         """To be called after object creation"""
         self.data = FigureData(dataFile)
-  
+        # Set some variables to help with indexing
+        g = globals()
+        for item in ['x','y','z','by']: 
+            g[item] = self.data.meta[item] if item in self.data.meta else None
+            
     def AdjustFigure(func):
         """Used as a decotrator to set the figure properties"""
         def wrapper(self, *args, **kwargs):
             res = func(self, *args, **kwargs) # execute the function as usual
             self.SetFont() # adjust font
-            self.fig.set_size_inches(6, 5) # set figure size
+            self.fig.set_size_inches(6,5) # set figure size
             self.fig.tight_layout() # tight layout
             return res
         return wrapper
@@ -73,7 +77,7 @@ class PublicationFigures(object):
         if self.SavePath is None: # save to current working directory
             self.SavePath = os.path.join(os.getcwd(),'Figure.eps')
         self.fig.savefig(self.SavePath, bbox_inches='tight', dpi=dpi)
-
+        
     """ ####################### Plot utilities ####################### """
     @AdjustFigure
     def Traces(self, groupings=None, scalebar=True, annotation=None,
@@ -108,80 +112,104 @@ class PublicationFigures(object):
         color = blue, magenta, purple, orange, green
         marker = circle, pentagon, pentagram star,star, + sign
         """
+        global x, y, by
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1)
-        for n in range(self.data.num['x']): # add each set of data
-            label = self.data.meta['group'][n] \
-                    if 'group' in self.data.meta else None
-            plt.scatter(self.data.series['x'][n],
-                        self.data.series['y'][n],  alpha=alpha, s=50,
+        # Get number of groups
+        group = np.unique(self.data.table[by]) if by is not None else [1]
+        for n,gp in enumerate(group):
+            try: # lazy handling, error upon KeyError, IndexError
+                label = self.data.meta['legend'][n]
+            except:
+                label = None
+            # select subset of data rows
+            series = self.data.table[self.data.table[by]==gp] \
+                                if by is not None else self.data.table
+            # plot
+            plt.scatter(series[x], series[y], alpha=alpha, s=50,
                         marker=marker[n%len(marker)],
-                        color=color[n%len(color)], label=label)
+                        color=color[n%len(color)], 
+                        label=label[n] if label is not None else None)
         self.SetDefaultAxis()
         self.axs.set_xlabel(self.data.meta['xlabel'])
         self.axs.set_ylabel(self.data.meta['ylabel'])
-        if self.data.num['x']>1 and legend_on: # set legend
+        if legend_on and label is not None :
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
     @AdjustFigure
-    def Scatter3D(self, color=color, marker=['.', '+', 'x', (5, 2), '4']):
+    def Scatter3D(self, color='k', marker=['.', '+', 'x', (5, 2), '4']):
         from mpl_toolkits.mplot3d import Axes3D # for 3D plots
         self.fig = plt.figure()
         self.axs = self.fig.add_subplot(111, projection='3d')
-        for n in range(self.data.num['x']):
+        color=list(color)
+        global x, y, z, by
+        # Get number of groups
+        group = np.unique(self.data.table[by]) if by is not None else [1]
+        for n,gp in enumerate(group):
             try: # lazy handling, error upon KeyError, IndexError
-                label = self.data.meta['group'][n]
+                label = self.data.meta['legend'][n]
             except:
                 label = None
-            self.axs.scatter(self.data.series['x'][n],self.data.series['y'][n],
-                             self.data.series['z'][n],zdir=u'z', s=144,
-                             c='k', label=label,marker=marker[n%len(marker)],
-                             depthshade=True) # s=144 --> sqrt(s) point font
+            # select subset of data rows
+            series = self.data.table[self.data.table[by]==gp] \
+                                if by is not None else self.data.table                  
+            # plot
+            self.axs.scatter(series[x], series[y], series[z], 
+                             label=label, zdir=u'z', s=144, #sqrt(s) point font
+                             c = color[n%len(color)],
+                             marker=marker[n%len(marker)],
+                             depthshade=True)
         self.axs.set_xlabel(self.data.meta['xlabel'])
         self.axs.set_ylabel(self.data.meta['ylabel'])
-        if self.data.series['z']:
-            self.axs.set_zlabel(self.data.meta['zlabel'])
+        self.axs.set_zlabel(self.data.meta['zlabel'])
         # Add annotations
         #self.AddRegions()
         self.SetDefaultAxis3D() # default axis, view, and distance
     
     @AdjustFigure
-    def BarPlot(self, Style='Vertical', width=0.27, color=color, hatch=None, 
-                alpha=0.4, linewidth=0):
+    def BarPlot(self, style='Vertical', width=0.27, gap=0, space=0.25, 
+                color=color, hatch=None, alpha=0.4, linewidth=0):
         """Plot bar graph
-        Style: style of bar graph, can choose 'Vertical' and 'Horizontal'
+        style: style of bar graph, can choose 'Vertical' and 'Horizontal'
         width: width of bar. Default 0.27
-        space: space between bar. Default 0.
-        color: blue, magenta, purple, orange, green
+        gap: space between bars. Default 0.
+        space: distances between categories. Deafult 0.25
         """
-        # Get bar plot function according to style
-        nseries = self.data.num['y']
-        # number of series
-        ngroups = max(self.data.size['y'])
-        # leftmost position of bars
-        pos = np.arange(ngroups)-nseries/2*width
-        self.x = range(0,len(self.data.series['x'][0]))
+        global x, y, z, by
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        # plot each series at a time
-        for n, s in enumerate(self.data.series['y']):
-            try:
-                err = self.data.series['errorbar'][n]
-            except: # lazy handling, error upon KeyError, IndexError
-                err = None
-            if Style=='Vertical':
-                bars = self.axs.bar(pos+n*width, s, width,  yerr=err, 
-                                    alpha=alpha, align='center',
-                                    label=self.data.meta['y'][n])
+        # Get number of groups
+        group = np.unique(self.data.table[by]) if by is not None else [1]
+        # Center of each category
+        ns = len(group) # number of series
+        inc = space+(ns-1)*gap+ns*width
+        self.x = np.arange(0,len(np.unique(self.data.table[x]))*inc,inc)
+        # leftmost position of bars
+        pos = self.x-ns/2*width - (ns-1)/2*gap
+
+        for n,gp in enumerate(group):
+            try: # lazy handling, error upon KeyError, IndexError
+                label = self.data.meta['legend'][n]
+            except:
+                label = None
+            # select subset of data rows
+            series = self.data.table[self.data.table[by]==gp] \
+                                if by is not None else self.data.table
+            err = self.data.parse_errorbar(series) # get errorbar
+            pos = pos if n==0 else pos+width+gap
+            if style=='Vertical':
+                bars = self.axs.bar(pos[:series.shape[0]], series[y], 
+                                    width,  yerr=err, alpha=alpha, 
+                                    align='center', label=label)
             else:
-                bars = self.axs.barh(pos+n*width, s, width,  yerr=err, 
-                                    alpha=alpha,align='center',
-                                    label=self.data.meta['y'][n])
+                bars = self.axs.barh(pos[:series.shape[0]], series[y], 
+                                     width,  yerr=err, alpha=alpha,
+                                     align='center', label=label)
             # Set color
             self.SetColor(bars, color, n, linewidth)             
             # Set hatch if available
             self.SetHatch(bars, hatch, n)
         self.SetDefaultAxis()
-        if Style=='Vertical':
+        if style=='Vertical':
             self.SetCategoricalXAxis()
             self.AdjustBarPlotXAxis()
         else: # horizontal
@@ -195,15 +223,23 @@ class PublicationFigures(object):
             self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         
     @AdjustFigure
-    def Beeswarm(self, Style='swarm',color=color):
+    def Boxplot(self, color=color):
+        """boxplot"""
+        # initialize plot
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        self.x = [0,1]
+        axs.boxplot()
+        
+    @AdjustFigure
+    def Beeswarm(self, style='swarm',color=color):
         """Beeswarm style boxplot
-        color: blue, magenta, purple, orange, green
+        style: beeswarm dot style, ['swarm' (default),'hex','center','square']
         """
         from beeswarm import beeswarm
         # boardcasting color cycle
         num = self.data.num['y']
         color = num/len(color)*color+color[0:num%len(color)]
-        self.bs, self.axs = beeswarm(self.data.series['y'], method=Style,
+        self.bs, self.axs = beeswarm(self.data.series['y'], method=style,
                                      labels=self.data.series['x'][0],col=color)
         # Format style
         # make sure axis tickmark points out
@@ -220,9 +256,13 @@ class PublicationFigures(object):
         self.SetAspectRatio(r=0.5, adjustable='box-forced',continuous=True)
         # save current figure handle
         self.fig = plt.gcf()
+    
+    @AdjustFigure
+    def Violinplot(self, color=color):
+        """violin plot / boxplot"""
 
     @AdjustFigure
-    def Histogram(self, Style='Hstack'):
+    def Histogram(self, style='Hstack'):
         """Plot histogram"""
         n, bins, patches = P.hist(x, 50, normed=1, histtype='stepfilled')
         P.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
@@ -230,14 +270,11 @@ class PublicationFigures(object):
 
     def HistogramHstack(self):
         return
-
-    def HistogramMirror(self):
-        return
         
     @AdjustFigure
-    def LinePlot(self, Style='Vstack'):
+    def LinePlot(self, style='Vstack'):
         self.x = range(len(self.data.series['x'][0])) # set categorical x
-        if Style=='Vstack' or self.data.num['y'] < 2:
+        if style=='Vstack' or self.data.num['y'] < 2:
             self.LinePlotVstack()
         else:
             self.LinePlotTwin()
@@ -408,17 +445,17 @@ class PublicationFigures(object):
             ax.set_xlim(ax.get_xticks()[0]-1,ax.get_xlim()[-1])
         if ax.get_xlim()[-1] <= self.x[-1]:
             ax.set_xlim(ax.get_xlim()[0], ax.get_xticks()[-1]+1)
-        plt.xticks(self.x, self.data.series['x'][0])
+        plt.xticks(self.x, np.unique(self.data.table[x]))
 
     def SetCategoricalYAxis(self, ax=None):
         """Additional settings for plots with categorical data"""
         if ax is None: # last axis, or self.axs is a single axis
             ax = self.axs[-1] if isinstance(self.axs, np.ndarray) else self.axs
         if ax.get_ylim()[0] >= self.x[0]:
-            ax.set_ylim(ax.get_yticks()[0]-1,ax.get_ylim()[-1])
+            ax.set_ylim(ax.get_yticks()[0]-0.5,ax.get_ylim()[-1])
         if ax.get_ylim()[-1] <= self.x[-1]:
-            ax.set_ylim(ax.get_ylim()[0], ax.get_yticks()[-1]+1)
-        plt.yticks(self.x, self.data.series['x'][0])
+            ax.set_ylim(ax.get_ylim()[0], ax.get_yticks()[-1]+0.5)
+        plt.yticks(self.x, np.unique(self.data.table[x]))
 
     def SetDiscontinousAxis(self, x=None, y=None):
         """Plot with discontious axis. Allows one discontinuity for each axis.
@@ -472,10 +509,8 @@ class PublicationFigures(object):
         if hatch is not None:
             for p in plotobj:
                 p.set_hatch(hatch[n%len(hatch)])
-        
-
-
-    """ ####################### Annotations ####################### """
+    
+    """ #################### Text Annotations ####################### """
     def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces."""
@@ -524,47 +559,9 @@ class PublicationFigures(object):
         #print(self.axs.transData.inverted().transform(txtbb).ravel())
 
     def TextAnnotation(self, text="", position='south'):
+        raise(NotImplementedError('This mehtod is not implemented'))
         return # not done yet
-
-    def DrawEllipsoid(self, center, radii=None, rvec=np.eye(3), \
-                      A=None, numgrid=100, ax=None, color=color, alpha=0.6):
-        """Draw an ellipsoid given its parameters
-        center: center [x0,y0,z0]
-        radii: radii of the ellipsoid [rx, ry, rz]
-        rvec: vector of the radii that indicates orientation. Default identity
-        A: orientation matrix 3x3, where each row is a vector of radii, can be
-            supplied directly instead of radii and rvec
-        numgrid: number of points to estimate the ellipsoid. The higher the 
-            number, the smoother the plot. Defualt 100.
-        """
         
-        # Caculate ellipsoid coordinates
-        x,y,z = self.Ellipsoid(center, radii, rvec, A, numgrid)
-        if ax is None:
-            if not (isinstance(self.axs, np.ndarray) or \
-                    isinstance(self.axs, list)):
-                ax = self.axs # only 1 axis
-            else:
-                return
-        ax.plot_surface(x,y,z,rstride=4,cstride=4,linewidth=0,\
-                              alpha=alpha,color=color[self.cache%len(color)])
-        self.cache += 1 # increase color cache index by 1
-    
-    def DrawRect(self, x,y,w,h, ax=None, color=color, alpha=0.6):
-        """Draw a rectangular bar
-        x,y,w,h: xcenter, ycenter, width, height        
-        """
-        from matplotlib.patches import Rectangle
-        if ax is None:
-            if not (isinstance(self.axs, np.ndarray) or \
-                    isinstance(self.axs, list)):
-                ax = self.axs # only 1 axis
-            else:
-                return
-        ax.add_patch(Rectangle((x-w/2.0, y-h/2.0), w, h, angle=0.0, \
-                            facecolor=color[self.cache%len(color)]))
-        self.caceh += 1 # increase color cache index by 1
-
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
         bar graph. Annotate several groups at a time.
@@ -648,9 +645,68 @@ class PublicationFigures(object):
     def RemoveAnnotation(self):
         """Remove all annotation and start over"""
         self.axs.texts = []
+    
+    
+    """ ################# Geometry Annotations ####################### """
+    def DrawEllipsoid(self, center, radii=None, rvec=np.eye(3), \
+                      A=None, numgrid=100, ax=None, color=color, alpha=0.6):
+        """Draw an ellipsoid given its parameters
+        center: center [x0,y0,z0]
+        radii: radii of the ellipsoid [rx, ry, rz]
+        rvec: vector of the radii that indicates orientation. Default identity
+        A: orientation matrix 3x3, where each row is a vector of radii, can be
+            supplied directly instead of radii and rvec
+        numgrid: number of points to estimate the ellipsoid. The higher the 
+            number, the smoother the plot. Defualt 100.
+        """
+        
+        # Caculate ellipsoid coordinates
+        x,y,z = self.Ellipsoid(center, radii, rvec, A, numgrid)
+        if ax is None:
+            if not (isinstance(self.axs, np.ndarray) or \
+                    isinstance(self.axs, list)):
+                ax = self.axs # only 1 axis
+            else:
+                return
+        ax.plot_surface(x,y,z,rstride=4,cstride=4,linewidth=0,\
+                              alpha=alpha,color=color[self.cache%len(color)])
+        self.cache += 1 # increase color cache index by 1
+    
+    def DrawRect(self, x,y,w,h, ax=None, color=color, alpha=0.6):
+        """Draw a rectangular bar
+        x,y,w,h: xcenter, ycenter, width, height        
+        """
+        from matplotlib.patches import Rectangle
+        if ax is None:
+            if not (isinstance(self.axs, np.ndarray) or \
+                    isinstance(self.axs, list)):
+                ax = self.axs # only 1 axis
+            else:
+                return
+        ax.add_patch(Rectangle((x-w/2.0, y-h/2.0), w, h, angle=0.0, \
+                            facecolor=color[self.cache%len(color)]))
+        self.caceh += 1 # increase color cache index by 1
+        # Send the patch to the background, but right above the previous patch
+        self.SetZOrder(style='overlay')
+        
+    def SetZOrder(self, plotobj=None, style=None, order=None):
+        """Organizing layers of plot. This is helpful when exporting to .eps"""
+        raise(NotImplementedError('This mehtod is not implemented'))
+        if style == 'back': # send the layer all the way back
+            None
+        elif style == 'front': # send the layer all the way front
+            None
+        elif style == 'overlay':
+            # First identify the same type of objects starting from the bottom,
+            # then put the current object on top of the top-most found object
+            patch_order = 0
+            self.SetZOrder(plotobj, style=None, order=patch_order)
+        if order>0: # send the plot object 1 layer forward
+            None
+        elif order<0: # send the plot object 1 layer backward
+            None 
 
-    """ ####################### Misc ####################### """
-
+    """ ####################### Misc ####################### """            
     @staticmethod
     def roundto125(x, r=np.array([1,2,5,10])): # helper static function
         """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
@@ -750,9 +806,12 @@ if __name__ == "__main__":
     K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
     if plotType == 'lineplot':
         # Line plot example
-        K.LinePlot(Style=Style)
+        K.LinePlot(style=style)
         #K.axs[0].set_ylim([0.5,1.5])
         #K.axs[1].set_ylim([0.05, 0.25])
+    elif plotType == 'boxplot':
+        # boxplot example
+        K.Boxplot()
     elif plotType == 'beeswarm':
         # Beeswarm example
         K.Beeswarm()
@@ -762,7 +821,7 @@ if __name__ == "__main__":
         # Time series example
         K.Traces()
     elif plotType == 'barplot':
-        K.BarPlot(Style='Vertical')
+        K.BarPlot(style='Vertical')
     elif plotType == 'scatter':
         K.Scatter()
     elif plotType == 'scatter3d':

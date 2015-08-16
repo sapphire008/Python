@@ -1,28 +1,38 @@
-# Comments starts with '#' and the line will be ignored when reading,,,,,
-# Command, start with pipe '|',,,,
-# Empty lines will be ignored when reading,,,,,
-# CSV format for data plot,,,,,
-# Double quote is not allowed, use single quote instead
-#  Type of plot,,,,,
-| type=scatter
-# Plot data specification
-| x = [CCh1, CCh2],,,,
-| y = [ML2971,ML2972],,,,
-| xlabel=[CCh] ($\mu$M),,,
-| ylabel=[ML297] ($\mu$M),,,
-# Assuming (x[0], y[0], z[0]) is a group,,,
-# and (x[1], y[1], z[1]) is another group,,,
-# number of groups should be the same as number of elements in x, or y, or z,,,
-| group = [ADP, ADP+Persistent],,,,
-# Data Table: No meta parameters should be defined beyond data table,,,,,
-CCh1,ML2971,CCh2,ML2972
-0.73056537,0.32159043,0.75398513,0.82462213
-0.37364704,0.26374081,0.21387606,0.17188863
-0.63943385,0.10986704,0.86941533,0.30735608
-0.53610359,0.96516267,0.87455997,0.55482837
-0.77223023,0.46892265,0.65320977,0.05392148
-0.26931064,0.43944232,0.28814926,0.20367986
-0.00341297,0.55802153,0.17500311,0.38091309
-0.27357925,0.05099298,0.08597621,0.63268273
-0.05472349,0.2794851,0.5961691,0.13272044
-0.84813697,0.3483225,0.87333331,0.49691292
+# Comments starts with '#' and the line will be ignored when reading,,
+# Command, start with pipe '|',
+# Empty lines will be ignored when reading,,
+# CSV format for data plot,,
+# Double quote is not allowed, use single quote instead,
+#  Type of plot,,
+| type=scatter,,
+# Plot data specification,,
+| x = CCh
+| y = ML297
+# separate data into groups according to the factor column 'Group'
+| by = Group
+| xlabel=[CCh] ($\mu$M),,
+| ylabel=[ML297] ($\mu$M),,
+# Legend label
+| legend = [ADP, ADP+Persistent],
+# Data Table: No meta parameters should be defined beyond data table,,
+Group,CCh,ML297
+1,0.73056537,0.32159043
+1,0.37364704,0.26374081
+1,0.63943385,0.10986704
+1,0.53610359,0.96516267
+1,0.77223023,0.46892265
+1,0.26931064,0.43944232
+1,0.00341297,0.55802153
+1,0.27357925,0.05099298
+1,0.05472349,0.2794851
+1,0.84813697,0.3483225
+2,0.75398513,0.82462213
+2,0.21387606,0.17188863
+2,0.86941533,0.30735608
+2,0.87455997,0.55482837
+2,0.65320977,0.05392148
+2,0.28814926,0.20367986
+2,0.17500311,0.38091309
+2,0.08597621,0.63268273
+2,0.5961691,0.13272044
+2,0.87333331,0.49691292

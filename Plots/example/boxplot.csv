@@ -1,0 +1,30 @@
+# Comments starts with '#' and the line will be ignored when reading
+# Command, start with pipe '|'
+# Empty lines will be ignored when reading
+# CSV format for data plot
+
+# Type of plot
+| type = barplot
+# Grouping data are assigned as 'x' variable
+| x=[]
+# The scatter data are assigned as 'y' variable
+| y=[EPSP]
+# Axis labels
+| xlabel = PSP
+| ylabel = Amplitude (mV)
+# Data table
+EPSP,IPSP
+0.69167761,1.1767864
+0.17924217,-0.30764095
+0.62561259,0.41000933
+0.16857951,1.07020994
+0.71420037,-3.03423234
+0.34231835,-1.32053918
+0.75147565,0.54246974
+0.73482414,-0.10058324
+0.17921321,0.68101281
+0.66208556,1.62782952
+,0.35499154
+,0.7072909
+,0.25655743
+,0.94622982
