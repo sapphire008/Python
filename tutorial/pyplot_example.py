@@ -5,7 +5,6 @@ Created on Mon Aug 03 01:41:38 2015
 @author: Edward
 """
 import numpy as np
-
 import matplotlib.pyplot as plt
 
 # line plot
@@ -92,7 +91,7 @@ plt.ylabel(iris.feature_names[1], family='Arial', fontsize=12)
 # Set font
 import matplotlib.font_manager as fm
 ax = fig.axes[0]
-fontprop = fm.FontProperties(family='Times New Roman', style="normal", size=12)
+fontprop = fm.FontProperties(family='Arial', style="normal", size=12)
 ax.xaxis.label.set_fontproperties(fontprop)
 ax.yaxis.label.set_fontproperties(fontprop)
 # Set font of tick labels

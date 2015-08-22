@@ -58,7 +58,7 @@ def _calculateSwarm(x, dsize, gsize, side=0L, priority="ascending"):
     if x is None:
         return
     if side not in [-1,0,1]:
-        raise(Exception('"side" must be -1,0,or 1'))
+        raise(ValueError('"side" must be -1,0,or 1'))
         
     # make sure things are operating in float
     x, dsize, gsize = np.float32(x), float(dsize), float(gsize)
