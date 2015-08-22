@@ -9,12 +9,12 @@ DEBUG = True
 import os
 import numpy as np
 from ImportData import FigureData
-# import matplotlib
-# matplotlib.use('Agg') # use 'Agg' backend
+import matplotlib
+matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
 plotType = 'beeswarm'
-style = 'Vstack'
+style = 'Twin'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 # global variables
@@ -63,8 +63,21 @@ class PublicationFigures(object):
             self.SetFont() # adjust font
             self.fig.set_size_inches(6,5) # set figure size
             self.fig.tight_layout() # tight layout
-            return res
-        return wrapper
+            return(res)
+        return(wrapper)
+    
+    def AdjustAxs(func, nin=1, nout=1):
+        """Used as a decorator to set the axis properties"""
+        # TO DO: rewrite this to reduce the code of 'Setxxx' functions.
+        raise(NotImplementedError('AdjustAxs decorator is not implemented'))
+        func_vec = np.frompyfunc(func, nin, nout)
+        def wrapper(self, ax=None, *args, **kwargs):
+            # execute the function
+            if ax is None:
+                func_vec(self.axs, *args, **kwargs)
+            else:
+                func_vec(ax, *args, **kwargs)
+        return(wrapper)
         
     def Save(self, SavePath=None, dpi=300):
         """
@@ -92,7 +105,7 @@ class PublicationFigures(object):
         n = 0 # column, indexing x axis or time data
         c = 0 # indexing color cycle or traces in a subplot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        hline = plt.plot(self.data.series['x'][m], self.data.series['y'][n],
+        hline = plt.plot(self.data.table[x], self.data.table[y],
                          color=color[c%len(color)])
         # set aspect ratio
         self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
@@ -228,19 +241,44 @@ class PublicationFigures(object):
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         self.x = [0,1]
-        axs.boxplot()
+        self.axs.boxplot()
         
-    @AdjustFigure
-    def Beeswarm(self, style='swarm',color=color):
+    #@AdjustFigure
+    def Beeswarm(self, style= "swarm",color=color, theme='mono'):
         """Beeswarm style boxplot
-        style: beeswarm dot style, ['swarm' (default),'hex','center','square']
+        * style: beeswarm dot style,['swarm' (default),'hex','center','square']
+        * theme: ['mono' (Default), 'multi']
+            - 'mono': different groups use different color, and corresponding 
+                      groups are in the same color across categories
+            - 'multi': use different colors across categories and groups. 
         """
-        from beeswarm import beeswarm
+        from beeswarm3 import beeswarm
+        global x, y, by
+        # initialize plot
+        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        group = np.unique(self.data.table[x])
         # boardcasting color cycle
-        num = self.data.num['y']
+        num = len(np.unique(self.data.table[x]))
         color = num/len(color)*color+color[0:num%len(color)]
-        self.bs, self.axs = beeswarm(self.data.series['y'], method=style,
-                                     labels=self.data.series['x'][0],col=color)
+        try: # lazy handling, error upon KeyError, IndexError
+            label = self.data.meta['legend']
+        except:
+            label = None
+        # Plot with beeswarm
+        #_, self.axs = beeswarm(values, method=style)
+        """
+        Cannot plot multiple times. The script cannot calculate the legend corerctly
+        """
+        # Separate by x first
+        values = [self.data.table[y][self.data.table[x]==g] for g in group]
+        # Create a vector of color for each group
+        pwcol = [self.data.table[by][self.data.table[x]==g] for g in group] \
+                                    if by is not None else None
+        self.axs, bs=beeswarm(values,pwcol=pwcol, method=style, group=group,
+                              label=label, col=color, ax=self.axs,
+                              returnbs=True)
+        return
+
         # Format style
         # make sure axis tickmark points out
         self.axs.tick_params(axis='both',direction='out')
@@ -248,14 +286,14 @@ class PublicationFigures(object):
         self.axs.spines['top'].set_visible(False)
         self.axs.xaxis.set_ticks_position('bottom')
         self.axs.yaxis.set_ticks_position('left')
+        # Set legend
+        self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         # Set Y label, if exsit
         try:
-            self.axs.set_ylabel(self.data.names['x'][0])
+            self.axs.set_ylabel(self.data.meta['ylabel'])
         except:
             pass
-        self.SetAspectRatio(r=0.5, adjustable='box-forced',continuous=True)
-        # save current figure handle
-        self.fig = plt.gcf()
+        self.SetAspectRatio(r=0.5, adjustable='box-forced')
     
     @AdjustFigure
     def Violinplot(self, color=color):
@@ -272,42 +310,55 @@ class PublicationFigures(object):
         return
         
     @AdjustFigure
-    def LinePlot(self, style='Vstack'):
-        self.x = range(len(self.data.series['x'][0])) # set categorical x
-        if style=='Vstack' or self.data.num['y'] < 2:
-            self.LinePlotVstack()
-        else:
+    def LinePlot(self,style='Vstack',xtime='categorical',margins=(0,0.25)):
+        """Line plots with errorbars
+        style: ['Vstack' (default), 'Twin'] style of multiple subplots. 
+            - 'Vstack': vertically stacked subplots
+            - 'Twin': can handle only up to 2 subplots
+        xtime: used to plot time series with errorbars. Specify an array of
+                time points.
+        """
+        # set categorical x
+        self.x = list(self.data.table.index) if xtime=='categorical' else xtime
+        global x, y
+        y = [y] if isinstance(y, str) else y
+        if style=='Twin' and len(y) == 2:
             self.LinePlotTwin()
-        self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
-        self.SetCategoricalXAxis() # make some space for each category
-        # Add some margins to the plot so that it is not touching the axes
-        plt.margins(0.25,0.25)
-
+        else:
+            self.LinePlotVstack()
+        # Must set margins before setting aspect ratio
+        self.SetMargins(x=margins[0], y=margins[1])
+        # Set aspect ratio
+        self.SetAspectRatio(r=2, adjustable='box-forced', margins=margins)              
+        if xtime == 'categorical':
+            self.SetCategoricalXAxis() # make some space for each category
+            
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
-        self.fig, self.axs = plt.subplots(nrows=self.data.num['y'],ncols=1,
-                                          sharex=True)
+        self.fig, self.axs = plt.subplots(nrows=len(y), ncols=1, sharex=True)
         boolmultiplot = isinstance(self.axs, np.ndarray)
         self.axs = np.array([self.axs]) if not boolmultiplot else self.axs
+        err = self.data.parse_errorbar(simplify=False) # get errorbar
         for n, ax in enumerate(self.axs):
             # Plot error bar
-            ax.errorbar(self.x,self.data.series['y'][n], color='k',
-                        yerr = [self.data.stats['y']['ebp'][n],
-                                self.data.stats['y']['ebn'][n]])
+            ax.errorbar(self.x,self.data.table[y[n]], color='k',yerr = err[n])
         self.axs = self.axs[0] if not boolmultiplot else self.axs
         self.SetVstackAxis() # set vertical stacked subplot axes
 
     def LinePlotTwin(self, color=('k','r')):
         """ Line plots with 2 y-axis"""
-        self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
+        self.fig, self.axs = plt.subplots()
+        # Must set label on the first axis in order to show up in the plot
+        self.axs.set_xlabel(self.data.meta['xlabel'])
+        # Construct another axis sharing xaxis with current axis
         self.axs = np.array([self.axs, self.axs.twinx()])
+        err = self.data.parse_errorbar(simplify=False) # get error bar
+        self.SetTwinPlotAxis(color=color) # set twin plot subplot axes
         for n, ax in enumerate(self.axs):
              # Plot error bar
-            ax.errorbar(self.x, self.data.series['y'][n], color=color[n],
-                        yerr = [self.data.stats['y']['ebp'][n],
-                                self.data.stats['y']['ebn'][n]])
-        self.SetTwinPlotAxis(colors=color) # set twin plot subplot axes
-
+            ax.errorbar(np.array(self.x), np.array(self.data.table[y[n]]), 
+                        color=color[n], yerr=err[n])
+        
     """ ####################### Axis schemas ####################### """
     def SetDefaultAxis(self, ax=None):
         """Set default axis appearance"""
@@ -385,19 +436,37 @@ class PublicationFigures(object):
         self.axs.spines['right'].set_position('zero')
         self.axs.yaxis.set_ticks_position('none')
 
-    def SetTwinPlotAxis(self, colors=('k', 'r')):
+    def SetTwinPlotAxis(self, color=('k', 'r')):
         """Axis style  of 2 plots sharing y axis"""
         spineName = ('left','right')
         for n, ax in enumerate(self.axs):             # For twin Plot
             ax.tick_params(axis='both',direction='out') # tick mark out
             ax.spines['top'].set_visible(False) # remove top boundary
             ax.xaxis.set_ticks_position('bottom') # keep only bottom ticks
-            ax.set_ylabel(self.data.names['y'][n]) # set y label
-            ax.yaxis.label.set_color(colors[n]) # set y label color
-            ax.tick_params(axis='y',colors=colors[n]) # set y tick color
-            ax.spines[spineName[n]].set_color(colors[n]) # set y spine color
-        self.axs[0].set_xlabel(self.data.names['x'][0]) # x label
-
+            ax.set_ylabel(self.data.meta['ylabel'][n]) # set y label
+            ax.yaxis.label.set_color(color[n]) # set y label color
+            ax.tick_params(axis='y',color=color[n]) # set y tick color
+            [tl.set_color(color[n]) for tl in ax.get_yticklabels()]
+            ax.spines[spineName[n]].set_color(color[n]) # set y spine color
+        self.axs[0].spines['right'].set_visible(False) # leave only left spine
+        self.axs[1].spines['left'].set_visible(False) # only only right spine
+        
+    def PadY(self,axs=None):
+        """Set extra padding if data points / lines are cut off"""
+        if axs is None:
+            axs = self.axs
+        def PY(ax):
+            arr = np.array([l.get_ydata() for l in ax.lines])
+            MAX, MIN = np.max(arr), np.min(arr)
+            ytick_arr = ax.get_yticks()
+            inc = np.mean(np.diff(ytick_arr)) # extra padding
+            if np.min(ytick_arr)>=MIN:
+                ax.set_ylim(MIN-inc, ax.get_ylim()[-1])
+            if np.max(ytick_arr)<=MAX:
+                ax.set_ylim(ax.get_ylim()[0], MAX+inc)
+        PY_vec = np.frompyfunc(PY, 1,1)
+        PY_vec(axs)
+        
     def SetVstackAxis(self):
         """Axis style of vertically stacked subplots"""
         def SVsA(ax, n):
@@ -405,10 +474,10 @@ class PublicationFigures(object):
             ax.spines['top'].set_visible(False) # remove top boundary
             ax.spines['right'].set_visible(False) # remove right spine
             ax.yaxis.set_ticks_position('left') # keep only left ticks
-            ax.set_ylabel(self.data.names['y'][n]) # set different y labels
+            ax.set_ylabel(self.data.meta['ylabel'][n]) # set different y labels
             if ax.is_last_row():     #keep only bottom ticks
                 ax.xaxis.set_ticks_position('bottom')
-                ax.set_xlabel(self.data.names['x'][0]) # x label
+                ax.set_xlabel(self.data.meta['xlabel']) # x label
             else:
                 ax.xaxis.set_visible(False)
                 ax.spines['bottom'].set_visible(False)
@@ -480,18 +549,38 @@ class PublicationFigures(object):
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
 
-    def SetAspectRatio(self, r=2, adjustable='box-forced', continuous=True):
+    def SetAspectRatio(self,r=2,adjustable='box-forced',margins=(0,0),ax=None):
+        """Set aspect ratio of the plots, across all axes. Must set margins
+        before calling this function to set aspect ratios
+        continuous: continuous x-axis [True|False]
+        margins: account extra margins when setting aspect ratio. Default is 
+            (0,0)
+        ax: ax to set aspect ratio to. Default is None. Use instance self.axs
+        """
         def SAR(ax):
-            if not isinstance(r, str) and continuous:
-                X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
-                aspect = X/Y/r
+            if not isinstance(r, str):
+                dX = np.diff(ax.get_xlim())/(1+2*margins[0])
+                dY = np.diff(ax.get_ylim())/(1+2*margins[1])
+                aspect = dX/dY/r
             else:
                 aspect = r
             ax.set_aspect(aspect=aspect, adjustable=adjustable)
         SAR_vec = np.frompyfunc(SAR,1,1) # vectorize the closure
-        SAR_vec(self.axs)
-        #self.fig.tight_layout(h_pad=0.05) # enforce tight layout
-        
+        if ax is None:
+            SAR_vec(self.axs)
+        else:
+            SAR_vec(ax)
+    
+    def SetMargins(self, x=0.25,y=0.25, ax=None):
+        """Wrapper for setting margins"""
+        def SM(ax):
+            ax.margins(x,y)
+        SM_vec = np.frompyfunc(SM, 1,1)
+        if ax is None:
+            SM_vec(self.axs)
+        else:
+            SM_vec(ax)
+     
     def SetColor(self, plotobj, color, n, linewidth=0):
         """Set colors. Would allow optionally turn off color"""
         if color is not None:
@@ -597,7 +686,7 @@ class PublicationFigures(object):
         # Calculate Locus Position
         X = self.axs.get_xticks()
         I = self.axs.get_yticks()
-        Y = [max(x) for x in self.data.series['y']]
+        Y = [max(x) for x in self.data.table[y]]
         yinc = I[1]-I[0] # y tick increment
         ytop = max(I) + yinc/10.0 # top of the annotation
         yoffset = (ytop-max(Y[m],Y[n]))/2.0
@@ -647,7 +736,7 @@ class PublicationFigures(object):
         self.axs.texts = []
     
     
-    """ ################# Geometry Annotations ####################### """
+    """ ################# Geometry Annotations ####################### """    
     def DrawEllipsoid(self, center, radii=None, rvec=np.eye(3), \
                       A=None, numgrid=100, ax=None, color=color, alpha=0.6):
         """Draw an ellipsoid given its parameters
@@ -716,7 +805,7 @@ class PublicationFigures(object):
         y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
         return(y*(10**p))
 
-    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None):
+    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None,ax=None):
         """Change font properties of all axes
         fontsize: size of the font, specified in the global variable
         fontname: fullpath of the font, specified in the global variable
@@ -764,7 +853,10 @@ class PublicationFigures(object):
                 item.set_fontproperties(fontprop) # change font for all items
 
         CF_vec = np.frompyfunc(CF,1,1) # vectorize the closure
-        CF_vec(self.axs)
+        if ax is None:
+            CF_vec(self.axs)
+        else:
+            CF_vec(ax)
     
     @staticmethod
     def Ellipsoid(center, radii=None, rvec=np.eye(3), A=None, numgrid=100):
@@ -803,7 +895,7 @@ class PublicationFigures(object):
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.csv' %plotType)
     # Load data
-    K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.png'%plotType))
+    K = PublicationFigures(dataFile=dataFile, SavePath=os.path.join(exampleFolder,'%s.eps'%plotType))
     if plotType == 'lineplot':
         # Line plot example
         K.LinePlot(style=style)
@@ -816,7 +908,7 @@ if __name__ == "__main__":
         # Beeswarm example
         K.Beeswarm()
         #K.AnnotateOnGroup(m=[0,1])
-        K.AnnotateBetweenGroups(text='p=0.01234')
+        #K.AnnotateBetweenGroups(text='p=0.01234')
     elif plotType == 'trace':
         # Time series example
         K.Traces()

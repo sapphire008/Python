@@ -1,0 +1,24 @@
+# Comments starts with '#' and the line will be ignored when reading,,,,,,
+# Command, start with pipe '|',,,,,
+# Empty lines will be ignored when reading,,,,,,
+# CSV format for data plot,,,,,,
+# Double quote is not allowed, use single quote instead,,,,,
+#  Type of plot,,,,,,
+| type=lineplot,,,,,,
+# Plot data specification,,,,,,
+| x = Presynaptic AP,,,,,,
+| y = [EPSP Amp, Postsynaptic Spike Prob],,,,,
+# Errorbar,,,,,,
+| error_pos = [EPSP Err1, Prob Err1],,,,,
+| error_neg = [EPSP Err2, Prob Err2],,,,,
+# Alternatively, if positive and negative errorbars are identical, use the following,,,,
+# | error = [EPSP Err, Prob Err],,,,,
+# Labels,,,,,,
+|xlabel = Presynaptic AP#,,,,,,
+|ylabel = [EPSP Amp (mV), Postsynaptic Spike Prob],,,,,
+# Data table,,,,,,
+Presynaptic AP,EPSP Amp,Postsynaptic Spike Prob,EPSP Err1,EPSP Err2,Prob Err1,Prob Err2
+1,1,0.1,0.1,0.1,0.04,0.04
+2,1.2,0.15,0.2,0.2,0.05,0.05
+3,0.9,0.13,0.1,0.1,0.05,0.05
+4,0.75,0.09,0.1,0.1,0.03,0.03

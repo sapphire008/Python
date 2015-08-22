@@ -4,17 +4,17 @@
 # CSV format for data plot
 
 # Type of plot
-| type = boxplot
-# Grouping data are assigned as 'x' variable
-| x=ER
-# The scatter data are assigned as 'y' variable
+| type = histogram
+# The histogram data are assigned as 'y' variable
 | y=time_survival
 # Axis labels
-| ylabel = time surivival
+| xlabel = time surivival
+| ylabel = count
 # Group / legend
 |legend = [yes,no]
-# Separate by categories, using different color on the plot
-| by = event_survival
+# Separate dataset by categories, using different color on the plot
+# The '+' is as in R, separating data by combinations of variables
+| by = ER + event_survival
 
 # Data table: Biopsy Data on Breast Cancer Patients from R
 Subject,ER,ESR1,ERBB2,time_survival,event_survival

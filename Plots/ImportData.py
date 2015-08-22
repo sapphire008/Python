@@ -10,7 +10,7 @@ import pandas as pd
 import os
 import zipfile
 
-dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/barplot.csv'
+dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
 
 class Protocol(object): # for composition
     pass
@@ -213,25 +213,32 @@ class FigureData(object):
         except:
             pass
 
-    def parse_errorbar(self, df=None):
+    def parse_errorbar(self, df=None, simplify=True):
         """Reorganize errorbar"""
         if df is None:
             df = self.table
         # find columns of errorbar data
         keys = list(self.meta.keys())
+        # Function to get errobar
+        def PE(p):
+            out = df[list(p)]
+            if out.ndim == 1: # including cases where 'error' column is specified
+                return([np.array(out), np.array(out)])
+            elif out.ndim == 2 and out.shape[-1] == 2:
+                return(np.array(out).T)
+            else: # fall thorugh, should not happen
+                return(None)
         if 'error_pos' in keys and 'error_neg' in keys:
-            df = df[[self.meta['error_pos'],self.meta['error_neg']]]
+            P = np.array([self.meta['error_pos'], self.meta['error_neg']]).T
         elif 'error_pos' in keys:
-            df = df[self.meta['error_pos']]
+            P = np.array([self.meta['error_pos']])
         elif 'error_neg' in keys:
-            df = df[self.meta['error_neg']]
-        if df.ndim == 1: # including cases where 'error' column is specified
-            return([np.array(df), np.array(df)])
-        elif df.ndim == 2 and df.shape[-1] == 2:
-            return(np.array(df).T)
-        else: # fall thorugh, should not happen
-            return(None)
-            
+            P = np.array([self.meta['error_neg']])
+        P = [P] if P.ndim==1 else P
+        out = [PE(p) for p in P]
+        out = out[0] if len(out)==1 and simplify else out
+        return(out)
+        
     def parse_meta(self, line,metachar="|"):
         """Parse parameter"""
         line = line.replace(metachar,"")

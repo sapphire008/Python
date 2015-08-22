@@ -1,14 +1,18 @@
 """
 The MIT License (MIT)
+
 Copyright (c) 2014 Melissa Gymrek <mgymrek@mit.edu>
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,6 +36,7 @@ def beeswarm(values, positions=None, method="swarm",
     beeswarm(values, positions=None, method="swarm",
          ax=None, s=20, col="black", xlim=None, ylim=None,
          labels=None)
+
      Inputs:
          * values: an array of a sequence of vectors
          * positions: sets the horizontal positions of the swarms.
@@ -61,6 +66,7 @@ def beeswarm(values, positions=None, method="swarm",
              Default: range(len(values))
          * labelrotation: rotation of x label.
              Default: "vertical"
+
      Returns:
          * bs: pandas.DataFrame with columns: xorig, yorig, xnew, ynew, color
          * ax: the axis used for plotting
@@ -152,6 +158,7 @@ def unsplit(x,f):
     """
     same as R's unsplit function
     Read of the values specified in f from x to a vector
+
     Inputs:
       x: dictionary of value->[items]
       f: vector specifying values to be read off to the vector
@@ -253,3 +260,14 @@ def _beeswarm(positions, values, xsize=0, ysize=0, ylim=None, method="swarm", co
         newcolors.extend(ncs)
     out = pandas.DataFrame({"xnew":xnew, "yorig": yorig, "xorig":xorig, "ynew": ynew, "color": newcolors})
     return out
+
+
+
+import numpy as np
+if __name__ == '__main__':
+    from ImportData import FigureData
+    K = FigureData('C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/beeswarm.csv')
+    values = np.array([K.table['time_survival'][K.table['ER']==g] for g in np.unique(K.table['ER'])])
+    color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
+    colorsx = [color[ind] for ind in K.table['event_survival']]
+    ax, bs = beeswarm(values, col='black')
