@@ -135,12 +135,13 @@ def beeswarm(values, positions=None, method="swarm",
 
     # Determine dot size
     figw, figh = ax.get_figure().get_size_inches()
+    dpi = ax.get_figure().get_dpi()
     w = (ax.get_position().xmax-ax.get_position().xmin)*figw
     h = (ax.get_position().ymax-ax.get_position().ymin)*figh
     xran = ax.get_xlim()[1]-ax.get_xlim()[0]
     yran = ax.get_ylim()[1]-ax.get_ylim()[0]
-    xsize=math.sqrt(s)*1.0/72*xran*1.0/(w*0.8)
-    ysize=math.sqrt(s)*1.0/72*yran*1.0/(h*0.8)
+    xsize=math.sqrt(s)*1.0/dpi*xran*1.0/(w*0.8)
+    ysize=math.sqrt(s)*1.0/dpi*yran*1.0/(h*0.8)
 
     # Get new arrangements
     if method == "swarm":
@@ -270,4 +271,4 @@ if __name__ == '__main__':
     values = np.array([K.table['time_survival'][K.table['ER']==g] for g in np.unique(K.table['ER'])])
     color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
     colorsx = [color[ind] for ind in K.table['event_survival']]
-    ax, bs = beeswarm(values, col='black')
+    ax, bs = beeswarm(values, col=colorsx)

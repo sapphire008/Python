@@ -59,7 +59,7 @@ beeswarm.default <- function(x,
     stop(gettextf("'at' must have length equal to %d, the number of groups", 
       n.groups), domain = NA)
 
-  if (is.null(dlab)) 
+  if (is.null(dlab))
      dlab <- deparse(substitute(x))
 
   ## this function returns a "group" vector, to complement "unlist"
@@ -203,7 +203,7 @@ beeswarm.default <- function(x,
           d.index <- lapply(x, cut, breaks = breaks, labels = FALSE)
           d.pos <- lapply(d.index, function(a) mids[a])  
         }
-      }  
+      }
     ##### now determine positions along the group axis
       x.index <- lapply(d.index, function(v) {
         if(length(na.omit(v)) == 0) 
@@ -231,7 +231,7 @@ beeswarm.default <- function(x,
           }
         }
         unsplit(v.s, v)
-      }) 
+      })
       
       g.offset <- lapply(1:n.groups, function(i) x.index[[i]] * size.g)
   }                   ###### end of non-swarm methods

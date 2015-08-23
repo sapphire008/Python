@@ -13,7 +13,7 @@ import matplotlib
 matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'beeswarm'
+plotType = 'lineplot'
 style = 'Twin'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
@@ -252,7 +252,7 @@ class PublicationFigures(object):
                       groups are in the same color across categories
             - 'multi': use different colors across categories and groups. 
         """
-        from beeswarm3 import beeswarm
+        from beeswarm import beeswarm
         global x, y, by
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
