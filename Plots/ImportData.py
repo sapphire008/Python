@@ -18,7 +18,7 @@ class Protocol(object): # for composition
 class NeuroData(object):
     """Read electrophysiology data file
     """
-    def __init__(self, dataFile=None, old=False):
+    def __init__(self, dataFile=None, old=False, *args, **kwargs):
         """Initialize class"""
         self.Voltage = {}
         self.Current = {}
@@ -26,20 +26,21 @@ class NeuroData(object):
         self.Protocol = Protocol() # composition
         if dataFile is not None and isinstance(dataFile, str):
             # load directly if all the conditions are met
-            self.LoadData(dataFile=dataFile, old=old)
+            self.LoadData(dataFile=dataFile, old=old, *args, **kwargs)
         else:
             IOError('Unrecognized data file input')
 
-    def LoadData(self, dataFile, old=True): #old=True to be edited later
+    def LoadData(self, dataFile, old=True, *args, **kwargs): #old=True to be edited later
         """Load data in text file"""
+        dataFile = dataFile.replace('\\','/')# make sure using forward slash
         # check file exists
         if not os.path.isfile(dataFile):
             IOError('%s does not exist' %dataFile)
         # Evoke proper load method
         if old:
-            self.LoadOldDataFile(dataFile)
+            self.LoadOldDataFile(dataFile, *args, **kwargs)
         else:
-            self.LoadDataFile(dataFile)
+            self.LoadDataFile(dataFile, *args, **kwargs)
 
     def LoadDataFile(self, dataFile):
         """Read zipped data file (new format)"""
@@ -109,7 +110,7 @@ class NeuroData(object):
             self.Protocol.ampDesc = []
             for index in xrange(self.Protocol.numChannels):
                 self.Protocol.ampDesc.append(self.readVBString(fid))
-
+            
             # Get Channel info
             channelDict = {'VoltADC1':'VoltA','VoltADC3':'VoltB',
                            'VoltADC5':'VoltC','VoltADC7':'VoltD',
@@ -123,10 +124,11 @@ class NeuroData(object):
             keys = [k.split("/")[0] for k in self.Protocol.traceKeys.split()]
             self.Protocol.channelNames = [channelDict[k] for k in keys]
             self.Protocol.numTraces = len(self.Protocol.channelNames)
+            
 
             if infoOnly: # stop here if only
                 return
-
+            
             # Read trace data
             self.Protocol.traceDesc = []
             for chan in self.Protocol.channelNames:
@@ -252,6 +254,9 @@ class FigureData(object):
             v = v.replace("[","").replace("]","").split(",")
             v = [x.strip() for x in v]
         self.meta[m] = v
+        # Force some default values
+        if 'xlabel' not in self.meta.keys(): self.meta['xlabel'] = ''
+        if 'ylabel' not in self.meta.keys(): self.meta['ylabel'] = ''
 
     def Neuro2Trace(self, data, channels=None, streams=None):
         """Use NeuroData method to load and parse trace data to be plotted

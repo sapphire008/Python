@@ -14,7 +14,7 @@ matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
 plotType = 'lineplot'
-style = 'Twin'
+style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 # global variables
@@ -66,18 +66,20 @@ class PublicationFigures(object):
             return(res)
         return(wrapper)
     
-    def AdjustAxs(func, nin=1, nout=1):
+    def AdjustAxs(otypes=[np.ndarray], excluded=None):
         """Used as a decorator to set the axis properties"""
-        # TO DO: rewrite this to reduce the code of 'Setxxx' functions.
-        raise(NotImplementedError('AdjustAxs decorator is not implemented'))
-        func_vec = np.frompyfunc(func, nin, nout)
-        def wrapper(self, ax=None, *args, **kwargs):
-            # execute the function
-            if ax is None:
-                func_vec(self.axs, *args, **kwargs)
-            else:
-                func_vec(ax, *args, **kwargs)
-        return(wrapper)
+        def wrap(func):
+            # vectorize the func so that it can be applied to single axis or 
+            # multiple axes
+            func_vec = np.vectorize(func, otypes=otypes, excluded=excluded) 
+            def wrapper(self, ax=None, *args, **kwargs):
+                if ax is None: # if not specified, use default axis
+                    res = func_vec(self.axs, *args, **kwargs)
+                else:
+                    res = func_vec(ax, *args, **kwargs)
+                return(res)
+            return(wrapper)
+        return(wrap)
         
     def Save(self, SavePath=None, dpi=300):
         """
@@ -108,16 +110,22 @@ class PublicationFigures(object):
         hline = plt.plot(self.data.table[x], self.data.table[y],
                          color=color[c%len(color)])
         # set aspect ratio
-        self.SetAspectRatio(r=2, adjustable='box-forced',continuous=True)
-        if scalebar: # Use scale bar instead of axis
-            self.AddTraceScaleBar(hline[0], xunit=self.data.meta['xunit'],
-                                  yunit=self.data.meta['yunit'])
-        else: # Use axis
-            self.SetDefaultAxis() # use default axis
-            self.axs.set_xlabel(self.data.meta['xlabel'])
-            self.axs.set_ylabel(self.data.meta['ylabel'])
-        if annotation:
+        self.SetAspectRatio(r=2, adjustable='box-forced')
+        
+        if annstyle == 'last':
             self.TextAnnotation(text=annotation) # description of the trace
+    
+    def MakeSingleTrace(self, data, ax=None, annotation=None, color='k', scalebar=True):
+        """Make a trace for each NeuroData set"""
+        if ax is None: ax = self.axs
+        hline = ax.plot(data.table[x], data.table[y], color=color)
+        if scalebar: # Use scale bar instead of axis
+            self.AddTraceScaleBar(hline[0], xunit=data.meta['xunit'],
+                                  yunit=data.meta['yunit'])
+        else: # Use axis
+            self.SetDefaultAxis(ax) # use default axis
+            ax.set_xlabel(data.meta['xlabel'])
+            ax.set_ylabel(data.meta['ylabel'])
     
     @AdjustFigure
     def Scatter(self, color=color, marker=marker, alpha=0.5, legend_on=True):
@@ -241,7 +249,8 @@ class PublicationFigures(object):
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
         self.x = [0,1]
-        self.axs.boxplot()
+        self.axs.boxplot(np.array(self.data.table[y]).T)
+        self.SetDefaultAxis()
         
     #@AdjustFigure
     def Beeswarm(self, style= "swarm",color=color, theme='mono'):
@@ -310,7 +319,7 @@ class PublicationFigures(object):
         return
         
     @AdjustFigure
-    def LinePlot(self,style='Vstack',xtime='categorical',margins=(0,0.25)):
+    def LinePlot(self,style='Vstack',xtime='categorical',margins=(0.,0.25)):
         """Line plots with errorbars
         style: ['Vstack' (default), 'Twin'] style of multiple subplots. 
             - 'Vstack': vertically stacked subplots
@@ -336,13 +345,12 @@ class PublicationFigures(object):
     def LinePlotVstack(self):
         """ Line plots stacked vertically"""
         self.fig, self.axs = plt.subplots(nrows=len(y), ncols=1, sharex=True)
-        boolmultiplot = isinstance(self.axs, np.ndarray)
-        self.axs = np.array([self.axs]) if not boolmultiplot else self.axs
+        self.axs = np.array([self.axs]) if len(y)<2 else self.axs
         err = self.data.parse_errorbar(simplify=False) # get errorbar
         for n, ax in enumerate(self.axs):
             # Plot error bar
             ax.errorbar(self.x,self.data.table[y[n]], color='k',yerr = err[n])
-        self.axs = self.axs[0] if not boolmultiplot else self.axs
+        self.axs = self.axs[0] if len(y)<2 else self.axs
         self.SetVstackAxis() # set vertical stacked subplot axes
 
     def LinePlotTwin(self, color=('k','r')):
@@ -360,57 +368,44 @@ class PublicationFigures(object):
                         color=color[n], yerr=err[n])
         
     """ ####################### Axis schemas ####################### """
-    def SetDefaultAxis(self, ax=None):
+    @AdjustAxs()
+    def SetDefaultAxis(ax):
         """Set default axis appearance"""
-        def SDA(ax): # short for set default axis
-            ax.tick_params(axis='both',direction='out')
-            ax.spines['left'].set_visible(True)
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['bottom'].set_visible(True)
-            ax.xaxis.set_ticks_position('bottom')
-            ax.yaxis.set_ticks_position('left')
-        SDA_vec = np.frompyfunc(SDA,1,1) # vectorize the closure
-        if ax is None:
-            SDA_vec(self.axs)
-        else:  # allow this function to be called outside class
-            SDA_vec(ax)
+        ax.tick_params(axis='both',direction='out')
+        ax.spines['left'].set_visible(True)
+        ax.spines['left'].set_capstyle('butt')
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(True)
+        ax.spines['bottom'].set_capstyle('butt')
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
 
-    def SetDefaultAxis3D(self, ax=None, elev=45, azim=60, dist=12):
-        def SDA3D(ax): # short for set default axis 3d
-            ax.tick_params(axis='both', direction='out')
-            ax.view_init(elev=elev, azim=azim) # set perspective
-            ax.dist = dist # use default axis distance 10
-            if ax.azim > 0: # z axis will be on the left
-                ax.zaxis.set_rotate_label(False) # prevent auto rotation
-                a = ax.zaxis.label.get_rotation()
-                ax.zaxis.label.set_rotation(90+a) # set custom rotation
-                ax.invert_xaxis() # make sure (0,0) in front
-                ax.invert_yaxis() # make sure (0,0) in front
-            else:
-                ax.invert_xaxis() # make sure (0,0) in front
-            #ax.zaxis.label.set_color('red')
-            #ax.yaxis._axinfo['label']['space_factor'] = 2.8
-        SDA3D_vec = np.frompyfunc(SDA3D,1,1)
-        if ax is None:
-            SDA3D_vec(self.axs)
-        else: # allow this function to be called outside class
-            SDA3D_vec(ax)
+    @AdjustAxs()
+    def SetDefaultAxis3D(ax, elev=45, azim=60, dist=12):
+        ax.tick_params(axis='both', direction='out')
+        ax.view_init(elev=elev, azim=azim) # set perspective
+        ax.dist = dist # use default axis distance 10
+        if ax.azim > 0: # z axis will be on the left
+            ax.zaxis.set_rotate_label(False) # prevent auto rotation
+            a = ax.zaxis.label.get_rotation()
+            ax.zaxis.label.set_rotation(90+a) # set custom rotation
+            ax.invert_xaxis() # make sure (0,0) in front
+            ax.invert_yaxis() # make sure (0,0) in front
+        else:
+            ax.invert_xaxis() # make sure (0,0) in front
+        #ax.zaxis.label.set_color('red')
+        #ax.yaxis._axinfo['label']['space_factor'] = 2.8
 
-    def TurnOffAxis(self, ax=None):
+    @AdjustAxs()
+    def TurnOffAxis(ax):
         """Turn off all axis"""
-        def TOA(ax): # short for turn off axis
-            ax.spines['left'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
-        TOA_vec = np.frompyfunc(TOA,1,1) # vectorize the closure
-        if ax is None:
-            TOA_vec(self.axs)
-        else: # allow this function to be called outside class
-            TOA_vec(ax)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
 
     def AdjustBarPlotXAxis(self):
         """Adjust bar plot's x axis for categorical axis"""
@@ -450,23 +445,19 @@ class PublicationFigures(object):
             ax.spines[spineName[n]].set_color(color[n]) # set y spine color
         self.axs[0].spines['right'].set_visible(False) # leave only left spine
         self.axs[1].spines['left'].set_visible(False) # only only right spine
-        
-    def PadY(self,axs=None):
+    
+    @AdjustAxs()
+    def PadY(ax):
         """Set extra padding if data points / lines are cut off"""
-        if axs is None:
-            axs = self.axs
-        def PY(ax):
-            arr = np.array([l.get_ydata() for l in ax.lines])
-            MAX, MIN = np.max(arr), np.min(arr)
-            ytick_arr = ax.get_yticks()
-            inc = np.mean(np.diff(ytick_arr)) # extra padding
-            if np.min(ytick_arr)>=MIN:
-                ax.set_ylim(MIN-inc, ax.get_ylim()[-1])
-            if np.max(ytick_arr)<=MAX:
-                ax.set_ylim(ax.get_ylim()[0], MAX+inc)
-        PY_vec = np.frompyfunc(PY, 1,1)
-        PY_vec(axs)
-        
+        arr = np.array([l.get_ydata() for l in ax.lines])
+        MAX, MIN = np.max(arr), np.min(arr)
+        ytick_arr = ax.get_yticks()
+        inc = np.mean(np.diff(ytick_arr)) # extra padding
+        if np.min(ytick_arr)>=MIN:
+            ax.set_ylim(MIN-inc, ax.get_ylim()[-1])
+        if np.max(ytick_arr)<=MAX:
+            ax.set_ylim(ax.get_ylim()[0], MAX+inc)
+    
     def SetVstackAxis(self):
         """Axis style of vertically stacked subplots"""
         def SVsA(ax, n):
@@ -493,10 +484,10 @@ class PublicationFigures(object):
             ax.spine['top'].set_visible(False) #remove top boundary
             ax.spine['right'].set_visible(False) # remove right spine
             ax.yaxis.set_ticks_position('left') # keep only left ticks
-            ax.set_xlabel(self.data.names['x'][n]) # set different x labels
+            ax.set_xlabel(self.data.meta['xlabel'][n]) # set different x labels
             if ax.is_first_col(): # keep only first ticks
                 ax.yaxis.set_ticks_position('left')
-                ax.set_ylabel(self.data.names['y'][0]) # y label
+                ax.set_ylabel(self.data.meta['ylabel'][0]) # y label
             else:
                 ax.yaxis.set_visible(False)
                 ax.spines['left'].set_visible(False)
@@ -549,37 +540,28 @@ class PublicationFigures(object):
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
 
-    def SetAspectRatio(self,r=2,adjustable='box-forced',margins=(0,0),ax=None):
-        """Set aspect ratio of the plots, across all axes. Must set margins
-        before calling this function to set aspect ratios
-        continuous: continuous x-axis [True|False]
-        margins: account extra margins when setting aspect ratio. Default is 
-            (0,0)
-        ax: ax to set aspect ratio to. Default is None. Use instance self.axs
+    @AdjustAxs(excluded=['margins']) 
+    def SetAspectRatio(ax, r=2, adjustable='box-forced',margins=(0,0)):
+        """Set aspect ratio of the plots, across all axes. 
+        Must set margins before calling this function to set aspect 
+        ratios.
+        r: ratio in data domains
+        adjustable: see 'adjustable' argument for axes.set_aspect
+        margins: account extra margins when setting aspect ratio. 
+        Default is (0,0)
         """
-        def SAR(ax):
-            if not isinstance(r, str):
-                dX = np.diff(ax.get_xlim())/(1+2*margins[0])
-                dY = np.diff(ax.get_ylim())/(1+2*margins[1])
-                aspect = dX/dY/r
-            else:
-                aspect = r
-            ax.set_aspect(aspect=aspect, adjustable=adjustable)
-        SAR_vec = np.frompyfunc(SAR,1,1) # vectorize the closure
-        if ax is None:
-            SAR_vec(self.axs)
+        if not isinstance(r, str):
+            dX = np.diff(ax.get_xlim())/(1+2*margins[0])
+            dY = np.diff(ax.get_ylim())/(1+2*margins[1])
+            aspect = dX/dY/r
         else:
-            SAR_vec(ax)
-    
-    def SetMargins(self, x=0.25,y=0.25, ax=None):
+            aspect = r
+        ax.set_aspect(aspect=aspect, adjustable=adjustable)
+        
+    @AdjustAxs()
+    def SetMargins(ax, x=0.25, y=0.25):
         """Wrapper for setting margins"""
-        def SM(ax):
-            ax.margins(x,y)
-        SM_vec = np.frompyfunc(SM, 1,1)
-        if ax is None:
-            SM_vec(self.axs)
-        else:
-            SM_vec(ax)
+        ax.margins(x,y)
      
     def SetColor(self, plotobj, color, n, linewidth=0):
         """Set colors. Would allow optionally turn off color"""
@@ -600,9 +582,10 @@ class PublicationFigures(object):
                 p.set_hatch(hatch[n%len(hatch)])
     
     """ #################### Text Annotations ####################### """
-    def AddTraceScaleBar(self, hline, xunit, yunit, color=None):
+    def AddTraceScaleBar(self, hline, xunit, yunit, color=None, ax=None):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces."""
+        if ax is None: ax=self.axs
         def scalebarlabel(x, unitstr):
             if unitstr.lower()[0] == 'm':
                 return(str(x)+unitstr if x<1000 else str(x/1000)+
@@ -612,7 +595,7 @@ class PublicationFigures(object):
                     unitstr.replace('p','n'))
 
         self.TurnOffAxis() # turn off axis
-        X, Y = np.ptp(self.axs.get_xticks()), np.ptp(self.axs.get_yticks())
+        X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
         # calculate scale bar unit length
         X, Y = self.roundto125(X/5), self.roundto125(Y/5)
         # Parse scale bar labels
@@ -620,25 +603,25 @@ class PublicationFigures(object):
         # Get color of the scalebar
         color = plt.getp(hline,'color')
         # Calculate position of the scale bar
-        xi = np.max(self.axs.get_xticks()) + X/10.0
-        yi = np.mean(self.axs.get_yticks())
+        xi = np.max(ax.get_xticks()) + X/10.0
+        yi = np.mean(ax.get_yticks())
         # calculate position of text
         xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
         xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
         # Draw text
-        txt1 = self.axs.text(xtext1, ytext1, xlab, ha='center',va='top',
+        txt1 = ax.text(xtext1, ytext1, xlab, ha='center',va='top',
                              color=color)
         self.AdjustText(txt1) # adjust texts just added
-        txt2 = self.axs.text(xtext2, ytext2, ylab, ha='left',va='center',
+        txt2 = ax.text(xtext2, ytext2, ylab, ha='left',va='center',
                              color=color)
         self.AdjustText(txt2) # adjust texts just added
         # Draw Scale bar
-        self.axs.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
+        ax.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
                           xytext=(xi+X,yi), textcoords = 'data',
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0,
                           color=color))
-        self.axs.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
+        ax.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
                           xytext=(xi+X,yi+Y), textcoords = 'data',
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0,
@@ -647,9 +630,10 @@ class PublicationFigures(object):
         #print(txtbb.bounds)
         #print(self.axs.transData.inverted().transform(txtbb).ravel())
 
-    def TextAnnotation(self, text="", position='south'):
+    def TextAnnotation(self, text="", position='south', ax=None):
         raise(NotImplementedError('This mehtod is not implemented'))
         return # not done yet
+        if ax is None: ax = self.axs
         
     def AnnotateOnGroup(self, m, text='*', vpos=None):
         """Help annotate statistical significance over each group in Beeswarm /
@@ -713,7 +697,7 @@ class PublicationFigures(object):
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0))
 
-    def AdjustText(self,txt):
+    def AdjustText(self,txt, ax=None):
         """Adjust text so that it is not being cutoff"""
         #renderer = self.axs.get_renderer_cache()
         txt.set_bbox(dict(facecolor='w', alpha=0, boxstyle='round, pad=1'))
@@ -918,5 +902,7 @@ if __name__ == "__main__":
         K.Scatter()
     elif plotType == 'scatter3d':
         K.Scatter3D()
+    elif plotType == 'boxplot':
+        K.Boxplot()
     # Final clean up
     K.Save()

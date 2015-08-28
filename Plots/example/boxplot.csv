@@ -8,7 +8,7 @@
 # Grouping data are assigned as 'x' variable
 | x=[]
 # The scatter data are assigned as 'y' variable
-| y=[EPSP]
+| y=[EPSP, IPSP]
 # Axis labels
 | xlabel = PSP
 | ylabel = Amplitude (mV)
