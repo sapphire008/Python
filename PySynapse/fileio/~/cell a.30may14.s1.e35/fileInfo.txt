@@ -1,0 +1,5 @@
+fileName = /Volumes/BENMACFILES/Lab data/Todd/2014/may 30 2014/Cell A.30May14.S1.E35.dat
+stimDesc = DAC0: Step 0 (0 to 0 ms) PulseA 150DAC1: Step 0 (0 to 0 ms) 
+msPerPoint = 0.2
+sweepWindow = 3000
+acquiredTraces = ['VoltA', 'CurA', 'StimA']
