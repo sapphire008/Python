@@ -125,7 +125,6 @@ class NeuroData(object):
             self.Protocol.channelNames = [channelDict[k] for k in keys]
             self.Protocol.numTraces = len(self.Protocol.channelNames)
             
-
             if infoOnly: # stop here if only
                 return
             
@@ -170,18 +169,34 @@ class ImageData(object):
         if dataFile is not None and isinstance(dataFile, str):
             self.LoadImageData(dataFile)
 
-""" Publication figure data (csv file) """
+""" Publication figure data (csv file or NeuroData file) """
 class FigureData(object):
-    def __init__(self, dataFile=None):
+    def __init__(self, dataFile=None, *args, **kwargs):
         """Initialize class"""
         self.meta = {} # a list of meta parameters in the file
-        if dataFile is not None and isinstance(dataFile, str):
-            # load directly if all the conditions are met
-            self.LoadFigureData(dataFile=dataFile)
-
+        if dataFile is None or not isinstance(dataFile, (str,list,tuple,np.ndarray)):
+            return
+        # load the file
+        self.__loadbyext(dataFile, *args, **kwargs)
+        
+    def __loadbyext(self,  dataFile, ext=None, *args, **kwargs):
+        """Load data based on extension"""
+        if ext is None:
+            f = dataFile[0] if isinstance(dataFile, (list,tuple,np.ndarray)) \
+                                else dataFile
+            ext = os.path.splitext(os.path.basename(os.path.abspath(f)))[-1]
+        if ext == '.csv': # load csv text file which contains attributes of plots
+            self.LoadFigureData(dataFile=dataFile, *args, **kwargs)
+        elif ext == '.dat':
+            # load NeuroData
+            self.LoadNeuroData(dataFile, *args, **kwargs)
+        else:
+            raise(TypeError('Unrecognized extension %s'%(ext)))
+        
     def LoadFigureData(self, dataFile, sep=',', metachar="|"):
         """Load data file"""
-        # check file exists
+        if not isinstance(dataFile, str):
+            raise(TypeError('Please give a single path to .csv data file'))
         fid = open(dataFile, 'r')
         self.table = []
         for rownum, line in enumerate(fid): # iterate through each line
@@ -257,8 +272,11 @@ class FigureData(object):
         # Force some default values
         if 'xlabel' not in self.meta.keys(): self.meta['xlabel'] = ''
         if 'ylabel' not in self.meta.keys(): self.meta['ylabel'] = ''
+    
+    def LoadNeuroData(self, dataFile, *args, **kwargs):
+        self.Neuro2Trace(dataFile, *args, **kwargs)
 
-    def Neuro2Trace(self, data, channels=None, streams=None):
+    def Neuro2Trace(self, data, channels=None, streams=None, *args, **kwargs):
         """Use NeuroData method to load and parse trace data to be plotted
         data: an instance of NeuroData, ro a list of instances
         channels: list of channels to plot, e.g. ['A','C','D']
@@ -268,14 +286,15 @@ class FigureData(object):
         if isinstance(data, NeuroData):
             data = [data] # convert to list
         elif isinstance(data, str): # file path
-            data = [NeuroData(data)]
+            data = [NeuroData(data, *args, **kwargs)]
         elif isinstance(data, list): # a list of objects
-            if isinstance(data[0], NeuroData): # a list of NeuroData instances
-                pass
-            elif isinstance(data[0],str): # a list of file paths
-                data = [NeuroData(d) for d in data]
-            else:
-                raise TypeError(("Unrecognized data type"))
+            for n, d in enumerate(data): # transverse through the list
+                if isinstance(d, NeuroData): # a list of NeuroData instances
+                    pass
+                elif isinstance(d,str): # a list of file paths
+                    data[n] = NeuroData(d, *args, **kwargs)
+                else:
+                    raise TypeError(("Unrecognized data type"))
         else:
             raise TypeError(("Unrecognized data type"))
 
@@ -297,37 +316,41 @@ class FigureData(object):
             avail_streams = [x[:-1] for x in d.Protocol.channelNames]
             for c in self.listintersect(channels, avail_channels):
                 # iterate over data streams
-                for s in self.listintersect(streams, avail_streams):
+                for s in self.listintersect(avail_streams,streams):
                     tmp = {'Volt': d.Voltage, 'Cur':d.Current, 'Stim': d.Stimulus}.get(s)
                     if tmp is None or not bool(tmp):
                         continue
                     tmp = tmp[c]
                     if tmp is None:
                         continue
-                    series[s, c] = tmp
-                    self.meta['y'].append((s, c))
+                    series[s+c] = tmp # series[s, c]
+                    self.meta['y'].append(s+c) # .append((s,c))
                     if s[0] == 'V':
-                        volt_i = tmp[0]
                         self.meta['yunit'].append('mV')
                     elif s[0] == 'C':
-                        cur_i = tmp[0]
                         self.meta['yunit'].append('pA')
                     else: #s[0] == 'S'
                         self.meta['yunit'].append('pA')
                 dtime = self.sec2hhmmss(d.Protocol.WCtime)
                 # Notes: file, voltage, current, channel, time
-                notesstr = notes %(d.Protocol.readDataFrom,  volt_i, cur_i, c,dtime)
+                notesstr = notes %(d.Protocol.readDataFrom,  \
+                                d.Voltage[c][0], d.Current[c][0], c, dtime)
                 self.meta['notes'].append(notesstr)
             self.table.append(series)
         
         # if only 1 data set in the input, output as a dataframe instead of a
         # list of dataframes
         self.table = self.table[0] if len(self.table)<2 else self.table
+        # reshape y meta data
+        #if len(self.meta['x'])!=len(self.meta['y']) and len(self.meta['x'])>1:
+        self.meta['y']=np.reshape(self.meta['y'],(len(self.meta['x']),-1))
+        self.meta['yunit'] = np.reshape(self.meta['yunit'],\
+                                           (len(self.meta['xunit']),-1))
 
     @staticmethod
     def listintersect(*args):
         """Find common elements in lists"""
-        args = [x for x in args if x is not None]
+        args = [x for x in args if x is not None] # get rid of None
         def LINT(A,B):  #short for list intersection
             return list(set(A) & set(B))
         if len(args) == 0:
@@ -352,4 +375,4 @@ if __name__ == '__main__':
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
 #    figdata.Neuro2Trace(data, channels=['A','B','C','D'], streams=['Volt','Cur','Stim'])
-    data = FigureData(dataFile)
+    data = FigureData(dataFile='D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E40.dat',old=True, channels=['A'], streams=['Volt','Cur','Stim'])
