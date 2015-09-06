@@ -86,7 +86,7 @@ class PublicationFigures(object):
             return(wrapper)
         return(wrap)
 
-    def Save(self,savePath=None, dpi=75):
+    def Save(self,savePath=None, dpi=300):
         """
         savePath: full path to save the image. Image type determined by file
             extention
@@ -342,11 +342,13 @@ class PublicationFigures(object):
         # get some label parameters
         group = self.get_field(self.data.meta, 'group')
         legend = self.get_field(self.data.meta, 'legend')
+        legendtitle = self.get_field(self.data.meta, 'legendtitle')
         # Do the plot
         self.axs, _ = beeswarm(_y, df=self.data.table, group=_x, cluster=_by,\
                                 method=style,ax=self.axs, color=color,\
                                 colortheme=theme, figsize=canvas_size,\
-                                legend=legend, labels=group, **kwargs)
+                                legend=legend, legendtitle=legendtitle, \
+                                labels=group, **kwargs)
 
         # Format style
         # make sure axis tickmark points out
@@ -355,8 +357,6 @@ class PublicationFigures(object):
         self.axs.spines['top'].set_visible(False)
         self.axs.xaxis.set_ticks_position('bottom')
         self.axs.yaxis.set_ticks_position('left')
-        # Set legend
-        self.axs.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         # Set Y label, if exsit
         try:
             self.axs.set_ylabel(self.data.meta['ylabel'])
@@ -602,6 +602,7 @@ class PublicationFigures(object):
         x: x break point
         y: y break point
         """
+        raise(NotImplementedError('This method is yet to be implemeneted'))
         if x is not None and y is not None:
             f,axs = plt.subplots(2,2,sharex=True,sharey=True)
         elif x is not None and y is None:
@@ -1010,7 +1011,7 @@ if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.csv' %plotType)
     # Load data
     if plotType != 'neuro':
-        K = PublicationFigures(dataFile=dataFile, savePath=os.path.join(exampleFolder,'%s.eps'%plotType))
+        K = PublicationFigures(dataFile=dataFile, savePath=os.path.join(exampleFolder,'%s.png'%plotType))
     if plotType == 'lineplot':
         # Line plot example
         K.LinePlot(style=style)

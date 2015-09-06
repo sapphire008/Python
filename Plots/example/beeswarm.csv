@@ -14,6 +14,7 @@
 # Group / legend
 |group = [ER neg, ER pos]
 |legend = [yes,no]
+|legendtitle = Censored
 # Separate by categories, using different color on the plot
 | by = event_survival
 

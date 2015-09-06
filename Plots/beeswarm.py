@@ -451,5 +451,3 @@ if __name__=='__main__':
     cluster = 'event_survival'
     ax, bs = beeswarm(values, df, group=group, cluster=cluster, figsize=(6,5),
                         method='swarm', legend=('yes','no'), legendtitle='Survival',corral='gutter')
-    # a = swarm([1,2,3,4,5,6,7,8],xsize=1,ysize=1, priority='density')
-    # print(a)
