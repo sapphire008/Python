@@ -11,16 +11,16 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
             method='swarm', corral='none', corralWidth=None,
             side=0L, priority='ascending', ax=None, orientation='vertical',
             xlim=None, ylim=None, xlab=None, ylab=None, legendon=True,
-            legend=None, legendtitle=None, labels=None, 
-            ticklabelrotation='horizontal', log=False, s=33., dpi=72., 
+            legend=None, legendtitle=None, labels=None,
+            ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
             figsize=(10.,5.), color=('k','r'), colortheme='cluster',**kwargs):
     """
      beeswarm(values, df, group=None, cluster=None, positions=None,
             method='swarm', corral='none', corralWidth=None,
             side=0L, priority='ascending', ax=None, orientation='vertical',
             xlim=None, ylim=None, xlab=None, ylab=None, legendon=True,
-            legend=None, legendtitle=None, labels=None, 
-            ticklabelrotation='horizontal', log=False, s=33., dpi=72., 
+            legend=None, legendtitle=None, labels=None,
+            ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
             figsize=(10.,5.), color=('k','r'), colortheme='cluster',**kwargs)
 
      Inputs:
@@ -74,9 +74,9 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
      Returns:
          * ax: the axis used for plotting
          * bs: pandas.DataFrame with columns: xorig, yorig, xnew, ynew, color
-         
+
      Caveats:
-         The beeswarm algorithm depends heavily on dpi, dot size and figure 
+         The beeswarm algorithm depends heavily on dpi, dot size and figure
          size. It is necessary to fine tune these three parameters so that the
          plot looks nicely. By default. We set dpi to be 72, dot size to be 33
          (coresponding roughly to 0.08 inch, use by R's beeswarm package), and
@@ -104,6 +104,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         xmin = min(positions)-0.1*xx
         xmax = max(positions)+0.1*xx
         ax.set_xlim(left=xmin, right=xmax)
+        xlim = ax.get_xlim() if xlim is None else xlim
     if ylim is not None:
         ax.set_ylim(bottom=ylim[0], top=ylim[1])
     else:
@@ -111,8 +112,12 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         ymin = min(df[values])-.05*yy
         ymax = max(df[values])+0.05*yy
         ax.set_ylim(bottom=ymin, top=ymax)
+        ylim = ax.get_ylim() if ylim is None else ylim
+
+    print(ylim)
 
     # Get dot size
+    global xszie, ysize
     xsize, ysize = xydotsize(ax, s=s, dpi=dpi)
 
     # Create labels if not specified in the argument
@@ -150,10 +155,8 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
                 g_pos = swarmy(x, y, xsize=xsize, ysize=ysize, side=side, priority=priority, xlog=log)
         else: # other methods
             if orientation == 'vertical':
-                ylim = ax.get_ylim() if ylim is None else ylim
                 g_pos, d_pos = gridx(x, y, xsize=xsize, ysize=ysize, dlim=ylim, method=method, side=side, log=log)
             else: # horizontal
-                xlim = ax.get_xlim() if xlim is None else xlim
                 g_pos, d_pos = gridy(x, y, xsize=xsize, ysize=ysize, dlim=xlim, method=method, side=side, log=log)
 
         # check corral
@@ -178,7 +181,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         for m, cl in enumerate(np.unique(df[cluster])):
             ind = df[cluster]==cl
             ax.scatter(bs.loc[ind,'xnew'], bs.loc[ind, 'ynew'], s=s, \
-                    c=bs.loc[ind, 'color'], 
+                    c=bs.loc[ind, 'color'],
                     label=cl if legend is None else legend[m], **kwargs)
         if legendon: # turn on legend
             ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.,\
@@ -197,7 +200,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
     return(ax, bs)
 
 def xydotsize(ax, s=None, dpi=None, scale=(1.25,1.25)):
-    """ Determine dot size in data axis. 
+    """ Determine dot size in data axis.
     scale: helps further increasing space between dots
     """
     figw, figh = ax.get_figure().get_size_inches() # figure width, height in inch
@@ -316,24 +319,26 @@ def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
     dsize: data dimension size
     log: must be a function, e.g. np.log10, otherwise/default False
     """
+    global d_index, breaks, mids, xx
+    xx = x
     if method == "hex": dsize = dsize*np.sqrt(3.0)/2.0
     if log:
         # get base: will not work with log1p
         b = np.exp(np.log(5.0)/log(5.0)) # 5.0, or any constants to reverse calculate base
         breaks = b**np.arange(log(dlim[0]), log(dlim[1])+dsize, dsize)
-        mids = b**(log(pd.Series(breaks[:-1])) + log(pd.Series(breaks[1:])))/2.0
+        mids = pd.Series(b**(log(breaks[:-1]) + log(breaks[1:]))/2.0)
     else: # if data axis is NOT on a log scale
         breaks = np.arange(dlim[0], dlim[1]+dsize, dsize)
-        mids = (pd.Series(breaks[:-1]) + pd.Series(breaks[1:]))/2.0
-
+        mids = pd.Series((breaks[:-1] + breaks[1:]) / 2.0)
     if len(breaks) == 1 and np.isnan(breaks[0]):
         d_index, d_pos = x, x
     else:
         d_index = pd.Series(pd.cut(pd.Series(x), bins=breaks, labels=False))
         d_pos = d_index.apply(lambda x: mids[x])
+    #print(d_index)
     # now determine positions along the group axis
     v_s = {}
-    for item in set(d_index):
+    for item in np.unique(d_index):
         vals = np.arange(list(d_index).count(item))
         v_s[item] = {
         'center': {-1: vals - np.max(vals),
@@ -345,7 +350,7 @@ def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
                     1: vals -1.0
                     }.get(side),
         'hex': {-1: vals - np.max(vals) - (0. if (item%2) == 1 else 0.5),
-                 0: vals - (np.floor(np.mean(vals)) -0.25 if (item%2)==1 else np.ceil(np.mean(vals))-0.25),
+                 0: vals - (np.floor(np.mean(vals))+0.25 if (item%2)==1 else np.ceil(np.mean(vals))-0.25),
                  1: vals - (1.0 if item%2==1 else 0.5)
                 }.get(side)
         }.get(method, ValueError('Unrecognized method: %s' %(method)))
@@ -358,7 +363,7 @@ def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
 def gridx(x, y, xsize, ysize, dlim, method='hex', side=0L,log=False):
     """ jitter points horizontally"""
     g_offset, d_pos = _calculateGrid(y, dsize=ysize, gsize=xsize, dlim=dlim, method=method, side=side, log=log)
-    return(g_offset, d_pos) # new_x, new_y
+    return(g_offset+x, d_pos) # new_x, new_y
 
 def gridy(x, y, xsize, ysize, dlim,  method='hex', side=0L, log=False):
     """ jitter points vertically"""
@@ -422,8 +427,6 @@ def colorvect(factors, df, color=('k','r')):
     # get indices of unique group
     return([color[c] for c in groupby.grouper.group_info[0] % len(color)])
 
-
-
 if __name__=='__main__':
     from ImportData import FigureData
     df = FigureData(dataFile='C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/beeswarm.csv')
@@ -431,6 +434,7 @@ if __name__=='__main__':
     values = 'time_survival'
     group = 'ER'
     cluster = 'event_survival'
-    ax, bs = beeswarm(values, df, group=group, cluster=cluster, method='swarm', legend=('yes','no'), legendtitle='survival')
+    ax, bs = beeswarm(values, df, group=group, cluster=cluster, \
+                        method='center', legend=('yes','no'), legendtitle='Survival')
     # a = swarm([1,2,3,4,5,6,7,8],xsize=1,ysize=1, priority='density')
     # print(a)
