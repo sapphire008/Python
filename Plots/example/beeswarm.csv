@@ -10,8 +10,9 @@
 # The scatter data are assigned as 'y' variable
 | y=time_survival
 # Axis labels
-| ylabel = time surivival
+| ylabel = Follow-up time (months)
 # Group / legend
+|group = [ER neg, ER pos]
 |legend = [yes,no]
 # Separate by categories, using different color on the plot
 | by = event_survival

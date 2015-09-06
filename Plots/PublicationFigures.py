@@ -13,7 +13,7 @@ import matplotlib
 #matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'neuro'
+plotType = 'beeswarm'
 style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
@@ -25,7 +25,7 @@ fontsize = {'title':16, 'xlab':12, 'ylab':12, 'xtick':10,'ytick':10, 'texts':12,
 color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
 marker = ['o', 's', 'd', '^', '*', 'p']# scatter plot line marker cycle
 hatch = ['/','\\','-', '+', 'x', 'o', 'O', '.', '*'] # fill patterns potentially used for filled objects such as bars
-
+canvas_size = (6,5)
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -57,13 +57,14 @@ class PublicationFigures(object):
             g['_'+item] = self.data.meta[item] \
                     if item in self.data.meta else None
 
-    def AdjustFigure(canvas_size=(6,5), tight_layout=True):
+    def AdjustFigure(canvas_size=canvas_size, tight_layout=True):
         """Used as a decotrator to set the figure properties"""
         def wrap(func):
             def wrapper(self, *args, **kwargs):
                 res = func(self, *args, **kwargs)#execute the function as usual
                 self.SetFont() # adjust font
-                self.fig.set_size_inches(canvas_size) # set figure size
+                if canvas_size is not None:
+                    self.fig.set_size_inches(canvas_size) # set figure size
                 if tight_layout:
                     self.fig.tight_layout() # tight layout
                 return(res)
@@ -327,38 +328,25 @@ class PublicationFigures(object):
         self.axs.boxplot(np.array(self.data.table[_y]).T)
         self.SetDefaultAxis()
 
-    #@AdjustFigure()
-    def Beeswarm(self, style= "swarm",color=color, theme='mono'):
+    @AdjustFigure(canvas_size=None)
+    def Beeswarm(self, style= "swarm",color=color, theme='cluster', **kwargs):
         """Beeswarm style boxplot
         * style: beeswarm dot style,['swarm' (default),'hex','center','square']
-        * theme: ['mono' (Default), 'multi']
-            - 'mono': different groups use different color, and corresponding
-                      groups are in the same color across categories
-            - 'multi': use different colors across categories and groups.
+        * theme: ['cluster' (Default), 'group', 'multi', 'floral'].
+                Details see beeswarm doc string
         """
         from beeswarm import beeswarm
         global _x, _y, _by
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
-        group = np.unique(self.data.table[_x])
-        # boardcasting color cycle
-        num = len(np.unique(self.data.table[_x]))
-        color = num/len(color)*color+color[0:num%len(color)]
-        label = self.get_field(self.data.meta,'legend',n)
-        # Plot with beeswarm
-        #_, self.axs = beeswarm(values, method=style)
-        """
-        Cannot plot multiple times. The script cannot calculate the legend corerctly
-        """
-        # Separate by x first
-        values = [self.data.table[_y][self.data.table[_x]==g] for g in group]
-        # Create a vector of color for each group
-        pwcol = [self.data.table[_by][self.data.table[_x]==g] for g in group] \
-                                    if _by is not None else None
-        self.axs, bs=beeswarm(values,pwcol=pwcol, method=style, group=group,
-                              label=label, col=color, ax=self.axs,
-                              returnbs=True)
-        return
+        # get some label parameters
+        group = self.get_field(self.data.meta, 'group')
+        legend = self.get_field(self.data.meta, 'legend')
+        # Do the plot
+        self.axs, _ = beeswarm(_y, df=self.data.table, group=_x, cluster=_by,\
+                                method=style,ax=self.axs, color=color,\
+                                colortheme=theme, figsize=canvas_size,\
+                                legend=legend, labels=group, **kwargs)
 
         # Format style
         # make sure axis tickmark points out
@@ -374,7 +362,6 @@ class PublicationFigures(object):
             self.axs.set_ylabel(self.data.meta['ylabel'])
         except:
             pass
-        self.SetAspectRatio(r=0.5, adjustable='box-forced')
 
     @AdjustFigure()
     def Violinplot(self, color=color):
