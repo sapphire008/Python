@@ -114,10 +114,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         ax.set_ylim(bottom=ymin, top=ymax)
         ylim = ax.get_ylim() if ylim is None else ylim
 
-    print(ylim)
-
     # Get dot size
-    global xszie, ysize
     xsize, ysize = xydotsize(ax, s=s, dpi=dpi)
 
     # Create labels if not specified in the argument
@@ -144,6 +141,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
     bs = pd.DataFrame({'xorig':0, 'yorig':df[values], 'xnew':0, 'ynew':df[values], 'color':color_spec})
 
     # Adjust data along the grouping dimension: for now, plot vertically
+    g_offset, d_pos = [], []
     for n, g in enumerate(np.unique(df[group])):
         y = df.loc[df[group]==g, values]
         x =  np.repeat(positions[n], len(y))
@@ -151,28 +149,33 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         if method == 'swarm':
             if orientation == 'vertical':
                 g_pos = swarmx(x, y, xsize=xsize, ysize=ysize, side=side, priority=priority, ylog=log)
+                g_offset.append(g_pos - x)
             else: # horizontal
                 g_pos = swarmy(x, y, xsize=xsize, ysize=ysize, side=side, priority=priority, xlog=log)
+                g_offset.append(g_pos - y)
         else: # other methods
             if orientation == 'vertical':
                 g_pos, d_pos = gridx(x, y, xsize=xsize, ysize=ysize, dlim=ylim, method=method, side=side, log=log)
+                g_offset.append(g_pos - x)
             else: # horizontal
                 g_pos, d_pos = gridy(x, y, xsize=xsize, ysize=ysize, dlim=xlim, method=method, side=side, log=log)
+                g_offset.append(g_pos - y)
 
-        # check corral
-        g_pos = _corral(x, g_pos, size_g=xsize, ax=ax, corral=corral, corralWidth=corralWidth)
+    # check corral
+    g_offset = _corral(positions, g_offset, size_g=xsize, ax=ax, corral=corral, corralWidth=corralWidth)
 
-        # parse data frame
+    # parse data frame
+    for n, g in enumerate(np.unique(df[group])):
         if orientation == 'vertical':
             bs.loc[df[group]==g, 'xorig'] = positions[n] # original position
-            bs.loc[df[group]==g, 'xnew'] = np.array(g_pos) # group offset
+            bs.loc[df[group]==g, 'xnew'] = positions[n]+np.array(g_offset[n]) # group offset
             if method != 'swarm': # data offset for non-swarm
-                bs.loc[df[group]==g, 'ynew'] = np.array(d_pos)
+                bs.loc[df[group]==g, 'ynew'] = np.array(d_pos[n])
         else:
             bs.loc[df[group]==g, 'yorig'] = positions[n] # original position
-            bs.loc[df[group]==g, 'ynew'] = np.array(g_pos) # group offset
+            bs.loc[df[group]==g, 'ynew'] = positions[n] + np.array(g_offset[n]) # group offset
             if method != 'swarm':  # data offset for non-swarm
-                bs.loc[df[group]==g, 'xnew'] = np.array(d_pos)
+                bs.loc[df[group]==g, 'xnew'] = np.array(d_pos[n])
 
     # Do the plot
     if cluster is None or ncluster==1:
@@ -286,12 +289,12 @@ def swarmx(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=F
         x = xlog(x)
     if ylog:
         y = ylog(y)
-    g_offset = x + _calculateSwarm(y, dsize=ysize, gsize=xsize, side=side, priority=priority)
+    g_pos = x + _calculateSwarm(y, dsize=ysize, gsize=xsize, side=side, priority=priority)
     if xlog:
         # get base: will not work with log1p
         b = np.exp(np.log(5.0)/xlog(5.0)) # 5.0, or any constants to reverse calculate base
-        g_offset = b**g_offset
-    return(g_offset)
+        g_pos = b**g_pos
+    return(g_pos)
     #return(pd.DataFrame({x=x_new, y=y}))
 
 def swarmy(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=False):
@@ -302,12 +305,12 @@ def swarmy(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=F
         x = xlog(x)
     if ylog:
         y = ylog(y)
-    g_offset = y + _calculateSwarm(x, dsize=xsize, gsize=ysize, side=side, priority=priority)
+    g_pos = y + _calculateSwarm(x, dsize=xsize, gsize=ysize, side=side, priority=priority)
     if ylog:
         # get base: will not work with log1p
         b = np.exp(np.log(5.0)/ylog(5.0)) # 5.0, or any constants to reverse calculate base
-        g_offset = b**g_offset
-    return(g_offset)
+        g_pos = b**g_pos
+    return(g_pos)
     #return(pd.DataFrame({x=x, y=y_new}))
 
 
@@ -368,7 +371,7 @@ def gridx(x, y, xsize, ysize, dlim, method='hex', side=0L,log=False):
 def gridy(x, y, xsize, ysize, dlim,  method='hex', side=0L, log=False):
     """ jitter points vertically"""
     g_offset, d_pos = _calculateGrid(x, dsize=xsize, gsize=ysize, dlim=dlim, method=method, side=side, log=log)
-    return(g_offset, d_pos) # new_y, new_x
+    return(g_offset+y, d_pos) # new_y, new_x
 
 def unsplit(x,f):
     """
@@ -415,6 +418,7 @@ def _corral(positions, g_offset, size_g, ax, corral='none', corralWidth=None):
         raise(g_offset)
     else:
         g_offset = np.array(g_offset)
+    print(g_offset)
 
     return(g_offset)
 
@@ -434,7 +438,7 @@ if __name__=='__main__':
     values = 'time_survival'
     group = 'ER'
     cluster = 'event_survival'
-    ax, bs = beeswarm(values, df, group=group, cluster=cluster, \
-                        method='center', legend=('yes','no'), legendtitle='Survival')
+    ax, bs = beeswarm(values, df, group=group, cluster=cluster, figsize=(10,5),
+                        method='swarm', legend=('yes','no'), legendtitle='Survival',corral='none')
     # a = swarm([1,2,3,4,5,6,7,8],xsize=1,ysize=1, priority='density')
     # print(a)
