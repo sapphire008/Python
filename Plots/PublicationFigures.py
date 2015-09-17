@@ -13,7 +13,7 @@ import matplotlib
 #matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
-plotType = 'beeswarm'
+plotType = 'neuro'
 style = 'Vstack'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
@@ -134,6 +134,26 @@ class PublicationFigures(object):
             - 'each': each subplot of traces gets an annotation next to it
         color: default MATLAB's color scheme
         """
+        import matplotlib.gridspec as gridspec
+        # Define the layout of a single canvas
+        gs = gridspec.GridSpec(2,3, width_ratios = [1, 50, 3], height_ratios=[7,1])
+        # Set up all the axes
+        ax = dict()
+        fig = plt.figure()
+        ax['trace'] = fig.add_subplot(gs[1])
+        ax['initial'] = fig.add_subplot(gs[0], sharex=ax['trace'])
+        ax['scalebar'] = fig.add_subplot(gs[2], sharex=ax['trace'])
+        ax['annotation'] = fig.add_subplot(gs[3:], sharex=ax['trace'])
+        #ax = list(ax.values())
+
+        # text annotation
+        ax['annotation'].text(0., 0.5, self.data.meta['notes'][0])
+        # scalebar
+        self.AddTraceScaleBar(xunit='ms', yunit='mV', color='k', ax=ax['scalebar'])
+        # initial value
+        ax['initial'].text(0., 0.5, '%0.2fmV'%(self.data.table[0]['VoltA'][0]))
+
+        plt.gcf().set_size_inches(6,3)
         # parse subplot configuration
         if outline is None:
             tmp = np.array(_y)
@@ -335,7 +355,7 @@ class PublicationFigures(object):
         * theme: ['cluster' (Default), 'group', 'multi', 'floral'].
                 Details see beeswarm doc string
         """
-        from beeswarm import beeswarm
+        from simple.beeswarm import beeswarm
         global _x, _y, _by
         # initialize plot
         self.fig, self.axs = plt.subplots(nrows=1,ncols=1, sharex=True)
@@ -662,7 +682,8 @@ class PublicationFigures(object):
                 p.set_hatch(hatch[n%len(hatch)])
 
     """ #################### Text Annotations ####################### """
-    def AddTraceScaleBar(self, xunit, yunit, color='k', ax=None):
+    def AddTraceScaleBar(self,xunit,yunit,color='k',linewidth=None,\
+                         fontsize=None,ax=None):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces."""
         if ax is None: ax=self.axs
@@ -685,6 +706,12 @@ class PublicationFigures(object):
             color = ax.get_lines()[0]
         if 'matplotlib.lines.Line2D' in str(type(color)):
             color = color.get_color()
+        if linewidth is None:
+            linewidth = ax.get_lines()[0]
+        if 'matplotlib.lines.Line2D' in str(type(linewidth)):
+            linewidth = linewidth.get_linewidth()
+        if fontsize is None:
+            fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         # Calculate position of the scale bar
         xi = np.max(ax.get_xticks()) + X/2.0
         yi = np.mean(ax.get_yticks())
@@ -693,22 +720,22 @@ class PublicationFigures(object):
         xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
         # Draw text
         txt1 = ax.text(xtext1, ytext1, xlab, ha='center',va='top',
-                             color=color)
+                             color=color, size=fontsize)
         self.AdjustText(txt1, ax=ax) # adjust texts just added
         txt2 = ax.text(xtext2, ytext2, ylab, ha='left',va='center',
-                             color=color)
+                             color=color, size=fontsize)
         self.AdjustText(txt2,ax=ax) # adjust texts just added
         # Draw Scale bar
         ax.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
                           xytext=(xi+X,yi), textcoords = 'data',
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0,
-                          color=color))
+                          color=color, linewidth=linewidth))
         ax.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
                           xytext=(xi+X,yi+Y), textcoords = 'data',
                           annotation_clip=False,arrowprops=dict(arrowstyle="-",
                           connectionstyle="arc3", shrinkA=0, shrinkB=0,
-                          color=color))
+                          color=color,linewidth=linewidth))
         #txtbb = txt1.get_bbox_patch().get_window_extent()
         #print(txtbb.bounds)
         #print(self.axs.transData.inverted().transform(txtbb).ravel())
@@ -829,20 +856,18 @@ class PublicationFigures(object):
 
 
     """ ################# Geometry Annotations ####################### """
-    def DrawEllipsoid(self, center, radii=None, rvec=np.eye(3), \
-                      A=None, numgrid=100, ax=None, color=color, alpha=0.6):
+    def DrawEllipsoid(self, center, radii, rvec=np.eye(3), \
+                      numgrid=100, ax=None, color=color, alpha=0.6):
         """Draw an ellipsoid given its parameters
         center: center [x0,y0,z0]
         radii: radii of the ellipsoid [rx, ry, rz]
         rvec: vector of the radii that indicates orientation. Default identity
-        A: orientation matrix 3x3, where each row is a vector of radii, can be
-            supplied directly instead of radii and rvec
         numgrid: number of points to estimate the ellipsoid. The higher the
             number, the smoother the plot. Defualt 100.
         """
-
         # Caculate ellipsoid coordinates
-        x,y,z = self.Ellipsoid(center, radii, rvec, A, numgrid)
+        from simple.ellipsoid import Ellipsoid as Ellipsoid
+        x,y,z = Ellipsoid(center, radii, rvec, numgrid)
         if ax is None:
             if not (isinstance(self.axs, np.ndarray) or \
                     isinstance(self.axs, list)):
@@ -973,40 +998,6 @@ class PublicationFigures(object):
         else:
             CF_vec(ax)
 
-    @staticmethod
-    def Ellipsoid(center, radii=None, rvec=np.eye(3), A=None, numgrid=100):
-        """Matrix description of ellipsoid
-        center: center [x0,y0,z0]
-        radii: radii of the ellipsoid [rx, ry, rz]
-        rvec: vector of the radii that indicates orientation. Default identity
-        A: orientation matrix 3x3, where each row is a vector of radii, can be
-            supplied directly instead of radii and rvec
-        numgrid: number of points to estimate the ellipsoid. The higher the
-            number, the smoother the plot. Defualt 100.
-        return: x, y, z coordinates
-        """
-        # Ellipsoid (x-c)'A(x-c) = 1
-        # find the rotation matrix and radii of the axes
-        # A = eigvec * diag(eigvalue) * inv(eigvec)
-        if A is None:
-            if radii is None:
-                raise IOError("radii/rvec and A cannot be both None")
-            A = rvec.dot(np.diag(1.0/radii**2)).dot(np.linalg.inv(rvec))
-        # Note that this step is necessary to sort out x, y, z
-        U, S, V = np.linalg.svd(A) # A = USV', V is returned as V'
-        radii = 1.0/np.sqrt(S)
-        # Spherical coordinate
-        u = np.linspace(0.0, 2.0*np.pi, numgrid) # 100 grid resolution
-        v = np.linspace(0, np.pi, numgrid-10) #100 grid resolution
-        # Convert to Cartesian
-        x = radii[0] * np.outer(np.cos(u), np.sin(v))
-        y = radii[1] * np.outer(np.sin(u), np.sin(v))
-        z = radii[2] * np.outer(np.ones_like(u), np.cos(v))
-        X = np.rollaxis(np.array([x,y,z]), 0, 3)
-        X = X.dot(V.T) + center.reshape((1, 1, -1)) # rotation and translation
-        return(X[:,:,0], X[:,:,1], X[:,:,2])
-
-
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.csv' %plotType)
     # Load data
@@ -1037,10 +1028,12 @@ if __name__ == "__main__":
     elif plotType == 'boxplot':
         K.Boxplot()
     elif plotType == 'neuro':
-        data = ['D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E%d.dat'%(epi) for epi in range(40,44)]
-        K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'%s.png'%plotType), old=True, channels=['A'], streams=['Volt'])
-        #plt.plot(np.array(K.data.table[('Cur','A')]))
-        K.Traces(outline='horizontal')
+        base_dir = 'D:/Data/2015/08.August/Data 25 Aug 2015/Neocortex B.25Aug15.S1.E%d.dat'
+        eps = [14, 22, 29, 39] # AHP
+        data = [base_dir%(epi) for epi in eps]
+        K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'multiple_traces.png'), old=True, channels=['A'], streams=['Volt'])
+        #K.Traces(outline='overlap')
+
     # Final clean up
-    K.fig.show()
-    K.Save()
+    #K.fig.show()
+    #K.Save()
