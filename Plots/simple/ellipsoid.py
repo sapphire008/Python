@@ -8,7 +8,6 @@ Created on Sun Jul 05 21:07:31 2015
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D # for plotting 3D
-from spm_matrix import spm_matrix
 
 def spm_matrix(P, order='T*R*Z*S'):
     """Python adaptaion of spm_matrix
@@ -110,6 +109,15 @@ def spm_matrix(P, order='T*R*Z*S'):
         "Order expression '%s' did not return a valid 4x4 matrix."%(order)))
 
     return(A, T, R, Z, S)
+    
+def rmat2RPY(rmat):
+    """convert a rotation matrix back to roll, pitch, yaw
+    http://planning.cs.uiuc.edu/node103.html    
+    """
+    pitch = np.arctan(rmat[1,0]/rmat[0,0]) # x
+    roll = np.arctan(-rmat[2,0]/np.sqrt(rmat[2,1]**2 + rmat[2,2]**2)) #y
+    yaw = np.arctan(-rmat[2,1]/rmat[2,2]) #z
+    return(pitch, roll, yaw)
 
 def Ellipsoid(center, radii, rvec=np.eye(3), numgrid=100):
     """Matrix description of ellipsoid
@@ -182,7 +190,8 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111,projection='3d')
     # simulate data
     P = np.array([1,2,3,0, np.pi/4, 0,5,10,15,0,0,0])
-    X, _, _, _ = SimulateEllipsoid(P)
+    #X, _, _, _ = SimulateEllipsoid(P)
+    X, _center, _radii, _rvec = SimulateEllipsoid(P)
     x, y, z = X[:,0], X[:,1], X[:,2]
     ax.scatter(x, y, z, color='k', alpha=0.1)
 

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import os
 import zipfile
+import six
 
 dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
 
@@ -74,7 +75,7 @@ class NeuroData(object):
 
             # read in TTL information
             self.Protocol.ttlData = []
-            for index in xrange(self.Protocol.numChannels):
+            for index in range(self.Protocol.numChannels):
                 fid.seek(10, 1) # 10 is for VB user-defined type stuff
                 self.Protocol.ttlData.append(np.fromfile(fid, np.float32, 17)) #[need expansion]
             #print(fid.tell())
@@ -82,7 +83,7 @@ class NeuroData(object):
             # read in DAC information
             self.Protocol.dacData = []
             self.Protocol.dacName = []
-            for index in xrange(self.Protocol.numChannels):
+            for index in range(self.Protocol.numChannels):
                 fid.seek(10, 1) # 10 is for VB user-defined type stuff
                 self.Protocol.dacData.append(np.fromfile(fid, np.float32, 42)) #[need exspansion]
                 self.Protocol.dacName.append(self.readVBString(fid))
@@ -105,10 +106,10 @@ class NeuroData(object):
             self.Protocol.extraVectorKeys=self.readVBString(fid)
             self.Protocol.genString=self.readVBString(fid)
             self.Protocol.TTLstring = []
-            for index in xrange(self.Protocol.numChannels):
+            for index in range(self.Protocol.numChannels):
                 self.Protocol.TTLstring.append(self.readVBString(fid))
             self.Protocol.ampDesc = []
-            for index in xrange(self.Protocol.numChannels):
+            for index in range(self.Protocol.numChannels):
                 self.Protocol.ampDesc.append(self.readVBString(fid))
             
             # Get Channel info
@@ -155,7 +156,14 @@ class NeuroData(object):
         if stringLength==0:
             return('')
         else:
-            return(''.join(np.fromfile(fid, '|S1', stringLength)))
+            # if python 2
+            if six.PY2:
+                return(''.join(np.fromfile(fid, '|S1', stringLength)))
+            # if python 3
+            elif six.PY3:
+                tmp = np.fromfile(fid, '|S1', stringLength)
+                return(np.ndarray.tostring(tmp).decode('UTF-8'))
+            
 
 
 """ 2photon image data"""

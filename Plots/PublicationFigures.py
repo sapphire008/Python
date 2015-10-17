@@ -9,7 +9,7 @@ DEBUG = True
 import os
 import numpy as np
 from ImportData import FigureData
-import matplotlib
+#import matplotlib
 #matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,7 @@ exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/exam
 # global variables
 # fontname = os.path.abspath(os.path.join(os.path.dirname(__file__), 'resource/Helvetica.ttf')) # font .ttf file path
 fontname = 'Arial'
-fontsize = {'title':16, 'xlab':12, 'ylab':12, 'xtick':10,'ytick':10, 'texts':12,
+fontsize = {'title':16, 'xlab':12, 'ylab':12, 'xtick':10,'ytick':10, 'texts':8,
             'legend': 12, 'legendtitle':12} # font size
 color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
 marker = ['o', 's', 'd', '^', '*', 'p']# scatter plot line marker cycle
@@ -231,6 +231,36 @@ class PublicationFigures(object):
             ax.set_ylabel(ylabel)
         else: # do not draw any reference on this axis
             self.TurnOffAxis(ax)
+    
+    @AdjustFigure(tight_layout=False)
+    def SingleEpisodeTraces(self, table, notes="", color='k', channels=['A'], 
+                            streams=['Volt','Cur']):
+        """Helper function to export traces from a single episode.
+           Arrange all plots vertcially"""
+        self.fig, self.axs = plt.subplots(nrows=len(channels)*len(streams), 
+                                          ncols=1, sharex=True)
+        pcount = 0
+        yunit_dict = {'Volt':'mV','Cur':'pA','Stim':'pA'}
+    
+        for c in channels: # iterate over channels
+            for s in streams: # iterate over streams
+                self.axs[pcount].plot(table['time'],table[s+c], 
+                                      label=pcount, c='k')
+                self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[s],
+                                      ax=self.axs[pcount])
+                position = [0, table[s+c][0]]
+                text = '%.0f'%(position[1]) + yunit_dict[s]
+                self.TextAnnotation(text=text, position=position, 
+                                    ax=self.axs[pcount], color=color,
+                                    xoffset='-', yoffset=None, fontsize=None,
+                                    ha='right',va='center')
+                pcount += 1
+    
+        # Finally, annotate the episode information at the bottom
+        pad = np.array(self.axs[-1].get_position().bounds[:2]) *\
+                        np.array([1.0, 0.8])
+        self.fig.text(pad[0], pad[1], notes, ha='left',va='bottom')
+        
 
     @AdjustFigure()
     def Scatter(self, color=color, marker=marker, alpha=0.5, legend_on=True):
@@ -707,7 +737,10 @@ class PublicationFigures(object):
         if 'matplotlib.lines.Line2D' in str(type(color)):
             color = color.get_color()
         if linewidth is None:
-            linewidth = ax.get_lines()[0]
+            try:
+                linewidth = ax.get_lines()[0]
+            except:
+                raise(AttributeError('Did not find any line in this axis. Please explicitly specify the linewidth'))
         if 'matplotlib.lines.Line2D' in str(type(linewidth)):
             linewidth = linewidth.get_linewidth()
         if fontsize is None:
@@ -740,33 +773,79 @@ class PublicationFigures(object):
         #print(txtbb.bounds)
         #print(self.axs.transData.inverted().transform(txtbb).ravel())
 
-    def TextAnnotation(self, text="", position='south', ax=None, color='k',
-                       offset=0.0):
-        return
+    def TextAnnotation(self, text="", position='south', ax=None, xoffset=None,
+                       yoffset=None, color='k', fontsize=None, **kwargs):
         """Annotating with text
-        offset: the amount of space in between rows of texts
+        color: color of the text and traces. Default 'k'. If None, use the same
+               color of the trace
+        xoffset: the amount of space in horizontal direction, e.g. text around
+                 traces. 
+                 ~ If None, no offsets. 
+                 ~ If "+", add a space of a single character to x position.
+                   The number of "+"s in the argument indicates the number of 
+                   times that the single character space will be added.
+                 ~ If "-", subtract a space of single character to x position.
+                   Rule for multiple "-"s is the same for "+"
+                 ~ If a number, add this number to x position
+        yoffset: the amount of space in vertical direction, e.g. between lines
+                 of text. The yoffset is applied the same as xoffset, only to
+                 y position
+        fontsize: size of the font. Default None, use the same font size as 
+                the x tick labels
+        **kwargs: additional argument for ax.text
         """
         ax = self.axs if ax is None else ax
-        # get axis parameter
-        X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
-        xytext = {
-        'north': (np.mean(ax.get_xticks()), np.max(ax.get_yticks()) + Y/10.0),
-        'south': (np.mean(ax.get_xticks()), np.min(ax.get_yticks()) - Y/10.0),
-        'east': (np.max(ax.get_xticks()) + X/10.0, np.mean(ax.get_yticks())),
-        'west': (np.min(ax.get_xticks()) - X/10.0, np.mean(ax.get_yticks())),
-        'northeast':(np.max(ax.get_xticks())+X/10.0,
-                     np.max(ax.get_yticks()) + Y/10.0),
-        'northwest':(np.min(ax.get_xticks())-X/10.0,
-                     np.max(ax.get_yticks()) + Y/10.0),
-        'southeast':(np.max(ax.get_xticks())+X/10.0,
-                     np.min(ax.get_yticks()) - Y/10.0),
-        'southwest':(np.max(ax.get_xticks())-X/10.0,
-                     np.min(ax.get_yticks()) - Y/10.0)
-        }.get(position,ValueError('Unrecognized position %s'%position))
-        if isinstance(xytext, Exception):
-            raise(xytext)
-        txt = ax.text(xytext[0], xytext[1], text, ha='center',va='center',
-                      color=color)
+      
+        if isinstance(position, str):
+            # get axis parameter
+            X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
+            xytext = {
+            'north': (np.mean(ax.get_xticks()),np.max(ax.get_yticks())+Y/10.0),
+            'south': (np.mean(ax.get_xticks()),np.min(ax.get_yticks())-Y/10.0),
+            'east': (np.max(ax.get_xticks())+X/10.0,np.mean(ax.get_yticks())),
+            'west': (np.min(ax.get_xticks())-X/10.0,np.mean(ax.get_yticks())),
+            'northeast':(np.max(ax.get_xticks())+X/10.0,
+                         np.max(ax.get_yticks()) + Y/10.0),
+            'northwest':(np.min(ax.get_xticks())-X/10.0,
+                         np.max(ax.get_yticks()) + Y/10.0),
+            'southeast':(np.max(ax.get_xticks())+X/10.0,
+                         np.min(ax.get_yticks()) - Y/10.0),
+            'southwest':(np.max(ax.get_xticks())-X/10.0,
+                         np.min(ax.get_yticks()) - Y/10.0)
+            }.get(position,ValueError('Unrecognized position %s'%position))
+            if isinstance(xytext, Exception):
+                raise(xytext)
+        else: # assume numeric
+            xytext = position
+        
+        if fontsize is None:
+            fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
+            
+        def calloffset(offset, ind): # xy offset modification 
+            if offset is not None:
+                if '+' in offset:
+                    xytext[ind]+=offset.count('+')*self.xydotsize(ax,
+                                                s=fontsize,scale=(1.,1.))[ind]           
+                elif '-' in offset:
+                    xytext[ind]-=offset.count('-')*self.xydotsize(ax, 
+                                                s=fontsize,scale=(1.,1.))[ind]
+                else:
+                    try:
+                        xytext[ind] += float(offset)
+                    except:
+                        pass
+            return(xytext)
+                
+        xytext = calloffset(xoffset, 0)
+        xytext = calloffset(yoffset, 1)
+
+        if color is None:
+            color = ax.get_lines()[0]
+        if 'matplotlib.lines.Line2D' in str(type(color)):
+            color = color.get_color()
+               
+        txt = ax.text(xytext[0], xytext[1], text,color=color, size=fontsize,
+                      **kwargs)
         self.AdjustText(txt, ax=ax)
 
     def AnnotateOnGroup(self, m, text='*', vpos=None):
@@ -937,34 +1016,66 @@ class PublicationFigures(object):
         order: in 'C' order by default"""
         return(np.unravel_index(ind, size,order=order))
 
-
     @staticmethod
     def sub2ind(sub, size, order='C'):
         """MATLAB's sub2ind
         order: in 'C' order by default"""
         return(np.ravel_multi_index(sub, dims=size, order=order))
+        
+    @staticmethod
+    def xydotsize(ax, s=None, dpi=None, scale=(1.25,1.25)):
+        """ Determine dot size in data axis.
+        scale: helps further increasing space between dots
+        """
+        figw, figh = ax.get_figure().get_size_inches() # figure width, height in inch
+        dpi = float(ax.get_figure().get_dpi()) if dpi is None else float(dpi)
+        w = (ax.get_position().xmax-ax.get_position().xmin)*figw # axis width in inch
+        h = (ax.get_position().ymax-ax.get_position().ymin)*figh # axis height in inch
+        xran = ax.get_xlim()[1]-ax.get_xlim()[0] # axis width in data
+        yran = ax.get_ylim()[1]-ax.get_ylim()[0] # axis height in data
+        if s is None:
+            xsize=0.08*xran/w*scale[0] # xscale * proportion of xwidth in data
+            ysize=0.08*yran/h*scale[1] # yscale * proportion of yheight in data
+        else:
+            xsize=np.sqrt(s)/dpi*xran/w*scale[0] # xscale * proportion of xwidth in data
+            ysize=np.sqrt(s)/dpi*yran/h*scale[1] # yscale * proportion of yheight in data
+    
+        return(xsize, ysize)
 
 
-    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None,ax=None):
+    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None,ax=None,
+                fig=None):
         """Change font properties of all axes
         fontsize: size of the font, specified in the global variable
         fontname: fullpath of the font, specified in the global variable
         items: select a list of items to change font. ['title', 'xlab','ylab',
                'xtick','ytick', 'texts','legend','legendtitle']
+        ax: which axis or axes to change the font. Default all axis in current
+            instance. To skip axis, input as [].
+        fig: figure handle to change the font (text in figure, not in axis).
+        Default is any text items in current instance. To skip, input as [].
         """
         if (fontname is None) and (fontsize is None):
             return
         import matplotlib.font_manager as fm
-        def CF(ax):
-            itemDict = {'title':[ax.title], 'xlab':[ax.xaxis.label],
-                        'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
-                        'ytick':ax.get_yticklabels(),
-                        'texts':ax.texts if isinstance(ax.texts, np.ndarray)
-                                or isinstance(ax.texts, list) else [ax.texts],
-                        'legend': [] if ax.legend_ is None
+        
+        if ax is None:
+            ax = self.axs
+            
+        if fig is None:
+            fig = self.fig
+
+        def get_ax_items(ax):
+            """Parse axis items"""
+            itemDict={'title':[ax.title], 'xlab':[ax.xaxis.label],
+                    'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
+                    'ytick':ax.get_yticklabels(),
+                    'texts':ax.texts if isinstance(ax.texts,(np.ndarray,list))
+                                         else [ax.texts],
+                    'legend': [] if ax.legend_ is None
                                         else ax.legend_.get_texts(),
-                        'legendtitle':[] if ax.legend_ is None
-                                            else [ax.legend_.get_title()]}
+                    'legendtitle':[] if ax.legend_ is None
+                                        else [ax.legend_.get_title()]}
             itemList, keyList = [], []
             if items is None: # get all items
                 for k, v in iter(itemDict.items()):
@@ -974,6 +1085,19 @@ class PublicationFigures(object):
                 for k in items:
                     itemList += itemDict[k] # add only specified in items
                     keyList += [k]*len(itemDict[k])
+            
+            return(itemList, keyList)
+            
+        def get_fig_items(fig):
+            """Parse figure text items"""
+            itemList = fig.texts if isinstance(fig.texts,(np.ndarray,list)) \
+                                    else [fig.texts]
+            keyList = ['texts'] * len(itemList)
+            
+            return(itemList, keyList)
+                 
+        def CF(itemList, keyList):
+            """Change font given item"""
             # initialize fontprop object
             fontprop = fm.FontProperties(style='normal', weight='normal',
                                          stretch = 'normal')
@@ -991,12 +1115,26 @@ class PublicationFigures(object):
                 elif n <1: # set the properties only once
                     fontprop.set_size(fontsize)
                 item.set_fontproperties(fontprop) # change font for all items
-
-        CF_vec = np.frompyfunc(CF,1,1) # vectorize the closure
-        if ax is None:
-            CF_vec(self.axs)
-        else:
-            CF_vec(ax)
+            
+        def CF_ax(ax): # combine CF and get_ax_items
+            if not ax: # true when empty or None
+                return # skip axis font change
+            itemList, keyList = get_ax_items(ax)
+            CF(itemList, keyList)
+            
+        def CF_fig(fig): # combine CF and get_fig_items
+            if not fig: # true when empty or None
+                return # skip figure font change
+            itemsList, keyList = get_fig_items(fig)
+            CF(itemsList, keyList)
+        
+        # vecotirze the closure
+        CF_ax_vec = np.frompyfunc(CF_ax, 1,1)
+        CF_fig_vec = np.frompyfunc(CF_fig, 1,1)
+        
+        # Do the actual font change
+        CF_ax_vec(ax)
+        CF_fig_vec(fig)
 
 if __name__ == "__main__":
     dataFile = os.path.join(exampleFolder, '%s.csv' %plotType)
@@ -1028,12 +1166,16 @@ if __name__ == "__main__":
     elif plotType == 'boxplot':
         K.Boxplot()
     elif plotType == 'neuro':
-        base_dir = 'D:/Data/2015/08.August/Data 25 Aug 2015/Neocortex B.25Aug15.S1.E%d.dat'
-        eps = [14, 22, 29, 39] # AHP
-        data = [base_dir%(epi) for epi in eps]
-        K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'multiple_traces.png'), old=True, channels=['A'], streams=['Volt'])
+        #base_dir = 'D:/Data/2015/08.August/Data 25 Aug 2015/Neocortex B.25Aug15.S1.E%d.dat'
+        #eps = [14, 22, 29, 39] # AHP
+        #data = [base_dir%(epi) for epi in eps]
+        #K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'multiple_traces.png'), old=True, channels=['A'], streams=['Volt'])
         #K.Traces(outline='overlap')
+    
+        data = 'D:/Data/2015/07.July/Data 10 Jul 2015/Neocortex K.10Jul15.S1.E38.dat'
+        K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'single_episode_traces.png'), old=True, channels=['A'], streams=['Volt', 'Cur'])
+        K.SingleEpisodeTraces(K.data.table, notes=K.data.meta['notes'][0], channels=['A'], streams=['Volt','Cur'])
 
     # Final clean up
     #K.fig.show()
-    #K.Save()
+    K.Save()
