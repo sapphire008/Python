@@ -2,7 +2,7 @@
 
 1. Dependencies:
     - pyqtgraph
-    - paperclip
+    - pyperclip
     - statistics
     - matplotlib: for exporting figures
 
