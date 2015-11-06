@@ -14,7 +14,7 @@ from ImportData import FigureData
 import matplotlib.pyplot as plt
 
 plotType = 'neuro'
-style = 'Vstack'
+style = 'concatenated'
 exampleFolder = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/'
 
 # global variables
@@ -25,7 +25,8 @@ fontsize = {'title':16, 'xlab':12, 'ylab':12, 'xtick':10,'ytick':10, 'texts':8,
 color = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
 marker = ['o', 's', 'd', '^', '*', 'p']# scatter plot line marker cycle
 hatch = ['/','\\','-', '+', 'x', 'o', 'O', '.', '*'] # fill patterns potentially used for filled objects such as bars
-canvas_size = (6,5)
+yunit_dict = {'Volt':'mV','Cur':'pA','Stim':'pA'} # trace yunit dictionary
+canvas_size = (6,5) # for a single plot
 
 class PublicationFigures(object):
     """Generate publicatino quantlity figures
@@ -63,7 +64,8 @@ class PublicationFigures(object):
             def wrapper(self, *args, **kwargs):
                 res = func(self, *args, **kwargs)#execute the function as usual
                 self.SetFont() # adjust font
-                if canvas_size is not None:
+                if canvas_size is not None and \
+                        str(canvas_size).lower()!='none':
                     self.fig.set_size_inches(canvas_size) # set figure size
                 if tight_layout:
                     self.fig.tight_layout() # tight layout
@@ -233,22 +235,23 @@ class PublicationFigures(object):
             self.TurnOffAxis(ax)
     
     @AdjustFigure(tight_layout=False)
-    def SingleEpisodeTraces(self, table, notes="", color='k', channels=['A'], 
+    def SingleEpisodeTraces(self, color='k',channels=['A'], 
                             streams=['Volt','Cur']):
         """Helper function to export traces from a single episode.
            Arrange all plots vertcially"""
         self.fig, self.axs = plt.subplots(nrows=len(channels)*len(streams), 
                                           ncols=1, sharex=True)
-        pcount = 0
-        yunit_dict = {'Volt':'mV','Cur':'pA','Stim':'pA'}
+            
+        pcount = 0 # count plots
     
         for c in channels: # iterate over channels
             for s in streams: # iterate over streams
-                self.axs[pcount].plot(table['time'],table[s+c], 
-                                      label=pcount, c='k')
+                self.axs[pcount].plot(self.data.table['time'],
+                                      self.data.table[s+c], 
+                                      label=pcount, c=color)
                 self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[s],
                                       ax=self.axs[pcount])
-                position = [0, table[s+c][0]]
+                position = [0, self.data.table[s+c][0]]
                 text = '%.0f'%(position[1]) + yunit_dict[s]
                 self.TextAnnotation(text=text, position=position, 
                                     ax=self.axs[pcount], color=color,
@@ -259,8 +262,102 @@ class PublicationFigures(object):
         # Finally, annotate the episode information at the bottom
         pad = np.array(self.axs[-1].get_position().bounds[:2]) *\
                         np.array([1.0, 0.8])
-        self.fig.text(pad[0], pad[1], notes, ha='left',va='bottom')
+        self.fig.text(pad[0], pad[1], self.data.meta['notes'], 
+                      ha='left',va='bottom')
         
+    @AdjustFigure(tight_layout=False)
+    def MultipleTraces(self, window=None, color=color, channel='A', 
+                       stream='Volt'):
+        """Helper function to draw multiple traces in a single axis"""
+        # initialize figure
+        self.fig, self.axs = plt.subplots(nrows=1, ncols=1)
+            
+        nep = len(self.data.table)
+        
+        # Draw plots
+        for n in range(nep):
+            x,y=self.data.table[n]['time'],self.data.table[n][stream+channel]
+            ts = x[1] - x[0]
+            if window is not None:
+                x, y = x[int(window[0]/ts) : int(window[1]/ts)], \
+                         y[int(window[0]/ts) : int(window[1]/ts)]
+                
+            self.axs.plot(x, y, label=n, c=color[n%nep])
+            if n == (nep-1): # add trace bar for the last episode
+                K.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream], 
+                                   ax=self.axs)
+            if n == 0: # annotate the first episode
+                dataposition = [np.array(x)[0], np.array(y)[0]]
+                datatext = '%.0f'%(dataposition[1]) + yunit_dict[stream]
+                K.TextAnnotation(text=datatext, position=dataposition, 
+                                 ax=self.axs, color='k',xoffset='-', 
+                                 yoffset=None, fontsize=None, ha='right',
+                                 va='center')
+        
+        # update the graph               
+        self.fig.canvas.draw()    
+        # Finally, annotate the episode information at the bottom
+        pad = np.array(self.axs.get_position().bounds[:2])*np.array([1.0, 0.8])
+        # gap between lines of text annotation in the bottom, in units of 
+        # figure (0,1)
+        inc = 0.025   
+    
+        for n in range(nep):
+            # print(pad[0], pad[1]+inc*n)
+            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n], 
+                     ha='left',va='bottom', color=color[n%len(color)])
+            
+    @AdjustFigure(canvas_size='none', tight_layout=False)
+    def ConcatenatedTraces(self, color='k', channel='A', 
+                           stream='Volt', gap=0.05):
+        """Heper function to export horizontally concatenated traces
+        channel, stream: both string. Can only plot one data stream at a time.
+        gap: gap between consecutive plots. gap * duration of plot. Default 
+             is 0.05, or 5% of the duration of the plot.
+        """
+        # initialize figure
+        self.fig, self.axs = plt.subplots(nrows=1, ncols=1)
+        # initialize time shift
+        x0 = 0.0
+        nep = len(self.data.table) # number of data sets to plot
+        # gap between lines of text annotation in the bottom, in units of 
+        # figure (0,1)
+        inc = 0.025
+        # Calculate the gap between plots: will probably result bottleneck
+        gap *= max([x['time'].iloc[-1] - x['time'].iloc[0] 
+                            for x in self.data.table])
+        
+        # Draw plots
+        for n in range(nep):
+            x,y=self.data.table[n]['time'],self.data.table[n][stream+channel]
+            # update time shift
+            x = x + x0
+            x0 = x.iloc[-1] + gap
+                
+            self.axs.plot(x, y, label=n, c=color)
+            
+            if n == 0: # annotate the first episode
+                dataposition = [np.array(x)[0], np.array(y)[0]]
+                datatext = '%.0f'%(dataposition[1]) + yunit_dict[stream]
+                self.TextAnnotation(text=datatext, position=dataposition, 
+                                    ax=self.axs, color='k',xoffset='-', 
+                                    yoffset=None, fontsize=None,ha='right',
+                                    va='center')
+                                    
+        # add trace bar for the last episode
+        self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream], 
+                              ax=self.axs, xscale=x.iloc[-1]-x.iloc[0])
+        # update the graph                       
+        self.fig.canvas.draw()    
+        # Finally, annotate the episode information at the bottom
+        pad = np.array(self.axs.get_position().bounds[:2])*np.array([1.0, 0.8])
+    
+        for n in range(nep):
+            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n], 
+                          ha='left', va='bottom', color=color)
+        
+        # Set appropriate canvas size        
+        self.fig.set_size_inches(canvas_size[0]*nep,canvas_size[1])
 
     @AdjustFigure()
     def Scatter(self, color=color, marker=marker, alpha=0.5, legend_on=True):
@@ -713,9 +810,11 @@ class PublicationFigures(object):
 
     """ #################### Text Annotations ####################### """
     def AddTraceScaleBar(self,xunit,yunit,color='k',linewidth=None,\
-                         fontsize=None,ax=None):
+                         fontsize=None,ax=None, xscale=None, yscale=None):
         """Add scale bar on trace. Specifically designed for voltage /
-        current / stimulus vs. time traces."""
+        current / stimulus vs. time traces.
+        xscale, yscale: add the trace bar to the specified window of x and y.        
+        """
         if ax is None: ax=self.axs
         def scalebarlabel(x, unitstr):
             if unitstr.lower()[0] == 'm':
@@ -726,7 +825,8 @@ class PublicationFigures(object):
                     unitstr.replace('p','n'))
 
         self.TurnOffAxis(ax) # turn off axis
-        X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
+        X = np.ptp(ax.get_xticks()) if xscale is None else xscale
+        Y = np.ptp(ax.get_yticks()) if yscale is None else yscale
         # calculate scale bar unit length
         X, Y = self.roundto125(X/5), self.roundto125(Y/5)
         # Parse scale bar labels
@@ -1171,10 +1271,25 @@ if __name__ == "__main__":
         #data = [base_dir%(epi) for epi in eps]
         #K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'multiple_traces.png'), old=True, channels=['A'], streams=['Volt'])
         #K.Traces(outline='overlap')
-    
-        data = 'D:/Data/2015/07.July/Data 10 Jul 2015/Neocortex K.10Jul15.S1.E38.dat'
-        K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'single_episode_traces.png'), old=True, channels=['A'], streams=['Volt', 'Cur'])
-        K.SingleEpisodeTraces(K.data.table, notes=K.data.meta['notes'][0], channels=['A'], streams=['Volt','Cur'])
+        if style == 'single':
+            data = 'D:/Data/2015/07.July/Data 10 Jul 2015/Neocortex K.10Jul15.S1.E38.dat'
+            K = PublicationFigures(dataFile=data, savePath=os.path.join(exampleFolder,'single_episode_traces.png'), old=True, channels=['A'], streams=['Volt', 'Cur'])
+            K.SingleEpisodeTraces(K.data.table, notes=K.data.meta['notes'][0], channels=['A'], streams=['Volt','Cur'])
+        elif style == 'multiple':
+            base_dir = 'D:/Data/Traces/2015/10.October/Data 21 Oct 2015/Neocortex C.21Oct15.S1.E%d.dat'
+            result_dir = 'C:/Users/Edward/Documents/Assignments/Case Western Reserve/StrowbridgeLab/Projects/TeA Persistence Cui and Strowbridge 2015/analysis/Self termination with stimulation - 10222015/example.eps'
+            result_dir = 'C:/Users/Edward/Desktop/asdf.svg'
+            eps = range(53, 58, 1)
+            data = [base_dir %(epi) for epi in eps]
+            K = PublicationFigures(dataFile=data, savePath=result_dir, old=True, channels=['A'], streams=['Volt'] )
+            K.MultipleTraces(channel='A', stream='Volt', window=[2000, 4000])
+        elif style == 'concatenated':
+            base_dir = 'D:/Data/Traces/2015/06.June/Data 17 Jun 2015/Neocortex H.17Jun15.S1.E%d.dat'
+            result_dir = 'C:/Users/Edward/Desktop/concatplot.svg'
+            eps = np.arange(150, 160, 1)
+            data = [base_dir %(epi) for epi in eps]
+            K = PublicationFigures(dataFile=data, savePath=result_dir, old=True, channels=['A'], streams=['Volt'] )
+            K.ConcatenatedTraces(channel='A',stream='Volt')
 
     # Final clean up
     #K.fig.show()

@@ -284,11 +284,13 @@ class FigureData(object):
     def LoadNeuroData(self, dataFile, *args, **kwargs):
         self.Neuro2Trace(dataFile, *args, **kwargs)
 
-    def Neuro2Trace(self, data, channels=None, streams=None, *args, **kwargs):
+    def Neuro2Trace(self, data, channels=None, streams=None, protocol=False, 
+                    *args, **kwargs):
         """Use NeuroData method to load and parse trace data to be plotted
         data: an instance of NeuroData, ro a list of instances
         channels: list of channels to plot, e.g. ['A','C','D']
         streams: list of data streams, e.g. ['V','C','S']
+        protocol: load protocol to meta data. Default False.
         """
         # Check instance
         if isinstance(data, NeuroData):
@@ -308,6 +310,8 @@ class FigureData(object):
 
         # initialize notes, stored in stats attribute
         self.meta.update({'notes':[], 'xunit':[],'yunit':[],'x':[], 'y':[]})
+        if protocol:
+            self.meta.update({'protocol':[]})
         # file, voltage, current, channel, time
         notes = "%s %.1f mV %d pA channel %s WCTime %s min"
         self.table = []
@@ -319,6 +323,8 @@ class FigureData(object):
                           d.Protocol.msPerPoint, d.Protocol.msPerPoint))
             self.meta['x'].append('time')
             self.meta['xunit'].append('ms') # label unit
+            if protocol:
+                self.meta['protocol'].append(d.Protocol)
             # iterate over all the channels
             avail_channels = [x[-1] for x in d.Protocol.channelNames]
             avail_streams = [x[:-1] for x in d.Protocol.channelNames]
