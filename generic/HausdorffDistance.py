@@ -15,7 +15,7 @@ def HausdorffDist(A,B):
     # Hausdorf Distance: Compute the Hausdorff distance between two point
     # clouds.
     # Let A and B be subsets of metric space (Z,dZ),
-    # The Hausdorff distance between A and B, denoted by dH(A,B), 
+    # The Hausdorff distance between A and B, denoted by dH(A,B),
     # is defined by:
     # dH(A,B) = max(h(A,B),h(B,A)),
     # where h(A,B) = max(min(d(a,b))
@@ -27,24 +27,24 @@ def HausdorffDist(A,B):
     # number of columns.
     #
     # Edward DongBo Cui; Stanford University; 06/17/2014
-    
+
     # Find pairwise distance
     D_mat = np.sqrt(inner1d(A,A)[np.newaxis].T + inner1d(B,B)-2*(np.dot(A,B.T)))
     # Find DH
     dH = np.max(np.array([np.max(np.min(D_mat,axis=0)),np.max(np.min(D_mat,axis=1))]))
-    return(dH)    
-    
+    return(dH)
+
 def ModHausdorffDist(A,B):
-    #This function computes the Modified Hausdorff Distance (MHD) which is 
-    #proven to function better than the directed HD as per Dubuisson et al. 
+    #This function computes the Modified Hausdorff Distance (MHD) which is
+    #proven to function better than the directed HD as per Dubuisson et al.
     #in the following work:
     #
-    #M. P. Dubuisson and A. K. Jain. A Modified Hausdorff distance for object 
+    #M. P. Dubuisson and A. K. Jain. A Modified Hausdorff distance for object
     #matching. In ICPR94, pages A:566-568, Jerusalem, Israel, 1994.
     #http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=576361
     #
-    #The function computed the forward and reverse distances and outputs the 
-    #maximum/minimum of both. 
+    #The function computed the forward and reverse distances and outputs the
+    #maximum/minimum of both.
     #Optionally, the function can return forward and reverse distance.
     #
     #Format for calling function:
@@ -70,33 +70,7 @@ def ModHausdorffDist(A,B):
     # Calculating the forward HD: mean(min(each col))
     FHD = np.mean(np.min(D_mat,axis=1))
     # Calculating the reverse HD: mean(min(each row))
-    RHD= np.mean(np.min(D_mat,axis=0))
+    RHD = np.mean(np.min(D_mat,axis=0))
     # Calculating mhd
-    MHD= np.max(np.array([FHD, RHD]))
+    MHD = np.max(np.array([FHD, RHD]))
     return(MHD, FHD, RHD)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
