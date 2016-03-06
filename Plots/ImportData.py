@@ -10,8 +10,23 @@ import pandas as pd
 import os
 import zipfile
 import six
+import re
+# from pdb import set_trace
 
-dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
+# import matplotlib.pyplot as plt
+
+def readVBString(fid):
+    stringLength = int(np.fromfile(fid, np.int16, 1))
+    if stringLength==0:
+        return('')
+    else:
+        # if python 2
+        if six.PY2:
+            return(''.join(np.fromfile(fid, '|S1', stringLength)))
+        # if python 3
+        elif six.PY3:
+            tmp = np.fromfile(fid, '|S1', stringLength)
+            return(np.ndarray.tostring(tmp).decode('UTF-8'))
 
 class Protocol(object): # for composition
     pass
@@ -43,7 +58,7 @@ class NeuroData(object):
         else:
             self.LoadDataFile(dataFile, *args, **kwargs)
 
-    def LoadDataFile(self, dataFile):
+    def LoadDataFile(self, dataFile, infoOnly=False):
         """Read zipped data file (new format)"""
         archive = zipfile.ZipFile(dataFile, 'r')
         # Check if the file is a valid zipfile
@@ -63,10 +78,12 @@ class NeuroData(object):
             self.Protocol.infoBytes = np.fromfile(fid, np.int32, 1) # size of header
             self.Protocol.sweepWindow = np.fromfile(fid, np.float32, 1)[0] #in msec per episode
             self.Protocol.msPerPoint = np.fromfile(fid, np.float32, 1)[0] / 1000.0 # in microseconds per channel, divided by 1000 to msec
-            self.Protocol.numPoints = np.fromfile(fid, np.float32, 1)[0] # number of data points
+            self.Protocol.numPoints = np.fromfile(fid, np.int32, 1)[0] # number of data points
             self.Protocol.WCtime = np.fromfile(fid, np.float32, 1)[0] # in seconds since went whole cell
+            self.Protocol.WCtimeStr = self.epiTime(self.Protocol.WCtime)
             self.Protocol.drugTime = np.fromfile(fid, np.float32,1)[0] # in seconds since most recent drug started
-            self.Protocol.drug = np.fromfile(fid,np.float32,1)[0] #an integer indicating what drug is on
+            self.Protocol.drugTimeStr = self.epiTime(self.Protocol.drugTime)
+            self.Protocol.drug = int(np.fromfile(fid,np.float32,1)[0]) #an integer indicating what drug is on
 
             #% new from BWS on 12/21/08
             np.fromfile(fid,np.int32,1) # simulated data
@@ -75,43 +92,54 @@ class NeuroData(object):
 
             # read in TTL information
             self.Protocol.ttlData = []
+            ttlDataStr = ""
+            chanCounter = 0
             for index in range(self.Protocol.numChannels):
                 fid.seek(10, 1) # 10 is for VB user-defined type stuff
                 self.Protocol.ttlData.append(np.fromfile(fid, np.float32, 17)) #[need expansion]
+                ttlDataStr += self.generateTTLdesc(chanCounter, self.Protocol.ttlData[-1])
+                chanCounter += 1
             #print(fid.tell())
 
             # read in DAC information
             self.Protocol.dacData = []
             self.Protocol.dacName = []
+            dacDataStr = ""
+            chanCounter = 0
             for index in range(self.Protocol.numChannels):
                 fid.seek(10, 1) # 10 is for VB user-defined type stuff
                 self.Protocol.dacData.append(np.fromfile(fid, np.float32, 42)) #[need exspansion]
-                self.Protocol.dacName.append(self.readVBString(fid))
+                self.Protocol.dacName.append(readVBString(fid))
+                dacDataStr += self.generateDACdesc(chanCounter, self.Protocol.dacData[-1])
+                chanCounter += 1
+
+            # Stimulus description
+            self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip()).strip()
 
             #print(fid.tell())
             # Get other parameters
             self.Protocol.classVersionNum = np.fromfile(fid, np.float32, 1)[0]
-            self.Protocol.acquireComment=self.readVBString(fid)
-            self.Protocol.acquireAnalysisComment=self.readVBString(fid)
-            self.Protocol.drugName=self.readVBString(fid)
-            self.Protocol.exptDesc=self.readVBString(fid)
-            self.Protocol.computerName=self.readVBString(fid)
-            self.Protocol.savedFileName=os.path.abspath(self.readVBString(fid)).replace('\\','/')
+            self.Protocol.acquireComment=readVBString(fid)
+            self.Protocol.acquireAnalysisComment=readVBString(fid)
+            self.Protocol.drugName=readVBString(fid)
+            self.Protocol.exptDesc=readVBString(fid)
+            self.Protocol.computerName=readVBString(fid)
+            self.Protocol.savedFileName=os.path.abspath(readVBString(fid)).replace('\\','/')
             self.Protocol.fileName = self.Protocol.savedFileName
-            self.Protocol.linkedFileName=os.path.abspath(self.readVBString(fid)).replace('\\','/')
-            self.Protocol.acquisitionDeviceName=self.readVBString(fid)
-            self.Protocol.traceKeys=self.readVBString(fid)
-            self.Protocol.traceInitValuesStr=self.readVBString(fid)
-            self.Protocol.extraScalarKeys=self.readVBString(fid)
-            self.Protocol.extraVectorKeys=self.readVBString(fid)
-            self.Protocol.genString=self.readVBString(fid)
+            self.Protocol.linkedFileName=os.path.abspath(readVBString(fid)).replace('\\','/')
+            self.Protocol.acquisitionDeviceName=readVBString(fid)
+            self.Protocol.traceKeys=readVBString(fid)
+            self.Protocol.traceInitValuesStr=readVBString(fid)
+            self.Protocol.extraScalarKeys=readVBString(fid)
+            self.Protocol.extraVectorKeys=readVBString(fid)
+            self.Protocol.genString=readVBString(fid)
             self.Protocol.TTLstring = []
             for index in range(self.Protocol.numChannels):
-                self.Protocol.TTLstring.append(self.readVBString(fid))
+                self.Protocol.TTLstring.append(readVBString(fid))
             self.Protocol.ampDesc = []
             for index in range(self.Protocol.numChannels):
-                self.Protocol.ampDesc.append(self.readVBString(fid))
-            
+                self.Protocol.ampDesc.append(readVBString(fid))
+
             # Get Channel info
             channelDict = {'VoltADC1':'VoltA','VoltADC3':'VoltB',
                            'VoltADC5':'VoltC','VoltADC7':'VoltD',
@@ -121,20 +149,23 @@ class NeuroData(object):
                            'StimulusAmpB':'StimB',
                            'StimulusAmpC':'StimC',
                            'StimulusAmpD':'StimD',
-                           'StimulusAmpA9':'StimA'}
+                           'StimulusAmpA9':'StimA',
+                           'StimulusAmpB9':'StimB',
+                           'StimulusAmpC9':'StimC',
+                           'StimulusAmpD9':'StimD'}
             keys = [k.split("/")[0] for k in self.Protocol.traceKeys.split()]
             self.Protocol.channelNames = [channelDict[k] for k in keys]
             self.Protocol.numTraces = len(self.Protocol.channelNames)
-            
+
             if infoOnly: # stop here if only
                 return
-            
+
             # Read trace data
             self.Protocol.traceDesc = []
             for chan in self.Protocol.channelNames:
                 traceFactor = float(np.fromfile(fid, np.float32, 1))
                 traceLength = int(np.fromfile(fid, np.int32, 1))
-                traceDesc = self.readVBString(fid)
+                traceDesc = readVBString(fid)
                 self.Protocol.traceDesc.append(traceDesc)
                 traceData = np.fromfile(fid, np.int16, traceLength)
                 traceData = traceFactor * traceData
@@ -151,31 +182,172 @@ class NeuroData(object):
         fid.close()
 
     @staticmethod
-    def readVBString(fid):
-        stringLength = int(np.fromfile(fid, np.int16, 1))
-        if stringLength==0:
-            return('')
+    def epiTime(inTime):
+        """Convert seconds into HH:MM:SS"""
+        if inTime>=3600:
+            hh = int(inTime//3600)
+            mm = int((inTime - hh*3600)//60)
+            ss = inTime - hh*3600 - mm*60
+            return "{:0d}:{:02d}:{:0.0f}".format(hh, mm, ss)
+        elif inTime>=60:
+            mm = int(inTime // 60)
+            ss = inTime - mm *60
+            return "{:0d}:{:02.0f}".format(mm, ss)
         else:
-            # if python 2
-            if six.PY2:
-                return(''.join(np.fromfile(fid, '|S1', stringLength)))
-            # if python 3
-            elif six.PY3:
-                tmp = np.fromfile(fid, '|S1', stringLength)
-                return(np.ndarray.tostring(tmp).decode('UTF-8'))
-            
+            return("{:0.1f} sec".format(inTime))
 
+    @staticmethod
+    def generateDACdesc(chanNum, data):
+        # revised 13 July 2015 BWS
+        step = ""
+        pulse = ""
+        result = ""
+        if data[0]:
+            if data[1] and data[2]:
+                step = "Step " + "{:0.0f}".format(data[8]) + " (" + "{:0.0f}".format(data[6]) + " to " + \
+                    "{:0.0f}".format(data[7]) + " ms)"
+            if data[14]:
+                if data[17] != 0:
+                    pulse += "PulseA " + "{:0.0f}".format(data[17]) + " "
+                if data[20] !=  0:
+                    pulse += "PulseB " + "{:0.0f}".format(data[20]) + " "
+                if data[23] != 0:
+                    pulse += "PulseC " + "{:0.0f}".format(data[23]) + " "
+            if len(step) > 0 or len(pulse) > 0:
+                result = "DAC" + str(chanNum) + ": "
+                if len(step) > 0:
+                    result += step.strip() + " "
+                if len(pulse) > 0:
+                    result += pulse.strip()
+        return result.strip()
+
+    @staticmethod
+    def generateTTLdesc(chanNum, data):
+        # revised 13 July 2015 BWS
+        SIU = None
+        Puff = None
+        if data[0]: # global enable
+            tempStr = ""
+            if data[5]: # single SIU enable
+                for k in range(6,10):
+                    if data[k] > 0.:
+                        tempStr += str(data[k]) + " ms "
+            if data[10]: # SIU train enable
+                tempStr += " train"
+            if len(tempStr) > 0:
+                SIU = "SIU " + tempStr
+            tempStr = ""
+            if data[2]: # TTL step enable
+                Puff = "Puff " + str(data[4]) + "ms"
+        if SIU or Puff:
+            retStr = "TTL" + str(chanNum) + ": "
+            if Puff:
+                retStr += Puff + " "
+            if SIU:
+                retStr += SIU
+        else:
+            retStr = ""
+        return retStr.strip()
 
 """ 2photon image data"""
 class ImageData(object):
     """Read image data file
     """
-    def __init__(self, dataFile=None):
+    def __init__(self, dataFile=None, old=False, *args, **kwargs):
         """Initialize class"""
-        self.Img = {}
-        self.Protocol = {}
+        self.img = None
+        self.Protocol = Protocol()
+
         if dataFile is not None and isinstance(dataFile, str):
-            self.LoadImageData(dataFile)
+            # load directly if all the conditions are met
+            self.LoadData(dataFile=dataFile, old=old, *args, **kwargs)
+        else:
+            raise(IOError('Unrecognized data file input'))
+
+    def LoadData(self, dataFile, old=True, *args, **kwargs): #old=True to be edited later
+        """Load data in text file"""
+        dataFile = dataFile.replace('\\','/')# make sure using forward slash
+        # check file exists
+        if not os.path.isfile(dataFile):
+            raise(IOError('%s does not exist' %dataFile))
+        # Evoke proper load method
+        if old:
+            self.LoadOldDataFile(dataFile, *args, **kwargs)
+        else:
+            self.LoadDataFile(dataFile, *args, **kwargs)
+
+    def LoadDataFile(self, dataFile, infoOnly=False):
+        raise(NotImplementedError("Cannot load new data format yet"))
+
+    def LoadOldDataFile(self, dataFile, infoOnly=False):
+        """ Read a .img file"""
+        fid = open(dataFile, 'rb')
+        self.Protocol.FileName = dataFile
+        self.Protocol.BitDepth = 12
+        self.Protocol.ProgramNumber = np.fromfile(fid, np.int32, 1)
+        if self.Protocol.ProgramNumber == 2:
+            fid.close()
+            self.loadQuantixFile(dataFile)
+            return
+
+        self.Protocol.ProgramMode = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.DataOffset = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.Width = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.Height = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.NumImages = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.NumChannels = np.fromfile(fid, np.int32, 1)[0]
+        self.Protocol.Comment = readVBString(fid)
+        self.Protocol.MiscInfo = readVBString(fid)
+        self.Protocol.ImageSource = readVBString(fid)
+        self.Protocol.PixelMicrons = np.fromfile(fid, np.float32, 1)[0]
+        self.Protocol.MillisecondPerFrame = np.fromfile(fid, np.float32, 1)[0]
+        self.Protocol.Objective = readVBString(fid)
+        self.Protocol.AdditionalInformation = readVBString(fid)
+        self.Protocol.SizeOnSource = readVBString(fid)
+        self.Protocol.SourceProcessing = readVBString(fid)
+
+        # fix calibration parameters
+        if not self.Protocol.PixelMicrons or self.Protocol.PixelMicrons == 0:
+            if self.Protocol.Objective.upper() == 'OLYMPUS 60X/0.9':
+                self.Protocol.PixelMicrons = 103.8 / float(re.match('Zoom = (\d+)', self.Protocol.SourceProcessing, re.M|re.I).group(1)) / self.Protocol.Width
+            elif self.Protocol.Objective.upper() == 'OLYMPUS 40X/0.8':
+                self.Protocol.PixelMicrons = 163 / float(re.match('Zoom = (\d+)', self.Protocol.SourceProcessing, re.M|re.I).group(1)) / self.Protocol.Width
+
+        self.Protocol.Origin = []
+        for n, c in enumerate(['X','Y','Z']):
+            coord = r"(?<=" + c + r" = )[\d.-]+"
+            coord = re.search(coord, self.Protocol.MiscInfo)
+            if coord:
+                self.Protocol.Origin.append(float(coord.group(0)))
+            else:
+                self.Protocol.Origin.append(None)
+
+        self.Protocol.delta = [self.Protocol.PixelMicrons, self.Protocol.PixelMicrons, self.Protocol.PixelMicrons]
+
+        # information for convenience
+        self.Xpixels = self.Protocol.Width
+        self.Ypixels = self.Protocol.Height
+        self.numChannels = self.Protocol.NumChannels
+        self.numFrames = self.Protocol.NumImages
+
+        if not infoOnly:
+            # read image data
+            fid.seek(self.Protocol.DataOffset - 1, 0)
+            self.img = np.zeros((self.Protocol.Width, self.Protocol.Height, self.Protocol.NumImages), dtype=np.int16)
+            # set_trace()
+            for x in range(self.Protocol.NumImages):
+                tmp = np.fromfile(fid, np.int16, self.Protocol.Width * self.Protocol.Height) # / 4096
+                self.img[:,:,x] = tmp.reshape((self.Protocol.Width, self.Protocol.Height), order='F')
+            # Rotate the image
+            self.img = self.img[:, ::-1, :]
+        else:
+            self.img = -1
+
+        fid.close()
+
+    def loadQuantixFile(self, dataFile, infoOnly=False):
+        raise(NotImplementedError('Function to load Quantix File not implemented'))
+
 
 """ Publication figure data (csv file or NeuroData file) """
 class FigureData(object):
@@ -186,7 +358,7 @@ class FigureData(object):
             return
         # load the file
         self.__loadbyext(dataFile, *args, **kwargs)
-        
+
     def __loadbyext(self,  dataFile, ext=None, *args, **kwargs):
         """Load data based on extension"""
         if ext is None:
@@ -200,7 +372,7 @@ class FigureData(object):
             self.LoadNeuroData(dataFile, *args, **kwargs)
         else:
             raise(TypeError('Unrecognized extension %s'%(ext)))
-        
+
     def LoadFigureData(self, dataFile, sep=',', metachar="|"):
         """Load data file"""
         if not isinstance(dataFile, str):
@@ -222,7 +394,7 @@ class FigureData(object):
                                  skip_blank_lines=True)
         # set more parameters
         self.set_default_labels()
-        
+
     def set_default_labels(self,cat=None):
         def copyvalue(meta, f, g, cat=None):
             if f not in meta.keys() and g in meta.keys():
@@ -263,7 +435,7 @@ class FigureData(object):
         out = [PE(p) for p in P]
         out = out[0] if len(out)==1 and simplify else out
         return(out)
-        
+
     def parse_meta(self, line,metachar="|"):
         """Parse parameter"""
         line = line.replace(metachar,"")
@@ -280,11 +452,11 @@ class FigureData(object):
         # Force some default values
         if 'xlabel' not in self.meta.keys(): self.meta['xlabel'] = ''
         if 'ylabel' not in self.meta.keys(): self.meta['ylabel'] = ''
-    
+
     def LoadNeuroData(self, dataFile, *args, **kwargs):
         self.Neuro2Trace(dataFile, *args, **kwargs)
 
-    def Neuro2Trace(self, data, channels=None, streams=None, protocol=False, 
+    def Neuro2Trace(self, data, channels=None, streams=None, protocol=False,
                     *args, **kwargs):
         """Use NeuroData method to load and parse trace data to be plotted
         data: an instance of NeuroData, ro a list of instances
@@ -315,7 +487,7 @@ class FigureData(object):
         # file, voltage, current, channel, time
         notes = "%s %.1f mV %d pA channel %s WCTime %s min"
         self.table = []
-        
+
         for n, d in enumerate(data): # iterate over all data
             series = pd.DataFrame() # initialize series data frame
             # Time data
@@ -351,7 +523,7 @@ class FigureData(object):
                                 d.Voltage[c][0], d.Current[c][0], c, dtime)
                 self.meta['notes'].append(notesstr)
             self.table.append(series)
-        
+
         # if only 1 data set in the input, output as a dataframe instead of a
         # list of dataframes
         self.table = self.table[0] if len(self.table)<2 else self.table
@@ -384,9 +556,65 @@ class FigureData(object):
         h, m = divmod(m, 60)
         return("%d:%d:%0.1f" % (h, m, s))
 
+class FormatException(Exception):
+    def __init___(self,dErrorArguments):
+        print(dErrorArguments)
+        Exception.__init__(self,"Invalid cell label {0}. Format: Name.ddMMMyy, e.g. Cell A.02Jun15".format(dErrorArguments))
+        self.dErrorArguments = dErrorArguments
+
+# Implement a simple data loader with the assumption of current data structure
+def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
+    """Infer full path of the cell given cell label (without file extension)
+    e.g. Neocortex A.09Sep15.S1.E13 should yield
+    ./2015/09.September/Data 9 Sep 15/Neocortex A.09sep15.S1.E13.dat"""
+    cell_label = cell_label.strip('.dat')
+
+    if episode[0] != '.':
+        episode = '.'+episode
+
+    dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_label)
+
+    if not dinfo:
+        dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+)', cell_label)
+    else:
+        episode = ''
+
+    try:
+        dinfo = dinfo[0]
+    except:
+        raise(FormatException("Invalid cell label {0}. Format: Name.ddMMMyy, e.g. Cell A.02Jun15".format(cell_label)))
+
+    # year folder
+    year_dir = year_prefix + dinfo[3]
+    # month folder
+    month_dict = {'Jan':'01.January','Feb':'02.February','Mar':'03.March',\
+    'Apr':'04.April','May':'05.May', 'Jun':'06.June', 'Jul':'07.July',\
+    'Aug':'08.August','Sep':'09.September','Oct':'10.October',\
+    'Nov':'11.November','Dec':'12.December'}
+    month_dir = month_dict[dinfo[2]]
+    # data folder
+    data_folder = "Data {:d} {} {}".format(int(dinfo[1]),  dinfo[2], year_dir)
+    data_folder = os.path.join(year_dir, month_dir, data_folder, cell_label+episode+'.dat')
+    data_folder = data_folder.replace('\\','/')
+    return data_folder
+
+
+def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False):
+    """Wrapper function to load NeuroData, assuming the data structure we have
+    implemented in get_cellpath"""
+    cell_path = os.path.join(basedir, get_cellpath(cellname))
+    zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly)
+    return zData
+
+
 
 if __name__ == '__main__':
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
+    # dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
 #    figdata.Neuro2Trace(data, channels=['A','B','C','D'], streams=['Volt','Cur','Stim'])
-    data = FigureData(dataFile='D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E40.dat',old=True, channels=['A'], streams=['Volt','Cur','Stim'])
+    # data = FigureData(dataFile='D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E40.dat',old=True, channels=['A'], streams=['Volt','Cur','Stim'])
+    # zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
+    # mData = ImageData(dataFile = 'D:/Data/2photon/2015/03.March/Image 10 Mar 2015/Neocortex D/Neocortex D 01/Neocortex D 01.512x512y1F.m21.img', old=True)
+    # plt.imshow(mData.img[:,:,0])
+    zData = load_trace('Neocortex F.15Jun15.S1.E11')

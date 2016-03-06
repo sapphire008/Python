@@ -32,7 +32,7 @@ def sub2ind(sub, size, order='C'):
 
 
 def getconsecutiveindex(t, N=1):
-    """Given a sorted array of integers, find the start and the end of 
+    """Given a sorted array of integers, find the start and the end of
     consecutive blocks
     E.g. t = [-1, 1,2,3,4,5, 7, 9,10,11,12,13, 15],
     return [1,5; 7,11]
@@ -48,7 +48,7 @@ def getconsecutiveindex(t, N=1):
 
 def consecutivenum2str(t, N=1):
     """Given a sorted array of integers, return the shortened list
-    E.g. 
+    E.g.
     E.g. t = [-1, 1,2,3,4,5, 7, 9,10,11,12,13, 15],
     return '-1, 1-5, 7, 9-13, 15'
     t: the sorted array of integers
@@ -66,10 +66,10 @@ def consecutivenum2str(t, N=1):
         for n in s:
             b.append(str(t[n]))
         f = np.argsort(np.concatenate((f[:,0], s)))
-        b = [b[k] for k in f]    
-    
+        b = [b[k] for k in f]
+
     return(', '.join(b))
-    
+
 def str2numeric(lit):
         """"Handling only single numbers"""
         # Handle '0'
@@ -86,7 +86,7 @@ def str2numeric(lit):
                     return int(lit,8)
                 except ValueError:
                     pass
-    
+
         # Int/Float/Complex
         try:
             return int(lit)
@@ -97,21 +97,21 @@ def str2numeric(lit):
         except ValueError:
             pass
         return complex(lit)
-    
+
 def str2num(lit):
     """MATLAB behavior of str2num.
     str2num('1') --> 1
     str2num('[5,3,2]') --> [5,3,2]
     Cannot handle matrix yet.
-    """        
+    """
     # Identify all numbers
     lit = re.findall(r"[-+]?\d*\.\d+|\d+", lit)
     # Convert to a list of numbers
     lit = [str2numeric(a) for a in lit]
     lit = lit[0] if len(lit)==1 else lit
     return(lit)
-    
-    
+
+
 def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False):
 
@@ -145,8 +145,8 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     -----
     The detection of valleys instead of peaks is performed internally by simply
     negating the data: `ind_valleys = findpeaks(-x)`
-    
-    The function can handle NaN's 
+
+    The function can handle NaN's
     See this IPython Notebook [1]_.
     References
     ----------
@@ -174,11 +174,11 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> findpeaks(x, edge='both', show=True)
     >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
     >>> # set threshold = 2
-    >>> findpeaks(x, threshold = 2, show=True)   
+    >>> findpeaks(x, threshold = 2, show=True)
 
     __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
     __version__ = "1.0.4"
-    __license__ = "MIT"       
+    __license__ = "MIT"
     """
     x = np.atleast_1d(x).astype('float64')
     if x.size < 3:
@@ -229,16 +229,16 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                 idel[i] = 0  # Keep current peak
         # remove the small peaks and sort back the indexes by their occurrence
         ind = np.sort(ind[~idel])
-    
+
     pks = np.array([x[p] for p in ind])
 
     return(ind, pks)
-        
+
 def nextpow2(n):
     m_f = np.log2(n)
     m_i = np.ceil(m_f)
     return(m_i)
-    
+
 def isempty(m):
     """Return true if:
     a). an empty string
@@ -248,19 +248,30 @@ def isempty(m):
     """
     if isinstance(m, (list, tuple, str, np.ndarray)):
         return(len(m) == 0)
-        
+
 def rms(x):
     """Root mean square of an array"""
     return(np.sqrt(np.mean(x**2)))
-        
+
+
+def is_numeric(obj): # to check if a numpy object is numeric
+    attrs = ['__add__', '__sub__', '__mul__', '__div__', '__pow__']
+    return all(hasattr(obj, attr) for attr in attrs)
+
+    if not is_numeric(A) or np.ndim(A)!=2 or any([s!=4 for s in np.shape(A)]):
+        raise(IOError(\
+        "Order expression '%s' did not return a valid 4x4 matrix."%(order)))
+
+    return(A, T, R, Z, S)
+
 
 def padzeros(x):
     """Pad zeros to make the array length 2^n for fft or filtering
     y, l = padzeros(x)
-    
+
     x: input vector
     y: zero-padded vector
-    l: length of the original array    
+    l: length of the original array
     """
     l = len(x)
     pad = 2**nextpow2(l)
@@ -269,13 +280,13 @@ def padzeros(x):
     pad = int(pad - l) # legnth of padding
     x = np.concatenate((x, np.zeros(pad)))
     return(x, l)
-    
+
 def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
     """given a list of strings, find common substrings. Example:
     ['Neocortex A', 'Neocortex B', 'Neocortex C'], aligning to the left, yields
-    'Neocortex'. 
-    
-    * ignore_nonword: By default ignore non-word characters, and only look for 
+    'Neocortex'.
+
+    * ignore_nonword: By default ignore non-word characters, and only look for
           characters in [a-zA-Z0-9_]. To include everything, set this to False.
           Can also specify a set of characters to remove in regular expression.
 
@@ -289,7 +300,7 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
         count = len(lst)-1 if inall else 1
     else:
         count = inall
-    
+
     # Look for the word
     for word in lst:
         for i in range(len(word)):
@@ -297,14 +308,11 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
                 if ((longest is None or (j - i > len(longest))) and
                     sum(word[i:j] in w for w in lst) > count):
                     longest = word[i:j]
-                    
+
     # Remove non-word character depending on the option
     if ignore_nonword:
         if isinstance(ignore_nonword, bool):
             ignore_nonword = '[^a-zA-Z0-9_]'
         longest = re.sub(ignore_nonword, '', longest)
-        
+
     return(longest)
-        
-        
-        

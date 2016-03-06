@@ -766,6 +766,18 @@ class PublicationFigures(object):
                 ax.yaxis.set_visible(False)
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
+    
+    def SetAxisOrigin(self, ax=None, xcenter=0, ycenter=0):
+        if ax is None:
+            ax = self.axs[-1] if isinstance(self.axs, np.ndarray) else self.axs
+        ax.spines['left'].set_position(('data', xcenter))
+        ax.spines['bottom'].set_position(('data', ycenter))
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+        ax.spines['left'].set_capstyle('butt')
+        ax.spines['bottom'].set_capstyle('butt')
 
     @AdjustAxs(excluded=['margins'])
     def SetAspectRatio(ax, r=2, adjustable='box-forced',margins=(0,0)):
