@@ -62,3 +62,7 @@ Script structure
   - Plot traces with or without color. Colors usage are tracked correctly. Colors are draw from tableau10.
   - Plot traces of multiple channels of data, with time domain linnked
   - Plot traces of multiple episodes of data, correctly distribute them across channels of data
+* Added toggle functionality in both main and scope windows
+  - Allow toggle of additional columns of episode list tableview
+  - Allow toggle of side panel of scope window
+  - Allow toggle between colored traces and black traces

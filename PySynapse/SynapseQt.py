@@ -389,6 +389,7 @@ class EpisodeTableModel(QtCore.QAbstractTableModel):
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
+
 # Episode Tableview delegate for selection and highlighting
 class TablviewDelegate(QtGui.QItemDelegate):
     def __init__(self, parent=None, *args):
@@ -456,6 +457,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.treeview.setTextElideMode(QtCore.Qt.ElideNone)
         self.treeview.setObjectName(_fromUtf8("treeview"))
 
+
         # Set up Episode list table view
         self.tableview = QtGui.QTableView(self.splitter)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -468,10 +470,12 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TablviewDelegate(self.tableview))
+        self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs']
+        self.tableview.hiddenColumnList = [4, 5, 7] # Drug Name, Drug Time, Dirs
 
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
-        
+
         # Set up menu bar
         self.menubar = QtGui.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 638, 100))
@@ -492,24 +496,41 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def setMenuBarItems(self):
          # File Menu
         fileMenu = self.menubar.addMenu('&File')
-        
+
         # File: Exit
         exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Synapse')
         exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
-        
-        # Episode Menu
-        EpisodeMenu = self.menubar.addMenu('&Episode')
-        
-        # Episode: Column
-        columnAction = QtGui.QAction(QtGui.QIcon('exit23.png'), 'Column', self)
-        columnAction.setShortcut('Ctrl+E')
-        columnAction.setStatusTip('Set Episode display columns')
-        columnAction.triggered.connect(self.columnCheckList)
-        EpisodeMenu.addAction(columnAction)
-        
+
+        # View Menu
+        viewMenu = self.menubar.addMenu('&View')
+
+        # View: Column
+        columnMenu = viewMenu.addMenu('&Additional Columns')
+        drugNameAction = QtGui.QAction('Drug Name', self, checkable=True, checked=False)
+        drugNameAction.triggered.connect(lambda: self.toggleTableViewColumnAction(4, drugNameAction))
+        columnMenu.addAction(drugNameAction)
+
+        drugTimeAction = QtGui.QAction('Drug Time', self, checkable=True, checked=False)
+        drugTimeAction.triggered.connect(lambda: self.toggleTableViewColumnAction(5, drugTimeAction))
+        columnMenu.addAction(drugTimeAction)
+
+        dirsAction = QtGui.QAction('Directory', self, checkable=True, checked=False)
+        dirsAction.triggered.connect(lambda: self.toggleTableViewColumnAction(7, dirsAction))
+        columnMenu.addAction(dirsAction)
+
+    def toggleTableViewColumnAction(self, column, action):
+        if self.tableview.isColumnHidden(column):
+            self.tableview.showColumn(column)
+            action.setChecked(True)
+            self.tableview.hiddenColumnList.remove(column)
+        else:
+            self.tableview.hideColumn(column)
+            action.setChecked(False)
+            self.tableview.hiddenColumnList.append(column)
+
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         #quit_msg = "Are you sure you want to exit the program?"
@@ -559,11 +580,13 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list') # data information
         self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
-        headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Comment']
-        df = df.reindex_axis(headers, axis=1)
+        df = df.reindex_axis(self.tableview.headers, axis=1)
         self.tableview.model = EpisodeTableModel(df)
         self.tableview.setModel(self.tableview.model)
         self.tableview.verticalHeader().hide()
+        # Hide some columns from display
+        for c in self.tableview.hiddenColumnList: # Drug Name, Drug Time, Dirs
+            self.tableview.setColumnHidden(c, True)
         # Set behavior upon selection
         self.tableview.clicked.connect(self.onItemClicked)
 
@@ -592,17 +615,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
             self.sw.isclosed = False
         # update existing window
         self.sw.updateEpisodes(episodes=sequence, index=rows)
-
-    def columnCheckList(self):
-        print("Column changed")
-        model = QtGui.QStandardItemModel()
-        item = QtGui.QStandardItem("Item")
-        item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
-        item.setData(QtCore.QVariant(QtCore.Qt.Checked), QtCore.Qt.CheckStateRole)
-        model.appendRow(item)
-        view = QtGui.QListView()
-        view.setModel(model)
-        view.show()
 
 
 if __name__ == '__main__':
