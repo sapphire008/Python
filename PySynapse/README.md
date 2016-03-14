@@ -11,11 +11,23 @@ Script structure
   - util/Database: database function (To be implemented)
   - util/Analyzer: simple data analyzers (To be implemented)
 
+**Planned features of Scope window**
+* Allows multiple channels of display: voltage, current, stim
+* Allows multiple episodes of display in the same channel, with different color
+* Spin up a second smaller window to allow zoomed in display
+* Exporting graphs as EPS, SVG, PNG, TIFF
+**Planned features of Analysis for traces**
+* Line up the plot with baseline removed. Baseline is a selected window
+* Spike, EPSP/EPSC/IPSP/IPSC detection
+**Planned features of Imreg window**
+* Display a stack as movie
+* Display the Maximum Pixel Intensity image
 
 #########################################################################
 1. Dependencies:
     - numpy
     - pandas
+    - PyQt4
     - pyqtgraph: for data display (trace and image)
     - matplotlib: for exporting figures
 
@@ -44,3 +56,9 @@ Script structure
 * The table view is fully functional. Clicking on the table selects a row. Multiple rows can be selected by dragging along the rows, by clicking while holding Ctrl, or by holding SHIFT.
 * Each selection will highlight with a preferred, custom, blue color.
 * Clicking the episode will spin up the Scope window. By tracking the history of clicking (from the previous state), it is possible to load up the traces faster.
+
+## Update Mar 13, 2016
+* Scope window is fully functional now.
+  - Plot traces with or without color. Colors usage are tracked correctly. Colors are draw from tableau10.
+  - Plot traces of multiple channels of data, with time domain linnked
+  - Plot traces of multiple episodes of data, correctly distribute them across channels of data

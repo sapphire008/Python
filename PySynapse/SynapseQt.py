@@ -16,21 +16,21 @@ Main window of Synapse
 import os
 import sys
 import re
-import glob
-import six
 import numpy as np
 from pdb import set_trace
 import subprocess
 import pandas as pd
 
 from util.ImportData import NeuroData
-from app.Scope import Scope
+from app.Scope import ScopeWindow
 
 import sip
 sip.setapi('QVariant', 2)
 
 # Routines for Qt import errors
 from PyQt4 import QtCore, QtGui
+#from pyqtgraph.Qt import QtGui, QtCore
+
 try:
     from PyQt4.QtCore import QString
 except ImportError:
@@ -53,7 +53,6 @@ except AttributeError:
 # Set some global variables
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 __version__ = "PySynapse 0.2"
-
 
 # Custom File system
 class Node(object):
@@ -317,7 +316,6 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
            Return True if successfully made the sequence."""
         if not files:
             return([])
-        # set_trace()
         Z = ['S%s.E%s'%re.findall('.S(\d+).E(\d+).dat', f)[0] for f in files]
         Q = [re.split('.S(\d+).E(\d+).dat', f)[0] for f in files] # name
         # get unique IDs
@@ -351,6 +349,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         return(sequence)
 
     def createStack(self, path, files=None):
+        """For images"""
         return([])
 
 # Episode Table
@@ -389,39 +388,39 @@ class EpisodeTableModel(QtCore.QAbstractTableModel):
 
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        
+
 # Episode Tableview delegate for selection and highlighting
 class TablviewDelegate(QtGui.QItemDelegate):
     def __init__(self, parent=None, *args):
         QtGui.QItemDelegate.__init__(self, parent, *args)
-    
+
     def paint(self, painter, option, index):
         # print('here painter delegates')
         painter.save()
         # set background color
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         if (option.state & QtGui.QStyle.State_Selected):
-            grid_color = QtGui.QColor(31,119,180,225) 
+            grid_color = QtGui.QColor(31,119,180,225)
             text_color = QtCore.Qt.white
         else:
             grid_color = QtCore.Qt.transparent
             text_color = QtCore.Qt.black
-         
+
         # color the grid
         painter.setBrush(QtGui.QBrush(grid_color))
         painter.drawRect(option.rect)
-        
+
         # color the text
         painter.setPen(QtGui.QPen(text_color))
         value = index.data(QtCore.Qt.DisplayRole)
         painter.drawText(option.rect, QtCore.Qt.AlignLeft, value)
-            
-        painter.restore()
-            
 
-class Ui_MainWindow(QtGui.QMainWindow):
+        painter.restore()
+
+
+class Synapse_MainWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
-        super(Ui_MainWindow, self).__init__(parent)
+        super(Synapse_MainWindow, self).__init__(parent)
         # Set up the GUI window
         self.setupUi(self)
         # Set the treeview model for directory
@@ -469,29 +468,15 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TablviewDelegate(self.tableview))
-        
+
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
-
-        # Additional actions
-        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit Synapse')
-        exitAction.triggered.connect(self.close)
-
-        columnAction = QtGui.QAction(QtGui.QIcon('exit23.png'), 'Column', self)
-        columnAction.setShortcut('Ctrl+E')
-        columnAction.setStatusTip('Set Episode display columns')
-        columnAction.triggered.connect(self.columnCheckList)
-
+        
         # Set up menu bar
         self.menubar = QtGui.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 638, 100))
         self.menubar.setObjectName(_fromUtf8("menubar"))
-        fileMenu = self.menubar.addMenu('&File')
-        fileMenu.addAction(exitAction)
-        EpisodeMenu = self.menubar.addMenu('&Episode')
-        EpisodeMenu.addAction(columnAction)
+        self.setMenuBarItems() # call function to set menubar
         MainWindow.setMenuBar(self.menubar)
 
         # Set up status bar
@@ -503,7 +488,28 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    # ---------------- Additional Main window behaviors -----------------------
+    # ---------------- Additional main window behaviors -----------------------
+    def setMenuBarItems(self):
+         # File Menu
+        fileMenu = self.menubar.addMenu('&File')
+        
+        # File: Exit
+        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit Synapse')
+        exitAction.triggered.connect(self.close)
+        fileMenu.addAction(exitAction)
+        
+        # Episode Menu
+        EpisodeMenu = self.menubar.addMenu('&Episode')
+        
+        # Episode: Column
+        columnAction = QtGui.QAction(QtGui.QIcon('exit23.png'), 'Column', self)
+        columnAction.setShortcut('Ctrl+E')
+        columnAction.setStatusTip('Set Episode display columns')
+        columnAction.triggered.connect(self.columnCheckList)
+        EpisodeMenu.addAction(columnAction)
+        
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         #quit_msg = "Are you sure you want to exit the program?"
@@ -514,6 +520,10 @@ class Ui_MainWindow(QtGui.QMainWindow):
         #    event.accept()
         #else:
         #    event.ignore()
+
+    def retranslateUi(self, MainWindow):
+        """Set window title and other miscellaneous"""
+        MainWindow.setWindowTitle(_translate(__version__, __version__, None))
 
     # ---------------- Data browser behaviors ---------------------------------
     def setDataBrowserTreeView(self):
@@ -547,6 +557,7 @@ class Ui_MainWindow(QtGui.QMainWindow):
         ind = ind.sort_values([0,1], ascending=[1,1]).index.tolist()
         df = df.reindex_axis(ind, axis=0)
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list') # data information
+        self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
         headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Comment']
         df = df.reindex_axis(headers, axis=1)
@@ -574,7 +585,13 @@ class Ui_MainWindow(QtGui.QMainWindow):
         indexes = self.tableview.selectionModel().selectedRows()
         rows = [index.row() for index in sorted(indexes)]
         # Call scope window
-        Scope(sequence, index=rows)
+        if not hasattr(self, 'sw'): # Start up a new window
+            self.sw = ScopeWindow(parent=self)
+        if self.sw.isclosed:
+            self.sw.show()
+            self.sw.isclosed = False
+        # update existing window
+        self.sw.updateEpisodes(episodes=sequence, index=rows)
 
     def columnCheckList(self):
         print("Column changed")
@@ -587,13 +604,10 @@ class Ui_MainWindow(QtGui.QMainWindow):
         view.setModel(model)
         view.show()
 
-    def retranslateUi(self, MainWindow):
-        """Set window title and other miscellaneous"""
-        MainWindow.setWindowTitle(_translate(__version__, __version__, None))
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
-    w = Ui_MainWindow()
+    w = Synapse_MainWindow()
     w.show()
     # Connect upon closing
     # app.aboutToQuit.connect(restartpyshell)

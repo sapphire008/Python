@@ -58,7 +58,7 @@ class NeuroData(object):
         else:
             self.LoadDataFile(dataFile, *args, **kwargs)
 
-    def LoadDataFile(self, dataFile, infoOnly=False):
+    def LoadDataFile(self, dataFile, infoOnly=False, getTime=False):
         """Read zipped data file (new format)"""
         archive = zipfile.ZipFile(dataFile, 'r')
         # Check if the file is a valid zipfile
@@ -69,7 +69,7 @@ class NeuroData(object):
         self.Protocol.infoBytes = np.fromfile(fid, np.int32, 1) # size of header
         # ... etc
 
-    def LoadOldDataFile(self, dataFile, numChannels=4, infoOnly=False):
+    def LoadOldDataFile(self, dataFile, numChannels=4, infoOnly=False, getTime=False):
         """Read Old .dat format data file"""
         self.Protocol.numChannels = numChannels # hard set
         self.Protocol.readDataFrom = os.path.abspath(dataFile).replace('\\','/') # store read location
@@ -159,7 +159,8 @@ class NeuroData(object):
 
             if infoOnly: # stop here if only
                 return
-
+            
+            # print(fid.tell())
             # Read trace data
             self.Protocol.traceDesc = []
             for chan in self.Protocol.channelNames:
@@ -177,6 +178,9 @@ class NeuroData(object):
                     self.Stimulus[chan[-1]] = traceData
                 else: # fallthrough
                     TypeError('Unrecognized channel type')
+                    
+            if getTime:
+                self.Time = np.arange(self.Protocol.numPoints) * self.Protocol.msPerPoint
 
         # close file
         fid.close()
@@ -599,11 +603,11 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     return data_folder
 
 
-def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False):
+def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
     """Wrapper function to load NeuroData, assuming the data structure we have
     implemented in get_cellpath"""
     cell_path = os.path.join(basedir, get_cellpath(cellname))
-    zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly)
+    zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
     return zData
 
 
@@ -617,4 +621,4 @@ if __name__ == '__main__':
     # zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
     # mData = ImageData(dataFile = 'D:/Data/2photon/2015/03.March/Image 10 Mar 2015/Neocortex D/Neocortex D 01/Neocortex D 01.512x512y1F.m21.img', old=True)
     # plt.imshow(mData.img[:,:,0])
-    zData = load_trace('Neocortex F.15Jun15.S1.E11')
+    zData = load_trace('Neocortex F.15Jun15.S1.E10')
