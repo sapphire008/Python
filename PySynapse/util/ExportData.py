@@ -323,7 +323,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
     # plt.subplots_adjust(hspace=-0.8)
     fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
     # Close the figure after save
-    # plt.close(fig)
+    plt.close(fig)
     
     return(ax)
         

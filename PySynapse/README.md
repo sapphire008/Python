@@ -1,21 +1,23 @@
 # README for new Synapse written in Python ##
 Script structure
 
-* SynapseQt.py: main window
-* app: other apps / windows
-  - app/Scope.py: window for trace display
-  - app/Imreg.py: window for image display
+* `SynapseQt.py`: main window
+* `app`: other apps / windows
+  - `app/Scope.py`: window for trace display
+  - `app/Imreg.py`: window for image display
 
-* util: utility functions
-  - util/ImportData: data reading utilities
-  - util/Database: database function (To be implemented)
-  - util/Analyzer: simple data analyzers (To be implemented)
+* `util`: utility functions
+  - `util/ImportData`: data reading utilities
+  - `util/Database`: database function (To be implemented)
+  - `util/Analyzer`: simple data analyzers (To be implemented)
+
+* `resources`: assets, icons, fonts, etc
 
 **Planned features of Scope window**
 * ~~Allows multiple channels of display: voltage, current, stim~~
 * ~~Allows multiple episodes of display in the same channel, with different color~~
-* Spin up a second smaller window to allow zoomed in display
-* Exporting graphs as EPS, SVG, PNG, TIFF
+* ~~Exporting graphs as EPS, SVG, PNG, TIFF~~
+* Spin up a second smaller window to allow zoomed in display; view linked to selection range
 
 **Planned features of Analysis for traces**
 * Line up the plot with baseline removed. Baseline is a selected window
@@ -34,12 +36,24 @@ Script structure
     - matplotlib: for exporting figures
 
 2. To-dos:
-    - Icons in file browswer
+    - ~~Icons in file browser~~
     - ~~Table view model for sequence listing~~
       - ~~allow update of table columns via menu bar Episodes --> columns --> checklist --> update button~~
       - ~~columns are header information of the data~~
     - ~~pyqtgraph for traces~~
-    - Indexing system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
+    - View layout configuration: channels x streams of data to display
+    - Range selection / cursor tool: for event detection and data analyses
+      * Initial and end values, end - initial difference
+      * max, min, average, median, std
+      * EPSP, IPSP, EPSC, IPSC, action potentials, extracellular spikes
+      * exponential / double exponential curve fitting
+      * input resistance
+    - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
+
+## Update Apr 9, 2016
+* Export multiple traces using matplotlib; only 'overlap' configuration is fully working
+* Exported traces can be color coded, if the user turn on "colorfy" option in the Scope window; Colors cycles use tableau10
+* Files are exported as .eps, and font set to Helvetica, using a .ttf file under `./resources`; fontsize=12.0. This should be cross-platform, as it does not depend on the system's font repository. It should also be editable in vector graphics editor. From experience, if using 'Arial' font in Windows, the font header in the .eps file cannot be recognized by many editor, and the entire graphics cannot be imported successfully (true for InkScape and CorelDraw)
 
 ## Update Mar 20, 2016
 * Improved file system interface
