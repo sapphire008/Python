@@ -12,6 +12,9 @@ from ImportData import FigureData
 #import matplotlib
 #matplotlib.use('Agg') # use 'Agg' backend
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker, AuxTransformBox
+# import matplotlib.ticker as tic
 
 plotType = 'neuro'
 style = 'concatenated'
@@ -233,47 +236,47 @@ class PublicationFigures(object):
             ax.set_ylabel(ylabel)
         else: # do not draw any reference on this axis
             self.TurnOffAxis(ax)
-    
+
     @AdjustFigure(tight_layout=False)
-    def SingleEpisodeTraces(self, color='k',channels=['A'], 
+    def SingleEpisodeTraces(self, color='k',channels=['A'],
                             streams=['Volt','Cur']):
         """Helper function to export traces from a single episode.
            Arrange all plots vertcially"""
-        self.fig, self.axs = plt.subplots(nrows=len(channels)*len(streams), 
+        self.fig, self.axs = plt.subplots(nrows=len(channels)*len(streams),
                                           ncols=1, sharex=True)
-            
+
         pcount = 0 # count plots
-    
+
         for c in channels: # iterate over channels
             for s in streams: # iterate over streams
                 self.axs[pcount].plot(self.data.table['time'],
-                                      self.data.table[s+c], 
+                                      self.data.table[s+c],
                                       label=pcount, c=color)
                 self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[s],
                                       ax=self.axs[pcount])
                 position = [0, self.data.table[s+c][0]]
                 text = '%.0f'%(position[1]) + yunit_dict[s]
-                self.TextAnnotation(text=text, position=position, 
+                self.TextAnnotation(text=text, position=position,
                                     ax=self.axs[pcount], color=color,
                                     xoffset='-', yoffset=None, fontsize=None,
                                     ha='right',va='center')
                 pcount += 1
-    
+
         # Finally, annotate the episode information at the bottom
         pad = np.array(self.axs[-1].get_position().bounds[:2]) *\
                         np.array([1.0, 0.8])
-        self.fig.text(pad[0], pad[1], self.data.meta['notes'], 
+        self.fig.text(pad[0], pad[1], self.data.meta['notes'],
                       ha='left',va='bottom')
-        
+
     @AdjustFigure(tight_layout=False)
-    def MultipleTraces(self, window=None, color=color, channel='A', 
+    def MultipleTraces(self, window=None, color=color, channel='A',
                        stream='Volt'):
         """Helper function to draw multiple traces in a single axis"""
         # initialize figure
         self.fig, self.axs = plt.subplots(nrows=1, ncols=1)
-            
+
         nep = len(self.data.table)
-        
+
         # Draw plots
         for n in range(nep):
             x,y=self.data.table[n]['time'],self.data.table[n][stream+channel]
@@ -281,38 +284,38 @@ class PublicationFigures(object):
             if window is not None:
                 x, y = x[int(window[0]/ts) : int(window[1]/ts)], \
                          y[int(window[0]/ts) : int(window[1]/ts)]
-                
+
             self.axs.plot(x, y, label=n, c=color[n%nep])
             if n == (nep-1): # add trace bar for the last episode
-                K.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream], 
+                K.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream],
                                    ax=self.axs)
             if n == 0: # annotate the first episode
                 dataposition = [np.array(x)[0], np.array(y)[0]]
                 datatext = '%.0f'%(dataposition[1]) + yunit_dict[stream]
-                K.TextAnnotation(text=datatext, position=dataposition, 
-                                 ax=self.axs, color='k',xoffset='-', 
+                K.TextAnnotation(text=datatext, position=dataposition,
+                                 ax=self.axs, color='k',xoffset='-',
                                  yoffset=None, fontsize=None, ha='right',
                                  va='center')
-        
-        # update the graph               
-        self.fig.canvas.draw()    
+
+        # update the graph
+        self.fig.canvas.draw()
         # Finally, annotate the episode information at the bottom
         pad = np.array(self.axs.get_position().bounds[:2])*np.array([1.0, 0.8])
-        # gap between lines of text annotation in the bottom, in units of 
+        # gap between lines of text annotation in the bottom, in units of
         # figure (0,1)
-        inc = 0.025   
-    
+        inc = 0.025
+
         for n in range(nep):
             # print(pad[0], pad[1]+inc*n)
-            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n], 
+            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n],
                      ha='left',va='bottom', color=color[n%len(color)])
-            
+
     @AdjustFigure(canvas_size='none', tight_layout=False)
-    def ConcatenatedTraces(self, color='k', channel='A', 
+    def ConcatenatedTraces(self, color='k', channel='A',
                            stream='Volt', gap=0.05):
         """Heper function to export horizontally concatenated traces
         channel, stream: both string. Can only plot one data stream at a time.
-        gap: gap between consecutive plots. gap * duration of plot. Default 
+        gap: gap between consecutive plots. gap * duration of plot. Default
              is 0.05, or 5% of the duration of the plot.
         """
         # initialize figure
@@ -320,43 +323,43 @@ class PublicationFigures(object):
         # initialize time shift
         x0 = 0.0
         nep = len(self.data.table) # number of data sets to plot
-        # gap between lines of text annotation in the bottom, in units of 
+        # gap between lines of text annotation in the bottom, in units of
         # figure (0,1)
         inc = 0.025
         # Calculate the gap between plots: will probably result bottleneck
-        gap *= max([x['time'].iloc[-1] - x['time'].iloc[0] 
+        gap *= max([x['time'].iloc[-1] - x['time'].iloc[0]
                             for x in self.data.table])
-        
+
         # Draw plots
         for n in range(nep):
             x,y=self.data.table[n]['time'],self.data.table[n][stream+channel]
             # update time shift
             x = x + x0
             x0 = x.iloc[-1] + gap
-                
+
             self.axs.plot(x, y, label=n, c=color)
-            
+
             if n == 0: # annotate the first episode
                 dataposition = [np.array(x)[0], np.array(y)[0]]
                 datatext = '%.0f'%(dataposition[1]) + yunit_dict[stream]
-                self.TextAnnotation(text=datatext, position=dataposition, 
-                                    ax=self.axs, color='k',xoffset='-', 
+                self.TextAnnotation(text=datatext, position=dataposition,
+                                    ax=self.axs, color='k',xoffset='-',
                                     yoffset=None, fontsize=None,ha='right',
                                     va='center')
-                                    
+
         # add trace bar for the last episode
-        self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream], 
+        self.AddTraceScaleBar(xunit='ms', yunit=yunit_dict[stream],
                               ax=self.axs, xscale=x.iloc[-1]-x.iloc[0])
-        # update the graph                       
-        self.fig.canvas.draw()    
+        # update the graph
+        self.fig.canvas.draw()
         # Finally, annotate the episode information at the bottom
         pad = np.array(self.axs.get_position().bounds[:2])*np.array([1.0, 0.8])
-    
+
         for n in range(nep):
-            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n], 
+            self.fig.text(pad[0], pad[1]-inc*n, self.data.meta['notes'][n],
                           ha='left', va='bottom', color=color)
-        
-        # Set appropriate canvas size        
+
+        # Set appropriate canvas size
         self.fig.set_size_inches(canvas_size[0]*nep,canvas_size[1])
 
     @AdjustFigure()
@@ -766,7 +769,7 @@ class PublicationFigures(object):
                 ax.yaxis.set_visible(False)
                 ax.spines['left'].set_visible(False)
         # add slashes between two plots
-    
+
     def SetAxisOrigin(self, ax=None, xcenter=0, ycenter=0):
         if ax is None:
             ax = self.axs[-1] if isinstance(self.axs, np.ndarray) else self.axs
@@ -821,24 +824,25 @@ class PublicationFigures(object):
                 p.set_hatch(hatch[n%len(hatch)])
 
     """ #################### Text Annotations ####################### """
-    def AddTraceScaleBar(self,xunit,yunit,color='k',linewidth=None,\
-                         fontsize=None,ax=None, xscale=None, yscale=None):
+    def AddTraceScaleBar(self, xunit, yunit, color='k',linewidth=None,\
+                         fontsize=None, ax=None, xscale=None, yscale=None):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces.
-        xscale, yscale: add the trace bar to the specified window of x and y.        
+        xscale, yscale: add the trace bar to the specified window of x and y.
         """
         if ax is None: ax=self.axs
         def scalebarlabel(x, unitstr):
+            x = int(x)
             if unitstr.lower()[0] == 'm':
-                return(str(x)+unitstr if x<1000 else str(x/1000)+
+                return(str(x)+unitstr if x<1000 else str(int(x/1000))+
                     unitstr.replace('m',''))
             elif unitstr.lower()[0] == 'p':
-                return(str(x)+unitstr if x<1000 else str(x/1000)+
+                return(str(x)+unitstr if x<1000 else str(int(x/1000))+
                     unitstr.replace('p','n'))
-
-        self.TurnOffAxis(ax) # turn off axis
-        X = np.ptp(ax.get_xticks()) if xscale is None else xscale
-        Y = np.ptp(ax.get_yticks()) if yscale is None else yscale
+                    
+        ax.set_axis_off() # turn off axis
+        X = np.ptp(ax.get_xlim()) if xscale is None else xscale
+        Y = np.ptp(ax.get_ylim()) if yscale is None else yscale
         # calculate scale bar unit length
         X, Y = self.roundto125(X/5), self.roundto125(Y/5)
         # Parse scale bar labels
@@ -858,32 +862,24 @@ class PublicationFigures(object):
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         # Calculate position of the scale bar
-        xi = np.max(ax.get_xticks()) + X/2.0
-        yi = np.mean(ax.get_yticks())
+        # xi = np.max(ax.get_xlim()) + X/2.0
+        # yi = np.mean(ax.get_ylim())
         # calculate position of text
-        xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
-        xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
-        # Draw text
-        txt1 = ax.text(xtext1, ytext1, xlab, ha='center',va='top',
-                             color=color, size=fontsize)
-        self.AdjustText(txt1, ax=ax) # adjust texts just added
-        txt2 = ax.text(xtext2, ytext2, ylab, ha='left',va='center',
-                             color=color, size=fontsize)
-        self.AdjustText(txt2,ax=ax) # adjust texts just added
-        # Draw Scale bar
-        ax.annotate("", xy=(xi,yi), xycoords='data',  # horizontal
-                          xytext=(xi+X,yi), textcoords = 'data',
-                          annotation_clip=False,arrowprops=dict(arrowstyle="-",
-                          connectionstyle="arc3", shrinkA=0, shrinkB=0,
-                          color=color, linewidth=linewidth))
-        ax.annotate("", xy=(xi+X,yi), xycoords='data',  # vertical
-                          xytext=(xi+X,yi+Y), textcoords = 'data',
-                          annotation_clip=False,arrowprops=dict(arrowstyle="-",
-                          connectionstyle="arc3", shrinkA=0, shrinkB=0,
-                          color=color,linewidth=linewidth))
-        #txtbb = txt1.get_bbox_patch().get_window_extent()
-        #print(txtbb.bounds)
-        #print(self.axs.transData.inverted().transform(txtbb).ravel())
+        # xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
+        # xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
+        # Draw the scalebar        
+        box1 = AuxTransformBox(ax.transData)
+        box1.add_artist(plt.Rectangle((0,0),X, 0, fc="none"))
+        box2 = TextArea(xlab, minimumdescent=False, textprops=dict(color=color))
+        boxh = VPacker(children=[box1,box2], align="center", pad=0, sep=2)
+        box3 = AuxTransformBox(ax.transData)
+        box3.add_artist(plt.Rectangle((0,0),0,Y, fc="none"))
+        box4 = TextArea(ylab, minimumdescent=False, textprops=dict(color=color))
+        box5 = VPacker(children=[box3, boxh], align="right", pad=0, sep=0)
+        box = HPacker(children=[box5,box4], align="center", pad=0, sep=2)
+        anchored_box = AnchoredOffsetbox(loc=5, pad=-9, child=box, frameon=False)
+        ax.add_artist(anchored_box)
+        return(anchored_box)
 
     def TextAnnotation(self, text="", position='south', ax=None, xoffset=None,
                        yoffset=None, color='k', fontsize=None, **kwargs):
@@ -891,10 +887,10 @@ class PublicationFigures(object):
         color: color of the text and traces. Default 'k'. If None, use the same
                color of the trace
         xoffset: the amount of space in horizontal direction, e.g. text around
-                 traces. 
-                 ~ If None, no offsets. 
+                 traces.
+                 ~ If None, no offsets.
                  ~ If "+", add a space of a single character to x position.
-                   The number of "+"s in the argument indicates the number of 
+                   The number of "+"s in the argument indicates the number of
                    times that the single character space will be added.
                  ~ If "-", subtract a space of single character to x position.
                    Rule for multiple "-"s is the same for "+"
@@ -902,12 +898,12 @@ class PublicationFigures(object):
         yoffset: the amount of space in vertical direction, e.g. between lines
                  of text. The yoffset is applied the same as xoffset, only to
                  y position
-        fontsize: size of the font. Default None, use the same font size as 
+        fontsize: size of the font. Default None, use the same font size as
                 the x tick labels
         **kwargs: additional argument for ax.text
         """
         ax = self.axs if ax is None else ax
-      
+
         if isinstance(position, str):
             # get axis parameter
             X, Y = np.ptp(ax.get_xticks()), np.ptp(ax.get_yticks())
@@ -929,17 +925,17 @@ class PublicationFigures(object):
                 raise(xytext)
         else: # assume numeric
             xytext = position
-        
+
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
-            
-        def calloffset(offset, ind): # xy offset modification 
+
+        def calloffset(offset, ind): # xy offset modification
             if offset is not None:
                 if '+' in offset:
                     xytext[ind]+=offset.count('+')*self.xydotsize(ax,
-                                                s=fontsize,scale=(1.,1.))[ind]           
+                                                s=fontsize,scale=(1.,1.))[ind]
                 elif '-' in offset:
-                    xytext[ind]-=offset.count('-')*self.xydotsize(ax, 
+                    xytext[ind]-=offset.count('-')*self.xydotsize(ax,
                                                 s=fontsize,scale=(1.,1.))[ind]
                 else:
                     try:
@@ -947,7 +943,7 @@ class PublicationFigures(object):
                     except:
                         pass
             return(xytext)
-                
+
         xytext = calloffset(xoffset, 0)
         xytext = calloffset(yoffset, 1)
 
@@ -955,7 +951,7 @@ class PublicationFigures(object):
             color = ax.get_lines()[0]
         if 'matplotlib.lines.Line2D' in str(type(color)):
             color = color.get_color()
-               
+
         txt = ax.text(xytext[0], xytext[1], text,color=color, size=fontsize,
                       **kwargs)
         self.AdjustText(txt, ax=ax)
@@ -1133,7 +1129,7 @@ class PublicationFigures(object):
         """MATLAB's sub2ind
         order: in 'C' order by default"""
         return(np.ravel_multi_index(sub, dims=size, order=order))
-        
+
     @staticmethod
     def xydotsize(ax, s=None, dpi=None, scale=(1.25,1.25)):
         """ Determine dot size in data axis.
@@ -1151,32 +1147,45 @@ class PublicationFigures(object):
         else:
             xsize=np.sqrt(s)/dpi*xran/w*scale[0] # xscale * proportion of xwidth in data
             ysize=np.sqrt(s)/dpi*yran/h*scale[1] # yscale * proportion of yheight in data
-    
+
         return(xsize, ysize)
 
 
-    def SetFont(self, fontsize=fontsize,fontname=fontname,items=None,ax=None,
-                fig=None):
+    def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
         """Change font properties of all axes
-        fontsize: size of the font, specified in the global variable
-        fontname: fullpath of the font, specified in the global variable
-        items: select a list of items to change font. ['title', 'xlab','ylab',
-               'xtick','ytick', 'texts','legend','legendtitle']
         ax: which axis or axes to change the font. Default all axis in current
             instance. To skip axis, input as [].
         fig: figure handle to change the font (text in figure, not in axis).
         Default is any text items in current instance. To skip, input as [].
+        fontsize: size of the font, specified in the global variable
+        fontname: fullpath of the font, specified in the global variable
+        items: select a list of items to change font. ['title', 'xlab','ylab',
+               'xtick','ytick', 'texts','legend','legendtitle','textartist']
         """
-        if (fontname is None) and (fontsize is None):
-            return
-        import matplotlib.font_manager as fm
-        
-        if ax is None:
-            ax = self.axs
+        def unpack_anchor_offsetbox(box):
+            """Getting only text area items from the anchor offset box"""
+            itemList = []
+            counter = 0
+            maxiter=100 # terminate at this iteration
+            def unpacker(box):
+                return box.get_children()
             
-        if fig is None:
-            fig = self.fig
-
+            # vectorize
+            unpacker = np.frompyfunc(unpacker, 1,1)
+            # Get the children
+            while counter<maxiter and box:
+                # recursively unpack the anchoroffsetbox or v/hpacker
+                box = np.hstack(unpacker(box)).tolist()
+                for nn, b in enumerate(box):
+                    if 'matplotlib.text.Text' in str(type(b)):
+                        itemList.append(b)
+                        box[nn] = None
+                # remove recorded
+                box = [b for b in box if b is not None]
+                counter += 1
+                
+            return itemList
+        
         def get_ax_items(ax):
             """Parse axis items"""
             itemDict={'title':[ax.title], 'xlab':[ax.xaxis.label],
@@ -1184,10 +1193,12 @@ class PublicationFigures(object):
                     'ytick':ax.get_yticklabels(),
                     'texts':ax.texts if isinstance(ax.texts,(np.ndarray,list))
                                          else [ax.texts],
-                    'legend': [] if ax.legend_ is None
+                    'legend': [] if not ax.legend_
                                         else ax.legend_.get_texts(),
-                    'legendtitle':[] if ax.legend_ is None
-                                        else [ax.legend_.get_title()]}
+                    'legendtitle':[] if not ax.legend_
+                                        else [ax.legend_.get_title()], 
+                    'textartist':[] if not ax.artists
+                                        else unpack_anchor_offsetbox(ax.artists)}
             itemList, keyList = [], []
             if items is None: # get all items
                 for k, v in iter(itemDict.items()):
@@ -1197,17 +1208,17 @@ class PublicationFigures(object):
                 for k in items:
                     itemList += itemDict[k] # add only specified in items
                     keyList += [k]*len(itemDict[k])
-            
+
             return(itemList, keyList)
-            
+
         def get_fig_items(fig):
             """Parse figure text items"""
             itemList = fig.texts if isinstance(fig.texts,(np.ndarray,list)) \
                                     else [fig.texts]
             keyList = ['texts'] * len(itemList)
-            
+
             return(itemList, keyList)
-                 
+            
         def CF(itemList, keyList):
             """Change font given item"""
             # initialize fontprop object
@@ -1227,23 +1238,24 @@ class PublicationFigures(object):
                 elif n <1: # set the properties only once
                     fontprop.set_size(fontsize)
                 item.set_fontproperties(fontprop) # change font for all items
-            
+
+
         def CF_ax(ax): # combine CF and get_ax_items
             if not ax: # true when empty or None
                 return # skip axis font change
             itemList, keyList = get_ax_items(ax)
             CF(itemList, keyList)
-            
+
         def CF_fig(fig): # combine CF and get_fig_items
             if not fig: # true when empty or None
                 return # skip figure font change
             itemsList, keyList = get_fig_items(fig)
             CF(itemsList, keyList)
-        
+
         # vecotirze the closure
         CF_ax_vec = np.frompyfunc(CF_ax, 1,1)
         CF_fig_vec = np.frompyfunc(CF_fig, 1,1)
-        
+
         # Do the actual font change
         CF_ax_vec(ax)
         CF_fig_vec(fig)

@@ -1,4 +1,4 @@
-## README for new Synapse written in Python ##
+# README for new Synapse written in Python ##
 Script structure
 
 * SynapseQt.py: main window
@@ -41,6 +41,16 @@ Script structure
     - ~~pyqtgraph for traces~~
     - Indexing system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
 
+## Update Mar 20, 2016
+* Improved file system interface
+  - Folders and files with numbers now sort intuitively to human reading
+  - Fixed network drive volume info query
+  - Fixed file system horizontal scroll
+* Scope window:
+  - Allow setting view range of traces
+* Exporting:
+  - Allow exporting the traces to a .eps file. For now, can only export from the same cell. A restructure would be needed for other cells.
+  - Yet to implement the actual plotting and exporting part. Has set up the hooks.
 
 ## Update Mar 13, 2016
 * Scope window is fully functional now.

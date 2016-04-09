@@ -23,7 +23,6 @@ import pandas as pd
 
 
 sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
-sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
 from app.Scope import ScopeWindow
 
@@ -31,7 +30,7 @@ import sip
 sip.setapi('QVariant', 2)
 
 # Routines for Qt import errors
-from PyQt4 import QtGui, QtCore
+from PyQt4 import QtCore, QtGui
 #from pyqtgraph.Qt import QtGui, QtCore
 
 try:
@@ -55,15 +54,7 @@ except AttributeError:
 
 # Set some global variables
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-__version__ = "PySynapse 0.3"
-
-# Custom helper functions
-def sort_nicely(l):
-    """ Sort the given list in the way that humans expect."""
-    convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
-    l.sort( key=alphanum_key )
-    return l
+__version__ = "PySynapse 0.2"
 
 # Custom File system
 class Node(object):
@@ -116,7 +107,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
     def __init__(self, path=None, parent=None, root='FileName'):
         super(FileSystemTreeModel, self).__init__()
-        path = 'D:/Data/Traces/2016/04.April/Data 6 Apr 2016'
+        # path = 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016'
         self.root = Node(root)
         self.parent = parent
         self.path = path
@@ -132,38 +123,30 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         On Linux, start at "/"
         """
         if running_os[0:3] == 'win':
-            hasLabel = True
-            try:
-                drives = subprocess.check_output('wmic logicaldisk get name, volumename', stderr=subprocess.STDOUT, timeout=3)
-            except:
-                hasLabel = False
-                drives = subprocess.check_output('wmic logicaldisk get name', stderr=subprocess.STDOUT)
+            drives = subprocess.check_output('wmic logicaldisk get name label', stderr=subprocess.STDOUT)
+            
+            drives = subprocess.check_output('wmic logicaldisk get name', stderr=subprocess.STDOUT)
             drives = drives.decode('utf-8')
             drives = drives.split('\n') # split by lines
             for d in drives:
-                if 'Name' in d or not d:
+                if 'Name' in d:
                     continue
-                dpath = re.split('[\s]+',d)[:-1]
-                if not dpath or not dpath[0]: # if empty string
+                dpath = re.split('[\s]+',d)[0]
+                if not dpath: # if empty string
                     continue
-                if hasLabel:
-                    label = " ".join(dpath[1:])
-                    dpath = dpath[0]
-                    label += " ({})".format(dpath)
-                else:
-                    cmd = 'wmic volume where "name=' + "'{}\\\\'".format(dpath) + '" get label'
-                    try:
-                        label = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=2)
-                        label = label.decode('utf-8')
-                        if "No Instance" in label:
-                            label = dpath
-                        else:
-                            label = re.split('[\s]+', label)[1:-1]
-                            if isinstance(label, list):
-                                label = " ".join(label)
-                            label += " ({})".format(dpath)
-                    except:
+                cmd = 'wmic volume where "name=' + "'{}\\\\'".format(dpath) + '" get label'
+                try:
+                    label = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=2)
+                    label = label.decode('utf-8')
+                    if "No Instance" in label:
                         label = dpath
+                    else:
+                        label = re.split('[\s]+', label)[1:-1]
+                        if isinstance(label, list):
+                            label = " ".join(label)
+                        label += " ({})".format(dpath)
+                except:
+                    label = dpath
                 
                 # Modify dpath to include slash
                 dpath += "/"
@@ -233,8 +216,6 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         # insert the nodes
         nodes = []
         parent = self.root if startup else None
-        # Sort other files as human expect
-        other_files = sort_nicely(other_files)
         # insert other files first
         for file in other_files:
             file_path = os.path.join(path, file)
@@ -303,25 +284,13 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
     def data(self, index, role):
         if not index.isValid():
             return(None)
-        
+
         node = index.internalPointer()
 
         if role == QtCore.Qt.DisplayRole:
             return(node.name)
         elif role == QtCore.Qt.DecorationRole: # insert icon here
-            if node.type == 'drive':
-                iconimg = 'drive.png'
-            elif node.type == 'directory':
-                iconimg = 'folder.png'
-            elif node.type == 'file':
-                iconimg = 'file.png'
-            elif node.type == 'sequence':
-                iconimg = 'activity.png'
-            elif node.type == 'stack':
-                iconimg = 'setting.png'
-            else: # for debugging, should not reach this 
-                raise(TypeError('Unrecognized node type'))
-            return QtGui.QIcon(QtGui.QPixmap('resources/icons/'+iconimg))
+            return(None)
         elif role == QtCore.Qt.BackgroundRole: # insert highlight color here
             return(QtGui.QBrush(QtCore.Qt.transparent))
         else:
@@ -338,9 +307,6 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         self.endInsertRows()
 
         return(success)
-        
-    def intuitiveNumericalSorting(files):
-        return
 
     def fileName(self, index):
         return(self.getNode(index))
@@ -495,9 +461,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.treeview.sizePolicy().hasHeightForWidth())
         self.treeview.setSizePolicy(sizePolicy)
-        # self.treeview.setTextElideMode(QtCore.Qt.ElideNone)
-        self.treeview.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
-        self.treeview.header().setStretchLastSection(False)
+        self.treeview.setTextElideMode(QtCore.Qt.ElideNone)
         self.treeview.setObjectName(_fromUtf8("treeview"))
 
 
@@ -602,7 +566,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def onSequenceClicked(self, index):
         """ Display a list of episodes upon sequence clicked"""
         #indexItem = self.treeview.model.index(index.row(), 0, index.parent())
-        self.raise_()
         node = self.treeview.model.getNode(index)
         # Check if the item clicked is sequence instead of a folder / file
         if node.type == "sequence":
@@ -653,8 +616,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         rows = [index.row() for index in sorted(indexes)]
         # Call scope window
         if not hasattr(self, 'sw'): # Start up a new window
-            # self.sw = ScopeWindow(parent=self)
-            self.sw = ScopeWindow()
+            self.sw = ScopeWindow(parent=self)
         if self.sw.isclosed:
             self.sw.show()
             self.sw.isclosed = False
