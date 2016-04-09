@@ -53,7 +53,7 @@ Script structure
 ## Update Apr 9, 2016
 * Export multiple traces using matplotlib; only 'overlap' configuration is fully working
 * Exported traces can be color coded, if the user turn on "colorfy" option in the Scope window; Colors cycles use tableau10
-* Files are exported as .eps, and font set to Helvetica, using a .ttf file under `./resources`; fontsize=12.0. This should be cross-platform, as it does not depend on the system's font repository. It should also be editable in vector graphics editor. From experience, if using 'Arial' font in Windows, the font header in the .eps file cannot be recognized by many editor, and the entire graphics cannot be imported successfully (true for InkScape and CorelDraw)
+* Files are exported as .eps, and font set to Helvetica, using a .ttf file under `./resources`; fontsize=12.0. This should be cross-platform, as it does not depend on the system's font repository. It should also be editable in vector graphics editor. From experience, if using 'Arial' font in Windows, the font header in the .eps file cannot be recognized by editors, and the entire graphics cannot be imported successfully (true for InkScape and CorelDraw)
 
 ## Update Mar 20, 2016
 * Improved file system interface
@@ -68,8 +68,8 @@ Script structure
 
 ## Update Mar 13, 2016
 * Scope window is fully functional now.
-  - Plot traces with or without color. Colors usage are tracked correctly. Colors are draw from tableau10.
-  - Plot traces of multiple channels of data, with time domain linnked
+  - Plot traces with or without color. Colors usage are tracked correctly. Colors are drawn from tableau10.
+  - Plot traces of multiple channels of data, with time domain linked
   - Plot traces of multiple episodes of data, correctly distribute them across channels of data
 * Added toggle functionality in both main and scope windows
   - Allow toggle of additional columns of episode list tableview
