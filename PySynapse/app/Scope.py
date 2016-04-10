@@ -89,6 +89,12 @@ class ScopeWindow(QtGui.QMainWindow):
         self.layout = [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0]]
         # range of axis
         self.viewMode = 'default'
+        # view region
+        self.viewRegionOn = False
+        # self.linkViewRegion = True
+        # Data tip
+        self.dataTipOn = False
+        # self.linkCrossHair = True
         # Keep track of which colors have been used
         self._usedColors = []
         # Track if scalebar is turned on or not
@@ -115,7 +121,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.horizontalLayout.addLayout(self.graphicsLayout)
 
         # Side panel layout: initialize as a list view
-        self.sideDockPanel = QtGui.QDockWidget("Settings", self)
+        self.sideDockPanel = QtGui.QDockWidget("Analysis", self)
         self.sideDockPanel.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.sideDockPanel.setObjectName(_fromUtf8("sideDockPanel"))
         self.sideDockPanel.hide()
@@ -171,19 +177,39 @@ class ScopeWindow(QtGui.QMainWindow):
 
         # View Menu
         viewMenu = self.menubar.addMenu('&View')
-        # View: show settings
-        viewMenu.addAction(self.sideDockPanel.toggleViewAction())
+        # View: Default view range
+        defaultViewAction = QtGui.QAction('Default Range', self)
+        defaultViewAction.setShortcut('Alt+D')
+        defaultViewAction.setStatusTip('Reset view to default range')
+        defaultViewAction.triggered.connect(lambda: self.setDataViewRange(viewMode='default'))
+        viewMenu.addAction(defaultViewAction)
         # View: Colorfy
         colorfyAction = QtGui.QAction('Color code traces', self, checkable=True, checked=False)
-        colorfyAction.setShortcut('Ctrl+Alt+C')
+        colorfyAction.setShortcut('Alt+C')
         colorfyAction.setStatusTip('Toggle between color coded traces and black traces')
         colorfyAction.triggered.connect(lambda: self.toggleTraceColors(colorfyAction.isChecked()))
         viewMenu.addAction(colorfyAction)
+
+        # View: view region
+        viewRegionAction = QtGui.QAction('Region Selection', self, checkable=True, checked=False)
+        viewRegionAction.setShortcut('Alt+R')
+        viewRegionAction.setStatusTip('Show view region selection')
+        viewRegionAction.triggered.connect(lambda: self.toggleRegionSelection(viewRegionAction.isChecked()))
+        viewMenu.addAction(viewRegionAction)
+        # View: cross hair
+        dataTipAction = QtGui.QAction('Data tip', self, checkable=True, checked=False)
+        dataTipAction.setShortcut('Alt+T')
+        dataTipAction.setStatusTip('Show data tips on the trace')
+        dataTipAction.isChecked()
+        dataTipAction.triggered.connect(lambda: self.toggleDataTip(dataTipAction.isChecked()))
+        viewMenu.addAction(dataTipAction)
         # View: Keep previous
         keepPrev = QtGui.QAction('Keep previous', self, checkable=True, checked=False)
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
-        keepPrev.triggered.connect(lambda: self.toggleKeepPrev(keepPrev.isChecked()))
+        keepPrev.triggered.connect(lambda: self.keepPrev(keepPrev.isChecked()))
         viewMenu.addAction(keepPrev)
+        # View: show settings
+        viewMenu.addAction(self.sideDockPanel.toggleViewAction())
 
     def printme(self): # for debugging
         print('doing stuff')
@@ -296,36 +322,6 @@ class ScopeWindow(QtGui.QMainWindow):
     def setLayout(self):
         return
         
-    def drawScaleBar(self, vb, xrange, yrange, xunit, yunit, color='k',\
-                         linewidth=None, fontsize=None):
-        if self.has_scalebar:
-            return
-        # Span of axes
-        X = np.ptp(xrange)
-        Y = np.ptp(yrange)
-        # calculate scale bar unit length
-        X, Y = roundto125(X/5), roundto125(Y/5)
-        # Parse scale bar labels
-        xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
-         # Calculate positions of points in the scale bar
-        xi = np.max(xrange) + X/2.0
-        yi = np.mean(yrange)
-        positions = [[xi,yi], [xi+X, yi], [xi+X, yi+Y]]
-        # calculate position of text
-        xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
-        xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
-        # Draw the scalebar line
-        scalebar_line = pg.PolyLineROI(positions=positions, closed=False, pen=pg.mkPen(color), movable=False, removable=True)
-        [p.setVisible(False) for p in scalebar_line.getHandles()]
-        vb.addItem(scalebar_line)
-        # Add the text
-        htext = pg.TextItem(xlab, color=color, anchor=(0.5,0.4))
-        htext.setPos(xtext1, ytext1)
-        vb.addItem(htext)
-        vtext = pg.TextItem(ylab, color=color, anchor=(0.6,0.5))
-        vtext.setPos(xtext2, ytext2)
-        vb.addItem(vtext)
-        
     # ----------------------- Option utilities ----------------------------------
     def toggleTraceColors(self, checked):
         """Change traces from black to color coded"""
@@ -350,11 +346,7 @@ class ScopeWindow(QtGui.QMainWindow):
                 a.setPen(pen)
                 
     def toggleKeepPrev(self, checked):
-        if checked:
-            self.keepOther = True
-        else:
-            self.keepOther = False
-
+        self.keepOther = checked
         
     def setDisplayTheme(self, theme='whiteboard'):
         self.theme = {'blackboard':{'background':'k', 'pen':'w'}, \
@@ -367,8 +359,6 @@ class ScopeWindow(QtGui.QMainWindow):
         
     def setDataViewRange(self, viewMode=None, xRange=None, yRange=None):
         # print('view range %s'%self.viewMode)
-        if self.viewMode == viewMode:
-            return
         self.viewMode = viewMode if viewMode is not None else self.viewMode
         self.viewRange = collections.OrderedDict()
         # Loop through all the subplots
@@ -377,15 +367,81 @@ class ScopeWindow(QtGui.QMainWindow):
             p = self.graphicsView.getItem(row=l[2], col=l[3])
             #print(a.tickValues())
             if self.viewMode == 'default':
+                # Make everything visible first
+                p.autoRange()
                 yRange = {'Voltage':(-100, 40), 'Current': (-500, 500), 
                           'Stimulus':(-500, 500)}.get(l[0])
-                p.setRange(yRange=yRange, padding=0)
+                p.setYRange(yRange[0], yRange[1], padding=0)
             elif self.viewMode == 'auto':
                 p.autoRange()
             elif self.viewMode == 'manual':
                 return # not implemented
             else:
                 raise(TypeError('Unrecognized view mode'))
+                
+    def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True):
+        """Add linear view region. Region selection for data analysis
+        rememberRange: when toggling, if set to True, when checked again, the 
+                       region was set to the region before the user unchecked 
+                       the selection.
+        """
+        if self.viewRegionOn != checked and not plotitem:
+             # if did not specify which viewbox, update on all views
+            plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
+        if self.viewRegionOn and not checked: # remove 
+            # Remove all the linear regions already present
+            def removeRegion(pm):
+                [pm.removeItem(r) for r in pm.items if 'LinearRegionItem' in str(type(r))]
+                
+            # vectorize
+            removeRegion = np.frompyfunc(removeRegion, 1, 1)
+            # Do the removal
+            removeRegion(plotitem)
+        elif not self.viewRegionOn and checked: # add
+            # Record selection range
+            if not hasattr(self, 'selectedRange'):
+                self.selectedRange = rng
+    
+            # Add the view region on top of the viewbox
+            def addRegion(pm):
+                # Initialize the region
+                region = pg.LinearRegionItem()
+                region.setZValue(len(self.index)+10) # make sure it is on top
+                 # initial range of the region
+                region.setRegion(self.selectedRange if rememberRange else rng)
+                region.sigRegionChanged.connect(lambda: self.onRegionChanged(region, plotitem))
+                pm.addItem(region, ignoreBounds=True)
+            
+            # vectorize
+            addRegion = np.frompyfunc(addRegion, 1, 1) # (minX, maxX)
+            # Add the view region
+            addRegion(plotitem)
+        
+        # update attribute
+        self.viewRegionOn = checked
+
+    def onRegionChanged(self, region, plotitem, label):
+        """Called if region selection changed"""
+        # update the current range
+        self.selectedRange = region.getRegion()
+        #if not self.linkViewRegion:
+        #    return
+        # Modify LinearRegion items from other viewbox
+        for p in plotitem:
+            for r in p.items:
+                if r is region:
+                    continue
+                if 'LinearRegionItem' in str(type(r)):
+                    r.setRegion(self.selectedRange)
+                           
+    def toggleDataTip(self, checked, plotitem=None):
+        """Add cross hair to display data points at cursor point"""
+        self.dataTipOn = checked
+        # data value label as the range changes
+        label = pg.LabelItem(justify='right')
+        label.setText('<table align="center"><tr><th></th><th>Min</th><th>Max</th><th>Diff</th></tr><tr><th>X</th><td align="center">%d</td><td align="center">%d</td><td align="center">%d</td></tr><tr><th>Y</th><td align="center">%d</td><td align="center">%d</td> <td align="center">%d</td></tr></table>'%(1,2,3,4,5,6))
+        self.graphicsView.addItem(label)
+        
                     
     def exportWithScalebar(self, arrangement='overlap', savedir="R:/tmp.svg"):
         viewRange = collections.OrderedDict()
@@ -398,12 +454,6 @@ class ScopeWindow(QtGui.QMainWindow):
             if l[1] not in channels:
                 # getting list of channels displayed
                 channels.append(l[1])
-#        # draw scalebar
-#        for n, l in enumerate(self.layout):
-#            p = self.graphicsView.getItem(row=l[2], col=l[3])
-#            self.drawScaleBar(p.getViewBox(), viewRange[(l[0],l[1])][0], viewRange[(l[0],l[1])][1],xunit='ms',yunit='mV' if l[0]=='Voltage' else 'pA')
-#        self.has_scalebar=True
-#        return
         # Make strings for exporting
         self.episodes['Notes'] = [[]] * len(self.episodes['Dirs'])
         self.episodes['InitVal'] = [[]] * len(self.episodes['Dirs'])
