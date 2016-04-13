@@ -6,17 +6,20 @@ Created on Sat Apr  9 20:06:51 2016
 """
 
 """
-Demonstrates some customized mouse interaction by drawing a crosshair that follows 
+Demonstrates some customized mouse interaction by drawing a crosshair that follows
 the mouse.
 
 
 """
 
-import initExample ## Add path to library (just for examples; you do not need this)
+# import initExample ## Add path to library (just for examples; you do not need this)
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph.Point import Point
+
+from pdb import set_trace
+
 
 #generate layout
 app = QtGui.QApplication([])
@@ -29,7 +32,7 @@ p2 = win.addPlot(row=2, col=0)
 
 region = pg.LinearRegionItem()
 region.setZValue(10)
-# Add the LinearRegionItem to the ViewBox, but tell the ViewBox to exclude this 
+# Add the LinearRegionItem to the ViewBox, but tell the ViewBox to exclude this
 # item when doing auto-range calculations.
 p2.addItem(region, ignoreBounds=True)
 
@@ -44,13 +47,14 @@ data2 = 15000 + 15000 * pg.gaussianFilter(np.random.random(size=10000), 10) + 30
 
 p1.plot(data1, pen="r")
 p1.plot(data2, pen="g")
+set_trace()
 
 p2.plot(data1, pen="w")
 
 def update():
     region.setZValue(10)
     minX, maxX = region.getRegion()
-    p1.setXRange(minX, maxX, padding=0)    
+    p1.setXRange(minX, maxX, padding=0)
 
 region.sigRegionChanged.connect(update)
 
@@ -71,7 +75,8 @@ p1.addItem(hLine, ignoreBounds=True)
 
 vb = p1.vb
 
-def mouseMoved(evt):
+def mouseMoved(evt, a):
+    print(a)
     pos = evt[0]  ## using signal proxy turns original arguments into a tuple
     if p1.sceneBoundingRect().contains(pos):
         mousePoint = vb.mapSceneToView(pos)
@@ -83,7 +88,7 @@ def mouseMoved(evt):
 
 
 
-proxy = pg.SignalProxy(p1.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
+proxy = pg.SignalProxy(p1.scene().sigMouseMoved, rateLimit=60, slot=lambda evt: mouseMoved(evt, 1))
 #p1.scene().sigMouseMoved.connect(mouseMoved)
 
 

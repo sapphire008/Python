@@ -116,7 +116,6 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
     def __init__(self, path=None, parent=None, root='FileName'):
         super(FileSystemTreeModel, self).__init__()
-        path = 'D:/Data/Traces/2016/04.April/Data 6 Apr 2016'
         self.root = Node(root)
         self.parent = parent
         self.path = path
@@ -138,6 +137,8 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
             except:
                 hasLabel = False
                 drives = subprocess.check_output('wmic logicaldisk get name', stderr=subprocess.STDOUT)
+            if not drives: # final check
+                raise(Exception('Cannot locate drives from wmic logicaldisk'))
             drives = drives.decode('utf-8')
             drives = drives.split('\n') # split by lines
             for d in drives:
@@ -164,7 +165,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
                             label += " ({})".format(dpath)
                     except:
                         label = dpath
-                
+
                 # Modify dpath to include slash
                 dpath += "/"
 
@@ -198,7 +199,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
     def fetchMore(self, index):
         parent = self.getNode(index)
         self.ucwd = parent.path
-        
+
         nodes = self.getChildren(parent.path, startup=False)
 
         # insert the newly fetched files
@@ -303,7 +304,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
     def data(self, index, role):
         if not index.isValid():
             return(None)
-        
+
         node = index.internalPointer()
 
         if role == QtCore.Qt.DisplayRole:
@@ -319,7 +320,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
                 iconimg = 'activity.png'
             elif node.type == 'stack':
                 iconimg = 'setting.png'
-            else: # for debugging, should not reach this 
+            else: # for debugging, should not reach this
                 raise(TypeError('Unrecognized node type'))
             return QtGui.QIcon(QtGui.QPixmap('resources/icons/'+iconimg))
         elif role == QtCore.Qt.BackgroundRole: # insert highlight color here
@@ -338,7 +339,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         self.endInsertRows()
 
         return(success)
-        
+
     def intuitiveNumericalSorting(files):
         return
 
@@ -461,18 +462,19 @@ class TablviewDelegate(QtGui.QItemDelegate):
 
 
 class Synapse_MainWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, startpath=None):
         super(Synapse_MainWindow, self).__init__(parent)
         # Set up the GUI window
         self.setupUi(self)
         # Set the treeview model for directory
-        self.setDataBrowserTreeView()
+        self.setDataBrowserTreeView(startpath=startpath)
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
         # Set up basic layout of the main window
         MainWindow.setObjectName(_fromUtf8("Synpase TreeView"))
         MainWindow.resize(1000, 500)
+        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.ico'))
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.centralwidget)
@@ -590,10 +592,10 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
 
     # ---------------- Data browser behaviors ---------------------------------
-    def setDataBrowserTreeView(self):
+    def setDataBrowserTreeView(self, startpath=None):
         # Set file system as model of the tree view
         # self.treeview.model = QtGui.QFileSystemModel()
-        self.treeview.model = FileSystemTreeModel()
+        self.treeview.model = FileSystemTreeModel(path=startpath)
         self.treeview.setModel(self.treeview.model)
         # Set behavior upon clicked
         self.treeview.clicked.connect(self.onSequenceClicked)
@@ -664,7 +666,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
-    w = Synapse_MainWindow()
+    w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/04.April/')
     w.show()
     # Connect upon closing
     # app.aboutToQuit.connect(restartpyshell)

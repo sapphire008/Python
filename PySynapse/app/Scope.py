@@ -45,12 +45,13 @@ sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
 sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
 from util.ExportData import *
+from util.MATLAB import *
+from util.spk_util import *
 
 # Global variables
 __version__ = "Scope Window 0.2"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
-
 
 # Custom helper functions
 def roundto125(x, r=np.array([1,2,5,10])): # helper static function
@@ -60,7 +61,7 @@ def roundto125(x, r=np.array([1,2,5,10])): # helper static function
         p = int(np.floor(np.log10(x))) # power of 10
         y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
         return(y*(10**p))
-        
+
 def scalebarlabel(x, unitstr):
     x = int(x)
     if unitstr.lower()[0] == 'm':
@@ -86,14 +87,14 @@ class ScopeWindow(QtGui.QMainWindow):
         # if use color for traaces
         self.colorfy = False
         # layout = [channel, stream, row, col]
-        self.layout = [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0]]
+        self.layout =[['Voltage', 'A', 0, 0],['Stimulus', 'A', 1,0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
         # range of axis
         self.viewMode = 'default'
         # view region
         self.viewRegionOn = False
         # self.linkViewRegion = True
         # Data tip
-        self.dataTipOn = False
+        self.dataCursorOn = False
         # self.linkCrossHair = True
         # Keep track of which colors have been used
         self._usedColors = []
@@ -117,6 +118,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.graphicsLayout.setObjectName(_fromUtf8("graphicsLayout"))
         self.graphicsView = GraphicsLayoutWidget(self.centralwidget)
         self.graphicsView.setObjectName(_fromUtf8("graphicsView"))
+        self.graphicsView.artists = [] # Auxillary graphics items
         self.graphicsLayout.addWidget(self.graphicsView)
         self.horizontalLayout.addLayout(self.graphicsLayout)
 
@@ -164,12 +166,12 @@ class ScopeWindow(QtGui.QMainWindow):
         exportWithScaleBarAction.setStatusTip('Export with scalebar')
         exportWithScaleBarAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='overlap'))
         exportMenu.addAction(exportWithScaleBarAction)
-        
+
         exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export vertical arrangement', self)
         exportVerticalAction.setStatusTip('Export the selected episodes in a vertical arrangement')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='vertical'))
         exportMenu.addAction(exportVerticalAction)
-                
+
         exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export horizontal arrangement', self)
         exportVerticalAction.setStatusTip('Export the selected episodes in horizontal arrangement. Good for concatenated episodes')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='horizontal'))
@@ -197,12 +199,12 @@ class ScopeWindow(QtGui.QMainWindow):
         viewRegionAction.triggered.connect(lambda: self.toggleRegionSelection(viewRegionAction.isChecked()))
         viewMenu.addAction(viewRegionAction)
         # View: cross hair
-        dataTipAction = QtGui.QAction('Data tip', self, checkable=True, checked=False)
-        dataTipAction.setShortcut('Alt+T')
-        dataTipAction.setStatusTip('Show data tips on the trace')
-        dataTipAction.isChecked()
-        dataTipAction.triggered.connect(lambda: self.toggleDataTip(dataTipAction.isChecked()))
-        viewMenu.addAction(dataTipAction)
+        dataCursorAction = QtGui.QAction('Data cursor', self, checkable=True, checked=False)
+        dataCursorAction.setShortcut('Alt+T')
+        dataCursorAction.setStatusTip('Show data cursor on the traces')
+        dataCursorAction.isChecked()
+        dataCursorAction.triggered.connect(lambda: self.toggleDataCursor(dataCursorAction.isChecked()))
+        viewMenu.addAction(dataCursorAction)
         # View: Keep previous
         keepPrev = QtGui.QAction('Keep previous', self, checkable=True, checked=False)
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
@@ -225,18 +227,20 @@ class ScopeWindow(QtGui.QMainWindow):
     # ------------- Episode plotting utilities --------------------------------
     def updateEpisodes(self, episodes=None, index=[]):
         """First compare episodes with self.episodes and index with self.index
-        Only update the difference in the two sets"""
+        Only update the difference in the two sets. The update does not sort
+        the index; i.e. it will be kept as the order of insert / click
+        """
         if not isinstance(episodes, dict) or not isinstance(self.episodes, dict):
             bool_old_episode = False
         else:
             bool_old_episode = self.episodes['Name'] == episodes['Name']
-            
+
         # reset the grpahicsview if user not keeping traces from older dataset
         if not self.keepOther and not bool_old_episode:
             self.graphicsView.clear()
             self._usedColors = []
             self._loaded_array = []
-            
+            self.index = []
 
         index_insert = list(set(index) - set(self.index))
         index_remove = list(set(self.index) - set(index))
@@ -264,8 +268,9 @@ class ScopeWindow(QtGui.QMainWindow):
         # Remove episodes
         for j in index_remove:
             self.removeEpisode(info=(self.episodes['Name'], self.episodes['Epi'][j]))
-            
+
         self.setDataViewRange()
+        # print(self.index)
 
     def drawEpisode(self, zData, info=None, pen=None):
         """Draw plot from 1 zData"""
@@ -321,7 +326,7 @@ class ScopeWindow(QtGui.QMainWindow):
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self):
         return
-        
+
     # ----------------------- Option utilities ----------------------------------
     def toggleTraceColors(self, checked):
         """Change traces from black to color coded"""
@@ -331,7 +336,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self._usedColors = [] # reset used colors
         else:
             self.colorfy = True
-        
+
         for l in self.layout:
             # get viewbox
             p = self.graphicsView.getItem(row=l[2], col=l[3])
@@ -344,10 +349,10 @@ class ScopeWindow(QtGui.QMainWindow):
                         self._usedColors.append(pen)
                 pen = pg.mkPen(pen)
                 a.setPen(pen)
-                
+
     def toggleKeepPrev(self, checked):
         self.keepOther = checked
-        
+
     def setDisplayTheme(self, theme='whiteboard'):
         self.theme = {'blackboard':{'background':'k', 'pen':'w'}, \
                  'whiteboard':{'background':'w', 'pen':'k'}\
@@ -356,7 +361,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.graphicsView.setBackground(self.theme['background'])
         # self.graphicsView.setForegroundBrush
         # change color / format of all objects
-        
+
     def setDataViewRange(self, viewMode=None, xRange=None, yRange=None):
         # print('view range %s'%self.viewMode)
         self.viewMode = viewMode if viewMode is not None else self.viewMode
@@ -369,7 +374,7 @@ class ScopeWindow(QtGui.QMainWindow):
             if self.viewMode == 'default':
                 # Make everything visible first
                 p.autoRange()
-                yRange = {'Voltage':(-100, 40), 'Current': (-500, 500), 
+                yRange = {'Voltage':(-100, 40), 'Current': (-500, 500),
                           'Stimulus':(-500, 500)}.get(l[0])
                 p.setYRange(yRange[0], yRange[1], padding=0)
             elif self.viewMode == 'auto':
@@ -378,30 +383,43 @@ class ScopeWindow(QtGui.QMainWindow):
                 return # not implemented
             else:
                 raise(TypeError('Unrecognized view mode'))
-                
+
     def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True):
         """Add linear view region. Region selection for data analysis
-        rememberRange: when toggling, if set to True, when checked again, the 
-                       region was set to the region before the user unchecked 
+        rememberRange: when toggling, if set to True, when checked again, the
+                       region was set to the region before the user unchecked
                        the selection.
         """
         if self.viewRegionOn != checked and not plotitem:
              # if did not specify which viewbox, update on all views
             plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
-        if self.viewRegionOn and not checked: # remove 
-            # Remove all the linear regions already present
+        if self.viewRegionOn and not checked: # remove
+            # Remove all the linear regions aand data tip labels
             def removeRegion(pm):
-                [pm.removeItem(r) for r in pm.items if 'LinearRegionItem' in str(type(r))]
-                
+                for r in pm.items:
+                    if "LinearRegionItem" in str(type(r)) and r in self.graphicsView.artists:
+                        pm.removeItem(r)
             # vectorize
             removeRegion = np.frompyfunc(removeRegion, 1, 1)
             # Do the removal
             removeRegion(plotitem)
+            for n, r in enumerate(self.graphicsView.artists):
+                if "LinearRegionItem" in str(type(r)):
+                    self.graphicsView.artists[n] = None
+                if 'LabelItem' in str(type(r)) and 'Start' in r.text and 'End' in r.text and 'Diff' in r.text:
+                    self.graphicsView.removeItem(r)
+                    self.graphicsView.artists[n] = None
+            self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
+
         elif not self.viewRegionOn and checked: # add
             # Record selection range
             if not hasattr(self, 'selectedRange'):
                 self.selectedRange = rng
-    
+            # Add a data tip label
+            label = pg.LabelItem(justify='right')
+            label.setText(self.regionDataTip(rng=self.selectedRange))
+            self.graphicsView.addItem(label)
+            self.graphicsView.artists.append(label)
             # Add the view region on top of the viewbox
             def addRegion(pm):
                 # Initialize the region
@@ -409,41 +427,159 @@ class ScopeWindow(QtGui.QMainWindow):
                 region.setZValue(len(self.index)+10) # make sure it is on top
                  # initial range of the region
                 region.setRegion(self.selectedRange if rememberRange else rng)
-                region.sigRegionChanged.connect(lambda: self.onRegionChanged(region, plotitem))
+                region.sigRegionChanged.connect(lambda: self.onRegionChanged(region, plotitem, label))
                 pm.addItem(region, ignoreBounds=True)
-            
+                # add these items in a collection
+                self.graphicsView.artists.append(region)
+
             # vectorize
             addRegion = np.frompyfunc(addRegion, 1, 1) # (minX, maxX)
             # Add the view region
             addRegion(plotitem)
-        
+
         # update attribute
         self.viewRegionOn = checked
 
-    def onRegionChanged(self, region, plotitem, label):
+    def onRegionChanged(self, region, pm, label):
         """Called if region selection changed"""
         # update the current range
         self.selectedRange = region.getRegion()
-        #if not self.linkViewRegion:
-        #    return
         # Modify LinearRegion items from other viewbox
-        for p in plotitem:
+        for p in pm:
             for r in p.items:
                 if r is region:
                     continue
                 if 'LinearRegionItem' in str(type(r)):
                     r.setRegion(self.selectedRange)
-                           
-    def toggleDataTip(self, checked, plotitem=None):
+        # Set label only once
+        label_text = self.regionDataTip(self.selectedRange)
+        if not label_text:
+            return
+        label.setText(label_text) # chagne data tip content
+
+    def regionDataTip(self, rng):
+        """Print the data tip in HTML format"""
+        if not rng:
+            return
+        table_HTML = '<table align="center" width=200><tr><th></th><th><span style="font-style: italic">Start</span></th><th><span style="font-style: italic">End</span></th><th><span style="font-style: italic">Diff</span>{}</table>' # header, {row1, row2, ...}
+        row_HTML = '<tr><th><span style="font-style: italic">{}</span></th><td align="center">{:0.1f}</td><td align="center">{:0.1f}</td><td align="center">{:0.1f}</td></tr>' # {Stream+Channel, data, data, data}
+
+        # Add in time stream first
+        final_HTML = row_HTML.format('Time', rng[0], rng[1], rng[1]-rng[0])
+        # Add in other displayed streams / channelstr
+        for l in self.layout:
+            zData = self.episodes['Data'][self.index[-1]] # get the most recently clicked episode
+            try:
+                ind = time2ind(np.asarray(rng), ts=zData.Protocol.msPerPoint)
+                # Get the extremes within the boundaries of data
+                ind[0] = min(max(ind[0], 0), zData.Protocol.numPoints-1)
+                ind[1] = max(min(ind[1], zData.Protocol.numPoints-1), 0)
+                ymin = float(getattr(zData, l[0])[l[1]][ind[0]])
+                ymax = float(getattr(zData, l[0])[l[1]][ind[1]])
+            except:
+                return None
+            final_HTML += row_HTML.format(l[0]+' '+l[1], ymin, ymax, ymax-ymin)
+
+        final_HTML = table_HTML.format(final_HTML)
+
+        return final_HTML
+
+
+    def toggleDataCursor(self, checked, plotitem=None):
         """Add cross hair to display data points at cursor point"""
-        self.dataTipOn = checked
-        # data value label as the range changes
-        label = pg.LabelItem(justify='right')
-        label.setText('<table align="center"><tr><th></th><th>Min</th><th>Max</th><th>Diff</th></tr><tr><th>X</th><td align="center">%d</td><td align="center">%d</td><td align="center">%d</td></tr><tr><th>Y</th><td align="center">%d</td><td align="center">%d</td> <td align="center">%d</td></tr></table>'%(1,2,3,4,5,6))
-        self.graphicsView.addItem(label)
-        
-                    
-    def exportWithScalebar(self, arrangement='overlap', savedir="R:/tmp.svg"):
+        if self.dataCursorOn != checked and not plotitem:
+            #if did not specify which viewbox, update on all views
+            plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
+        if self.dataCursorOn and not checked: # remove
+            # Remove all the vertical line objects and data tip labels
+            def removeCursor(pm):
+                for r in pm.items:
+                    if 'InfiniteLine' in str(type(r)) and r in self.graphicsView.artists:
+                        pm.removeItem(r)
+            # Vectorize
+            removeCursor = np.frompyfunc(removeCursor, 1, 1)
+            # Remove the cursor
+            removeCursor(plotitem)
+            # Remove labels and records in artists
+            for n, r in enumerate(self.graphicsView.artists):
+                if 'InfiniteLine' in str(type(r)):
+                    self.graphicsView.artists[n] = None
+                if 'LabelItem' in str(type(r)) and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
+                    self.graphicsView.removeItem(r)
+                    self.graphicsView.artists[n] = None
+            self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
+
+        elif not self.dataCursorOn and checked: # add
+            # Add a data tip label
+            label = pg.LabelItem(justify='right')
+            label.setText(self.cursorDataTip(x=0))
+            self.graphicsView.addItem(label)
+            self.graphicsView.artists.append(label)
+            # Add the data cursor
+            def addCursor(pm):
+                # Initialize the cursor
+                cursor = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('k'))
+                pm.addItem(cursor, ignoreBounds=False)
+                # Modify cursor and label upon mouse moving
+                pm.scene().sigMouseMoved.connect(lambda pos: self.onMouseMoved(pos, cursor, plotitem, label))
+                # proxy = pg.SignalProxy(pm.scene().sigMouseMoved, rateLimit=60, slot=lambda evt: self.onMouseMoved(evt, cursor, pm, label)) # proxy =, limit refreshment
+                # add these items in a collection
+                self.graphicsView.artists.append(cursor)
+
+            # vectorize
+            addCursor = np.frompyfunc(addCursor, 1, 1)
+            # Do the adding
+            addCursor(plotitem)
+
+        # Update attribute
+        self.dataCursorOn = checked
+
+    def onMouseMoved(self, pos, cursor, pm, label):
+        """pm: plot item
+           evt: event
+           label: data tip label
+           vLine: vertical data cursor
+        """
+        # pos = pos[0]
+        if not self.dataCursorOn:
+            return
+        # pos = evt # using signal proxy turns original arguments into a tuple
+        xpos = None
+        for p in pm:
+            if p.sceneBoundingRect().contains(pos):
+                mousePoint = p.getViewBox().mapSceneToView(pos)
+                xpos = mousePoint.x() # modify xpos
+                cursor.setPos(mousePoint.x())
+
+        # Set label only once
+        label_text = self.cursorDataTip(xpos)
+        if not label_text:
+            return
+        label.setText(label_text) # change data tip content
+
+    def cursorDataTip(self, x):
+        """Print the data tip in HTML format"""
+        if not x:
+            return
+        table_HTML = '<table align="center" width=100>{}</table>' # header, {row1, row2, ...}
+        row_HTML = '<tr><th><span style="font-style: italic">{}</span></th><td align="center">{}</td></tr>' # {Stream+Channel, data}
+        # Add in time stream first
+        final_HTML = row_HTML.format('Time', '{:0.1f}'.format(x))
+        # Add in other displayed streams / channels
+        for l in self.layout:
+            zData = self.episodes['Data'][self.index[-1]] # get the most recently clicked episode
+            try:
+                ind = time2ind(x, ts=zData.Protocol.msPerPoint)
+                y = 'NaN' if ind < 0 or ind > zData.Protocol.numPoints else '{:0.1f}'.format(float(getattr(zData, l[0])[l[1]][ind]))
+            except:
+                return None
+            final_HTML += row_HTML.format(l[0]+' '+l[1], y)
+
+        final_HTML = table_HTML.format(final_HTML)
+
+        return final_HTML
+
+    def exportWithScalebar(self, arrangement='overlap', savedir="R:/temp.eps"):
         viewRange = collections.OrderedDict()
         channels = []
         for n, l in enumerate(self.layout):
@@ -459,7 +595,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.episodes['InitVal'] = [[]] * len(self.episodes['Dirs'])
         notestr = "{} Initial: {} WCTime: {} min"
         channeldescripstr = "Channel {} {:0.1f} mV {:0.0f} pA"
-        
+
         for i in self.index: # iterate over episodes
             channelstr = []
             if self.episodes['Notes'][i]:
@@ -472,14 +608,14 @@ class ScopeWindow(QtGui.QMainWindow):
                 try:
                     initStim = self.episodes['Data'][i].Stimulus[c][0]
                 except:
-                    initStim = 0 
+                    initStim = 0
                 self.episodes['InitVal'][i]={('Voltage', c):'{:0.0f}mV'.format(initVolt), ('Current',c):'{:0.0f}pA'.format(initCur), ('Stimulus',c):'{:0.0f}pA'.format(initStim)}
                 channelstr.append(channeldescripstr.format(c,initVolt, initCur))
 
-            channelstr = " ".join(channelstr)               
-            self.episodes['Notes'][i] = notestr.format(self.episodes['Dirs'][i], channelstr, 
+            channelstr = " ".join(channelstr)
+            self.episodes['Notes'][i] = notestr.format(self.episodes['Dirs'][i], channelstr,
                                                        self.episodes['Data'][i].Protocol.WCtimeStr)
-        
+
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
             PlotTraces(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
@@ -489,7 +625,7 @@ class ScopeWindow(QtGui.QMainWindow):
             PlotTracesHorizontally(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
         else:
             raise(TypeError('Unrecognized export arragement'))
-        
+
 
 run_example = False
 
@@ -500,6 +636,7 @@ if __name__ == '__main__' and not run_example:
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow()
     w.updateEpisodes(episodes=episodes, index=index)
+    # w.toggleDataCursor(checked=True)
     w.show()
     # Connect upon closing
     # app.aboutToQuit.connect(restartpyshell)

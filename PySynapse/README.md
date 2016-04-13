@@ -42,7 +42,7 @@ Script structure
       - ~~columns are header information of the data~~
     - ~~pyqtgraph for traces~~
     - View layout configuration: channels x streams of data to display
-    - Range selection / cursor tool: for event detection and data analyses
+    - Range selection ~~/ cursor tool~~: for event detection and data analyses
       * Initial and end values, end - initial difference
       * max, min, average, median, std
       * EPSP, IPSP, EPSC, IPSC, action potentials, extracellular spikes
