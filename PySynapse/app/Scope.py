@@ -87,7 +87,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # if use color for traaces
         self.colorfy = False
         # layout = [channel, stream, row, col]
-        self.layout =[['Voltage', 'A', 0, 0],['Stimulus', 'A', 1,0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
+        self.layout =[['Voltage', 'A', 0, 0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
         # range of axis
         self.viewMode = 'default'
         # view region
@@ -260,7 +260,8 @@ class ScopeWindow(QtGui.QMainWindow):
 
         # Insert new episodes
         for i in index_insert:
-            self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=True, infoOnly=False, getTime=True)
+            if not self.episodes['Data'][i]: # load if not already loaded
+                self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=True, infoOnly=False, getTime=True)
             self._loaded_array.append(i)
             # call self.drawPlot
             self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i]))
@@ -272,7 +273,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.setDataViewRange()
         # print(self.index)
 
-    def drawEpisode(self, zData, info=None, pen=None):
+    def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
         # Set up pen color
         if self.colorfy:
@@ -284,14 +285,15 @@ class ScopeWindow(QtGui.QMainWindow):
         elif pen is None:
             pen = self.theme['pen']
 
+        layout = self.layout if not layout else layout
         # Loop through all the subplots
-        for n, l in enumerate(self.layout):
+        for n, l in enumerate(layout):
             # get viewbox
             p = self.graphicsView.getItem(row=l[2], col=l[3])
             if p is None:
                 p = self.graphicsView.addPlot(row=l[2], col=l[3])
                 # Make sure later viewboxes are linked in time domain
-                if n>0:
+                if l[2]>0 or l[3]>0:
                     p.setXLink(self.graphicsView.getItem(row=0, col=0))
 
             # put an identifier on the trace
@@ -326,6 +328,51 @@ class ScopeWindow(QtGui.QMainWindow):
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self):
         return
+
+    def getAvailableStreams(self):
+        """Construct all available data streams"""
+        # Assuming when the scope window is called, there is at least one data
+        zData = self.episodes['Data'][self.index[0]]
+        streams = []
+        for s in ['Voltage', 'Current', 'Stimulus']:
+            if not hasattr(zData, s):
+                continue
+            for c in getattr(zData, s).keys():
+                streams.append([s, c])
+        # sort by channel
+        streams.sort(key=lambda x: x[1])
+        return streams
+
+    def addSubplot(self, layout):
+        """Insert another data stream into the display"""
+        if layout in self.layout:
+            return # no need to update
+        self.layout.append(layout)
+        # Plot this new data stream
+        for n, i in enumerate(self.index):
+            zData = self.episodes['Data'][i]
+            self.drawEpisode(zData, info=(self.episodes['Name'], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
+
+        # Set the proper view range
+        self.setDataViewRange()
+        # Add data region selection if option checked
+        if self.viewRegionOn: # remove, then redraw
+            self.toggleRegionSelection(checked=False)
+            pm = self.graphicsView.getItem(row=layout[2], col=layout[3])
+            self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
+        # Add cursor if selection checked
+        if self.dataCursorOn: # remove, then redraw
+            self.toggleDataCursor(checked=False)
+            pm = self.graphicsView.getItem(row=layout[2], col=layout[3])
+            self.toggleDataCursor(checked=True)
+
+    def removeSubplot(self, layout):
+        """Remove a data stream from the display"""
+        if layout not in self.layout:
+            return
+        l = self.graphicsView.getItem(row=layout[2], col=layout[3])
+        self.graphicsView.removeItem(l)
+        self.layout.remove(layout)
 
     # ----------------------- Option utilities ----------------------------------
     def toggleTraceColors(self, checked):
@@ -384,16 +431,16 @@ class ScopeWindow(QtGui.QMainWindow):
             else:
                 raise(TypeError('Unrecognized view mode'))
 
-    def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True):
+    def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True, cmd=None):
         """Add linear view region. Region selection for data analysis
         rememberRange: when toggling, if set to True, when checked again, the
                        region was set to the region before the user unchecked
                        the selection.
         """
-        if self.viewRegionOn != checked and not plotitem:
+        if not plotitem:
              # if did not specify which viewbox, update on all views
             plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
-        if self.viewRegionOn and not checked: # remove
+        if (self.viewRegionOn and not checked) or cmd == 'remove': # remove
             # Remove all the linear regions aand data tip labels
             def removeRegion(pm):
                 for r in pm.items:
@@ -411,7 +458,7 @@ class ScopeWindow(QtGui.QMainWindow):
                     self.graphicsView.artists[n] = None
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
 
-        elif not self.viewRegionOn and checked: # add
+        elif (not self.viewRegionOn and checked) or cmd == 'add': # add
             # Record selection range
             if not hasattr(self, 'selectedRange'):
                 self.selectedRange = rng
@@ -436,6 +483,8 @@ class ScopeWindow(QtGui.QMainWindow):
             addRegion = np.frompyfunc(addRegion, 1, 1) # (minX, maxX)
             # Add the view region
             addRegion(plotitem)
+        else:
+            raise(Exception('toggleRegionSelection fell through'))
 
         # update attribute
         self.viewRegionOn = checked
@@ -485,12 +534,12 @@ class ScopeWindow(QtGui.QMainWindow):
         return final_HTML
 
 
-    def toggleDataCursor(self, checked, plotitem=None):
+    def toggleDataCursor(self, checked, plotitem=None, cmd=None):
         """Add cross hair to display data points at cursor point"""
         if self.dataCursorOn != checked and not plotitem:
             #if did not specify which viewbox, update on all views
             plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
-        if self.dataCursorOn and not checked: # remove
+        if (self.dataCursorOn and not checked) or cmd == 'remove': # remove
             # Remove all the vertical line objects and data tip labels
             def removeCursor(pm):
                 for r in pm.items:
@@ -504,12 +553,13 @@ class ScopeWindow(QtGui.QMainWindow):
             for n, r in enumerate(self.graphicsView.artists):
                 if 'InfiniteLine' in str(type(r)):
                     self.graphicsView.artists[n] = None
+                # set_trace()
                 if 'LabelItem' in str(type(r)) and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
                     self.graphicsView.removeItem(r)
                     self.graphicsView.artists[n] = None
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
 
-        elif not self.dataCursorOn and checked: # add
+        elif (not self.dataCursorOn and checked) or cmd == 'add': # add
             # Add a data tip label
             label = pg.LabelItem(justify='right')
             label.setText(self.cursorDataTip(x=0))
@@ -530,6 +580,8 @@ class ScopeWindow(QtGui.QMainWindow):
             addCursor = np.frompyfunc(addCursor, 1, 1)
             # Do the adding
             addCursor(plotitem)
+        else:
+            raise(Exception('toggleDataCursor fell through'))
 
         # Update attribute
         self.dataCursorOn = checked
@@ -559,7 +611,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
     def cursorDataTip(self, x):
         """Print the data tip in HTML format"""
-        if not x:
+        if x is None:
             return
         table_HTML = '<table align="center" width=100>{}</table>' # header, {row1, row2, ...}
         row_HTML = '<tr><th><span style="font-style: italic">{}</span></th><td align="center">{}</td></tr>' # {Stream+Channel, data}
@@ -636,7 +688,10 @@ if __name__ == '__main__' and not run_example:
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow()
     w.updateEpisodes(episodes=episodes, index=index)
+    # w.toggleRegionSelection(checked=True)
     # w.toggleDataCursor(checked=True)
+    # w.addSubplot(layout=['Stimulus','A',1,0])
+    # w.removeSubplot(layout=['Stimulus', 'A', 1, 0])
     w.show()
     # Connect upon closing
     # app.aboutToQuit.connect(restartpyshell)
