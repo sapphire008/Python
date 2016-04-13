@@ -8,8 +8,11 @@ Some routines for electrophysiology data analyses
 """
 
 import numpy as np
-from MATLAB import *
 import scipy.signal as sg
+try:
+    from MATLAB import *
+except:
+    from util.MATLAB import *
 
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector

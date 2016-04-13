@@ -87,7 +87,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # if use color for traaces
         self.colorfy = False
         # layout = [channel, stream, row, col]
-        self.layout =[['Voltage', 'A', 0, 0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
+        self.layout =[['Voltage', 'A', 0, 0], ['Stimulus', 'A', 1,0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
         # range of axis
         self.viewMode = 'default'
         # view region
@@ -213,8 +213,8 @@ class ScopeWindow(QtGui.QMainWindow):
         # View: show settings
         viewMenu.addAction(self.sideDockPanel.toggleViewAction())
 
-    def printme(self): # for debugging
-        print('doing stuff')
+    def printme(self, msg='doing stuff'): # for debugging
+        print(msg)
 
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
@@ -272,6 +272,14 @@ class ScopeWindow(QtGui.QMainWindow):
 
         self.setDataViewRange()
         # print(self.index)
+        if not bool_old_episode: # artists have been cleared. Add it back
+            if self.viewRegionOn:
+                self.toggleRegionSelection(checked=False)
+                self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
+            if self.dataCursorOn:
+                self.toggleDataCursor(checked=False)
+                self.toggleDataCursor(checked=True)
+            self.graphicsView.artist = []
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
@@ -346,7 +354,7 @@ class ScopeWindow(QtGui.QMainWindow):
     def addSubplot(self, layout):
         """Insert another data stream into the display"""
         if layout in self.layout:
-            return # no need to update
+            return # Check for duplicates. Need to decide
         self.layout.append(layout)
         # Plot this new data stream
         for n, i in enumerate(self.index):
@@ -358,17 +366,15 @@ class ScopeWindow(QtGui.QMainWindow):
         # Add data region selection if option checked
         if self.viewRegionOn: # remove, then redraw
             self.toggleRegionSelection(checked=False)
-            pm = self.graphicsView.getItem(row=layout[2], col=layout[3])
             self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
         # Add cursor if selection checked
         if self.dataCursorOn: # remove, then redraw
             self.toggleDataCursor(checked=False)
-            pm = self.graphicsView.getItem(row=layout[2], col=layout[3])
             self.toggleDataCursor(checked=True)
 
     def removeSubplot(self, layout):
         """Remove a data stream from the display"""
-        if layout not in self.layout:
+        if layout not in self.layout: # nothing to remove
             return
         l = self.graphicsView.getItem(row=layout[2], col=layout[3])
         self.graphicsView.removeItem(l)
@@ -453,7 +459,7 @@ class ScopeWindow(QtGui.QMainWindow):
             for n, r in enumerate(self.graphicsView.artists):
                 if "LinearRegionItem" in str(type(r)):
                     self.graphicsView.artists[n] = None
-                if 'LabelItem' in str(type(r)) and 'Start' in r.text and 'End' in r.text and 'Diff' in r.text:
+                if 'LabelItem' in str(type(r)) and r in self.graphicsView.items() and 'Start' in r.text and 'End' in r.text and 'Diff' in r.text:
                     self.graphicsView.removeItem(r)
                     self.graphicsView.artists[n] = None
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
@@ -554,7 +560,7 @@ class ScopeWindow(QtGui.QMainWindow):
                 if 'InfiniteLine' in str(type(r)):
                     self.graphicsView.artists[n] = None
                 # set_trace()
-                if 'LabelItem' in str(type(r)) and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
+                if 'LabelItem' in str(type(r)) and r in self.graphicsView.items() and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
                     self.graphicsView.removeItem(r)
                     self.graphicsView.artists[n] = None
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
