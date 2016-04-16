@@ -25,6 +25,7 @@ from PyQt4 import QtGui, QtCore
 
 import pyqtgraph as pg
 from pyqtgraph import GraphicsLayoutWidget
+# from pyqtgraph.flowchart import Flowchart
 
 
 try:
@@ -47,32 +48,103 @@ from util.ImportData import NeuroData
 from util.ExportData import *
 from util.MATLAB import *
 from util.spk_util import *
+from app.AccordionWidget import AccordionWidget
 
 # Global variables
-__version__ = "Scope Window 0.2"
+__version__ = "Scope Window 0.3"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
 
-# Custom helper functions
-def roundto125(x, r=np.array([1,2,5,10])): # helper static function
-        """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
-        5mV, 10mV, 20mV, etc.
-        5pA, 10pA, 20pA, 50pA, etc."""
-        p = int(np.floor(np.log10(x))) # power of 10
-        y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
-        return(y*(10**p))
+class SideDockPanel(QtGui.QWidget):
+    """Collapsible dock widget that displays settings and analysis results for
+    the Scope window
+    """
+    # Keep track of position of the widget added
+    _widget_index = 0
+    _sizehint = None
 
-def scalebarlabel(x, unitstr):
-    x = int(x)
-    if unitstr.lower()[0] == 'm':
-        return(str(x)+unitstr if x<1000 else str(int(x/1000))+
-            unitstr.replace('m',''))
-    elif unitstr.lower()[0] == 'p':
-        return(str(x)+unitstr if x<1000 else str(int(x/1000))+
-            unitstr.replace('p','n'))
+    def __init__(self, parent=None, friend=None):
+        super(SideDockPanel, self).__init__(parent)
+        self.parent = parent
+        self.friend = friend
+        self.setupUi()
+
+    def setupUi(self):
+        self.verticalLayout = self.parent.layout()
+        # self.setLayout(self.verticalLayout)
+        self.accWidget = AccordionWidget(self)
+
+        # Add various sub-widgets, which interacts with Scope, a.k.a, friend
+        self.accWidget.addItem("Layout", self.layoutWidget())
+        # self.accWidget.addItem("A", self.buildFrame())
+        # self.accWidget.addItem("B", self.buildFrame())
+
+        self.accWidget.setRolloutStyle(self.accWidget.Maya)
+        self.accWidget.setSpacing(0) # More like Maya but I like some padding.
+        self.verticalLayout.addWidget(self.accWidget)
+
+    def layoutWidget(self):
+        """Setting layout of the graphicsview of the scope"""
+        return self.buildFrame()
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        # Generate a list of available channels and streams
+        all_layouts = self.friend.getAvailableStreams()
+        all_streams =  sorted(set([l[0] for l in all_layouts]))
+        all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
+        all_channels = sorted(set([l[1] for l in all_layouts]))
+        # Layout setting table
+        self.cstable = QtGui.QTableWidget()
+        for l in self.friend.layout: # current layout from scope
+            self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
+                                    current_streram=l[0], current_channel=l[1])
+        # Buttons for adding and removing channels and streams
+        addButton = QtGui.QPushButton("Add") # Add a channel
+        addButton.clicked.connect(self.addLayoutRow)
+        removeButton = QtGui.QPushButton("Remove") # Remove a channel
+        removeButton.clicked.connect(self.removeLayoutRow)
+        # Add the exisiting channels and streams to the table
+        widgetFrame.layout().addWidget(addButton, 0, 0)
+        widgetFrame.layout().addWidget(removeButton, 0, 1)
+        widgetFrame.layout().addWidget(self.cstable)
+
+        return widgetFrame
+
+    def addLayoutRow(self, all_streams=['Voltage','Current','Stimulus'], \
+                           all_channels=['A','B','C','D'], \
+                           current_stream='Voltage', current_channel='A'):
+        scomb = QtGui.QComboBox()
+        scomb.addItems(all_streams)
+        scomb.setCurrentIndex(all_streams.index(current_stream))
+        ccomb = QtGui.QComboBox()
+        ccomb.addItem(all_channels)
+        ccomb.setCurrentIndex(all_channels.index(current_channel))
+        row = self.cstable.rowCount()
+        self.cstable.setCellWidget(row, 0, scomb) # Stream
+        self.cstable.setCellWidget(row, 1, scomb) # Channel
+        scomb.currentIndexChanged.connect(self.friend.updateEpisodes)
+        ccomb.currentIndexChanged.connect(self.friend.updateEpisodes)
+
+    def removeLayoutRow(self):
+        row = self.cstable.rowCount()-1
+        self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+        self.endRemoveRows()
+
+
+    def buildFrame(self):
+        someFrame = QtGui.QFrame(self)
+        someFrame.setLayout(QtGui.QVBoxLayout())
+        button = QtGui.QPushButton("Test")
+        someFrame.layout().addWidget(button)
+
+        return someFrame
+
+    def sizeHint(self):
+        """Helps with initial dock window size"""
+        return QtCore.QSize(self.friend.frameGeometry().width()/6, 20)
 
 class ScopeWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None, maxepisodes=10):
+    def __init__(self, parent=None, maxepisodes=10, layout=None):
         super(ScopeWindow, self).__init__(parent)
         self.episodes = None
         self.index = []
@@ -87,8 +159,8 @@ class ScopeWindow(QtGui.QMainWindow):
         # if use color for traaces
         self.colorfy = False
         # layout = [channel, stream, row, col]
-        self.layout =[['Voltage', 'A', 0, 0], ['Stimulus', 'A', 1,0]]# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
-        # range of axis
+        self.layout =[['Voltage', 'A', 0, 0]] if not layout else layout# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
+        # range of axes
         self.viewMode = 'default'
         # view region
         self.viewRegionOn = False
@@ -121,26 +193,30 @@ class ScopeWindow(QtGui.QMainWindow):
         self.graphicsView.artists = [] # Auxillary graphics items
         self.graphicsLayout.addWidget(self.graphicsView)
         self.horizontalLayout.addLayout(self.graphicsLayout)
+        MainWindow.setCentralWidget(self.centralwidget)
 
         # Side panel layout: initialize as a list view
-        self.sideDockPanel = QtGui.QDockWidget("Analysis", self)
-        self.sideDockPanel.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
-        self.sideDockPanel.setObjectName(_fromUtf8("sideDockPanel"))
-        self.sideDockPanel.hide()
-        # self.sidePanelLayout = QtGui.QHBoxLayout()
-        # self.sidePanelLayout.setObjectName(_fromUtf8("sidePanelLayout"))
-        self.listView = QtGui.QListView(self.centralwidget)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.listView.sizePolicy().hasHeightForWidth())
-        self.listView.setSizePolicy(sizePolicy)
-        self.listView.setObjectName(_fromUtf8("listView"))
-        self.sideDockPanel.setWidget(self.listView)
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.sideDockPanel)
-        # self.sidePanelLayout.addWidget(self.listView)
-        # self.horizontalLayout.addLayout(self.sidePanelLayout)
-        MainWindow.setCentralWidget(self.centralwidget)
+        self.dockWidget = QtGui.QDockWidget("Analysis", self)
+        self.dockWidget.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+        self.dockWidget.setObjectName(_fromUtf8("dockwidget"))
+        # self.dockWidget.hide() # keep the dock hidden by default
+        # Dock content, containing widgets
+        self.dockWidgetContents = QtGui.QWidget()
+        self.dockWidgetContents.setObjectName(_fromUtf8("dockWidgetContents"))
+        # Layout of the dock content
+        self.dockLayout = QtGui.QVBoxLayout(self.dockWidgetContents)
+        self.dockLayout.setObjectName(_fromUtf8("dockLayout"))
+        # listview
+        # self.listView = QtGui.QListView(self.dockWidgetContents)
+        self.dockPanel = SideDockPanel(self.dockWidgetContents, self)
+        # self.listView.setObjectName(_fromUtf8("listView"))
+        self.dockPanel.setObjectName(_fromUtf8("dockPanel"))
+        # Add listview to layout
+        # self.dockLayout.addWidget(self.listView)
+        self.dockLayout.addWidget(self.dockPanel)
+        self.dockWidget.setWidget(self.dockWidgetContents)
+        # Add the dock to the MainWindow
+        MainWindow.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.dockWidget)
 
         self.menubar = QtGui.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1225, 26))
@@ -162,7 +238,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # File: Export
         exportMenu = fileMenu.addMenu('&Export')
         exportWithScaleBarAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export with scalebar', self)
-        exportWithScaleBarAction.setShortcut('Ctrl+Alt+E')
+        exportWithScaleBarAction.setShortcut('Alt+E')
         exportWithScaleBarAction.setStatusTip('Export with scalebar')
         exportWithScaleBarAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='overlap'))
         exportMenu.addAction(exportWithScaleBarAction)
@@ -208,10 +284,10 @@ class ScopeWindow(QtGui.QMainWindow):
         # View: Keep previous
         keepPrev = QtGui.QAction('Keep previous', self, checkable=True, checked=False)
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
-        keepPrev.triggered.connect(lambda: self.keepPrev(keepPrev.isChecked()))
+        keepPrev.triggered.connect(lambda: self.toggleKeepPrev(keepPrev.isChecked()))
         viewMenu.addAction(keepPrev)
         # View: show settings
-        viewMenu.addAction(self.sideDockPanel.toggleViewAction())
+        viewMenu.addAction(self.dockWidget.toggleViewAction())
 
     def printme(self, msg='doing stuff'): # for debugging
         print(msg)
@@ -273,13 +349,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.setDataViewRange()
         # print(self.index)
         if not bool_old_episode: # artists have been cleared. Add it back
-            if self.viewRegionOn:
-                self.toggleRegionSelection(checked=False)
-                self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
-            if self.dataCursorOn:
-                self.toggleDataCursor(checked=False)
-                self.toggleDataCursor(checked=True)
-            self.graphicsView.artist = []
+            self.reissueArtists()
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
@@ -349,6 +419,7 @@ class ScopeWindow(QtGui.QMainWindow):
                 streams.append([s, c])
         # sort by channel
         streams.sort(key=lambda x: x[1])
+
         return streams
 
     def addSubplot(self, layout):
@@ -363,14 +434,8 @@ class ScopeWindow(QtGui.QMainWindow):
 
         # Set the proper view range
         self.setDataViewRange()
-        # Add data region selection if option checked
-        if self.viewRegionOn: # remove, then redraw
-            self.toggleRegionSelection(checked=False)
-            self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
-        # Add cursor if selection checked
-        if self.dataCursorOn: # remove, then redraw
-            self.toggleDataCursor(checked=False)
-            self.toggleDataCursor(checked=True)
+        # Redraw the artists
+        self.reissueArtists()
 
     def removeSubplot(self, layout):
         """Remove a data stream from the display"""
@@ -436,6 +501,16 @@ class ScopeWindow(QtGui.QMainWindow):
                 return # not implemented
             else:
                 raise(TypeError('Unrecognized view mode'))
+
+    def reissueArtists(self):
+        """In case artists are removed, toggle back on the artists"""
+        if self.viewRegionOn: # remove, then redraw
+            self.toggleRegionSelection(checked=False)
+            self.toggleRegionSelection(checked=True, rng=self.selectedRange, rememberRange=True, cmd='add')
+        # Add cursor if selection checked
+        if self.dataCursorOn: # remove, then redraw
+            self.toggleDataCursor(checked=False)
+            self.toggleDataCursor(checked=True)
 
     def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True, cmd=None):
         """Add linear view region. Region selection for data analysis

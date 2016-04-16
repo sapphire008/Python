@@ -1,12 +1,24 @@
-# Modification of Blur's Accordion Widget to include a Maya style.  Also got rid of the need for a pixmap
-# and used QPolygon instead.
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Apr 16 01:46:23 2016
 
-from PyQt4 import QtGui
+       namespace      trax.gui.widgets.accordianwidget
+
+       remarks        A container widget for creating expandable and collapsible components
+
+       author         beta@blur.com
+       author         Blur Studio
+       date           04/29/10
+
+Modification of Blur's Accordion Widget to include a Maya style.  Also got rid
+of the need for a pixmap and used QPolygon instead.
+
+from: http://pastebin.com/mZ04q16h
+"""
+
 from PyQt4.QtCore import Qt, QRect, QMimeData, pyqtSignal, pyqtProperty, QEvent, QPoint
 from PyQt4.QtGui import QDrag, QPixmap, QScrollArea, QGroupBox, QVBoxLayout, QPainter, QPalette, QPen
 from PyQt4.QtGui import QWidget, QCursor, QApplication, QColor, QPolygon, QBrush
-# import os.path
-import sys
 
 class AccordionItem(QGroupBox):
     def __init__( self, accordion, title, widget ):
@@ -655,36 +667,3 @@ class AccordionWidget(QScrollArea):
 
 
     pyBoxedMode = pyqtProperty('bool', isBoxedMode, setBoxedMode)
-
-
-_gUI = None
-
-class Sample(QtGui.QDialog):
-    def __init__(self, parent=None):
-        super(Sample, self).__init__(parent)
-        self.setLayout(QtGui.QVBoxLayout())
-        self.accWidget = AccordionWidget(self)
-        self.accWidget.addItem("A", self.buildFrame())
-        self.accWidget.addItem("B", self.buildFrame())
-        self.accWidget.setRolloutStyle(self.accWidget.Maya)
-        self.accWidget.setSpacing(0)# More like Maya but I like some padding.
-        self.layout().addWidget(self.accWidget)
-
-    def buildFrame(self):
-        someFrame = QtGui.QFrame(self)
-        someFrame.setLayout(QtGui.QVBoxLayout())
-        someFrame.layout().addWidget(QtGui.QPushButton("Test"))
-        return someFrame
-
-    @classmethod
-    def display(cls):
-        """Demo Display method for Maya"""
-        global _gUI
-        _gUI = cls()
-        _gUI.show()
-
-if __name__=='__main__':
-    app = QtGui.QApplication(sys.argv)
-    w = Sample()
-    w.display()
-    sys.exit(app.exec_())

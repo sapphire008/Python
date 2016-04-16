@@ -11,7 +11,7 @@ import sys
 import os
 
 import numpy as np
-import matplotlib 
+import matplotlib
 matplotlib.use("PS")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
@@ -42,7 +42,7 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
             maxiter=100 # terminate at this iteration
             def unpacker(box):
                 return box.get_children()
-            
+
             # vectorize
             unpacker = np.frompyfunc(unpacker, 1,1)
             # Get the children
@@ -56,9 +56,9 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
                 # remove recorded
                 box = [b for b in box if b is not None]
                 counter += 1
-                
+
             return itemList
-        
+
         def get_ax_items(ax):
             """Parse axis items"""
             itemDict={'title':[ax.title], 'xlab':[ax.xaxis.label],
@@ -69,7 +69,7 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
                     'legend': [] if not ax.legend_
                                         else ax.legend_.get_texts(),
                     'legendtitle':[] if not ax.legend_
-                                        else [ax.legend_.get_title()], 
+                                        else [ax.legend_.get_title()],
                     'textartist':[] if not ax.artists
                                         else unpack_anchor_offsetbox(ax.artists)}
             itemList, keyList = [], []
@@ -91,7 +91,7 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
             keyList = ['texts'] * len(itemList)
 
             return(itemList, keyList)
-            
+
         def CF(itemList, keyList):
             """Change font given item"""
             # initialize fontprop object
@@ -220,7 +220,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
             elif unitstr.lower()[0] == 'p':
                 return(str(x)+unitstr if x<1000 else str(int(x/1000))+
                     unitstr.replace('p','n'))
-                    
+
         ax.set_axis_off() # turn off axis
         X = np.ptp(ax.get_xlim()) if xscale is None else xscale
         Y = np.ptp(ax.get_ylim()) if yscale is None else yscale
@@ -248,7 +248,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         # calculate position of text
         # xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
         # xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
-        # Draw the scalebar        
+        # Draw the scalebar
         box1 = AuxTransformBox(ax.transData)
         box1.add_artist(plt.Rectangle((0,0),X, 0, fc="none"))
         box2 = TextArea(xlab, minimumdescent=False, textprops=dict(color=color))
@@ -271,14 +271,17 @@ def TurnOffAxis(ax):
     ax.spines['bottom'].set_visible(False)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-                          
+
 # %%
-def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default'):
+def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default', fig_size=None):
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
     # set_trace()
     # Start the figure
     nchannels = len(viewRange.keys())
+    if not fig_size: # if not specified size, set to (4*nchannels, 4)
+        fig_size = (4*nchannels, 4)
+        
     if not colorfy:
         colorfy=['k']
     fig, _= plt.subplots(nrows=nchannels, ncols=1, sharex=True)
@@ -291,15 +294,15 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
             # Draw plots
             ax[c].plot(zData.Time, getattr(zData, m[0])[m[1]], color=colorfy[n%len(colorfy)])
             # Draw initial value
-            ax[c].text(-50,  getattr(zData, m[0])[m[1]][0]-1, df['InitVal'][i][(m[0],m[1])], ha='right', va='center', color=colorfy[n%len(colorfy)]) 
+            ax[c].text(-50,  getattr(zData, m[0])[m[1]][0]-1, df['InitVal'][i][(m[0],m[1])], ha='right', va='center', color=colorfy[n%len(colorfy)])
         # Draw more annotations
         textbox.append(TextArea(df['Notes'][i], minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
         # set_trace()
-    
+
     box = VPacker(children=textbox, align="left",pad=0, sep=2)
     annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
     ax[-1].add_artist(annotationbox)
-    
+
     # set axis
     scalebar = [annotationbox]
     for c, vr in enumerate(viewRange.items()):
@@ -309,24 +312,24 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
         # Add scalebar
         scalebar.append(AddTraceScaleBar(xunit='ms', yunit='mV' if l[0]=='Voltage' else 'pA', ax=ax[c]))
         plt.subplots_adjust(hspace = .001)
-        temp = 510 + c
+        # temp = 510 + c
         temp = tic.MaxNLocator(3)
         ax[c].yaxis.set_major_locator(temp)
-    
+
     if (isinstance(setFont, str) and setFont.lower() == 'default') or \
-                    (isinstance(setFont, bool) and setFont):                        
-        SetFont(ax, fig, fontsize=12, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
+                    (isinstance(setFont, bool) and setFont):
+        SetFont(ax, fig, fontsize=10, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
 
     # save the figure
-    fig.set_size_inches(6,8)
-    
+    fig.set_size_inches(fig_size)
+
     # plt.subplots_adjust(hspace=-0.8)
     fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
     # Close the figure after save
     plt.close(fig)
-    
+
     return(ax)
-        
+
 
 def PlotTracesVertically(df, index, viewRange, saveDir, colorfy=False):
     return
@@ -340,7 +343,7 @@ def data2csv(data):
 def embedMetaData(ax):
     """embedding meta data to a figure"""
     return
-    
+
 
 
 if __name__ == '__main__':
@@ -351,7 +354,3 @@ if __name__ == '__main__':
                                                 data['saveDir'].tolist(), data['colorfy'].tolist()
     # plot the figure
     ax= PlotTraces(df=df, index=index, viewRange=viewRange, saveDir='R:/tmp.eps', colorfy=colorfy, setFont=True)
-    
-    
-    
-    

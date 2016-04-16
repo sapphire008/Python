@@ -340,9 +340,6 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
         return(success)
 
-    def intuitiveNumericalSorting(files):
-        return
-
     def fileName(self, index):
         return(self.getNode(index))
 
@@ -456,7 +453,7 @@ class TablviewDelegate(QtGui.QItemDelegate):
         # color the text
         painter.setPen(QtGui.QPen(text_color))
         value = index.data(QtCore.Qt.DisplayRole)
-        painter.drawText(option.rect, QtCore.Qt.AlignLeft, value)
+        painter.drawText(option.rect, QtCore.Qt.AlignVCenter |QtCore.Qt.AlignHCenter, value)
 
         painter.restore()
 
@@ -502,7 +499,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.treeview.header().setStretchLastSection(False)
         self.treeview.setObjectName(_fromUtf8("treeview"))
 
-
         # Set up Episode list table view
         self.tableview = QtGui.QTableView(self.splitter)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -517,6 +513,9 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.setItemDelegate(TablviewDelegate(self.tableview))
         self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs']
         self.tableview.hiddenColumnList = [4, 5, 7] # Drug Name, Drug Time, Dirs
+        self.tableview.horizontalHeader().setStretchLastSection(True)
+        # self.tableview.setShowGrid(False)
+        self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")
 
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -590,6 +589,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
+        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.ico'))
 
     # ---------------- Data browser behaviors ---------------------------------
     def setDataBrowserTreeView(self, startpath=None):
@@ -634,15 +634,19 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         for c in self.tableview.hiddenColumnList: # Drug Name, Drug Time, Dirs
             self.tableview.setColumnHidden(c, True)
         # Set behavior upon selection
-        self.tableview.clicked.connect(self.onItemClicked)
+        self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
+        # self.tableview.clicked.connect(self.onItemSelected)
 
     @QtCore.pyqtSlot(QtCore.QModelIndex)
-    def onItemClicked(self, index):
+    def onItemSelected(self, selected, deselected):
         """Executed when an episode in the tableview is clicked"""
-        # self.tableview.model.selectedRow = index.row()
-        # print('clicked row:%d, col:%d'%(index.row(), index.column()))
-        # Get the information of currently selected item
-        ind = index.row()
+        # Get the information of last selected item
+        if not selected and not deselected:
+            return
+        try:
+            ind = selected.indexes()[-1].row()
+        except:
+            ind = deselected.indexes()[-1].row()
         sequence = self.tableview.sequence
         drugName = sequence['Drug Name'][ind]
         if not drugName: # in case of empty string
@@ -653,10 +657,12 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Get selected row
         indexes = self.tableview.selectionModel().selectedRows()
         rows = [index.row() for index in sorted(indexes)]
+        # if not rows: # When nothing is selected, keep the last selected item on the Scope
+        #     return
         # Call scope window
         if not hasattr(self, 'sw'): # Start up a new window
             # self.sw = ScopeWindow(parent=self)
-            self.sw = ScopeWindow()
+            self.sw = ScopeWindow() # new window
         if self.sw.isclosed:
             self.sw.show()
             self.sw.isclosed = False
@@ -666,6 +672,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
+    # w = Synapse_MainWindow()
     w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/04.April/')
     w.show()
     # Connect upon closing
