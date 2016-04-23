@@ -9,6 +9,8 @@ Python implemented MATLAB utilities
 
 import numpy as np
 import re
+import operator
+from pdb import set_trace
 
 def getfield(struct, *args): # layered /serial indexing
     """Get value from a field from a dictionary /structure"""
@@ -111,6 +113,9 @@ def str2num(lit):
     lit = lit[0] if len(lit)==1 else lit
     return(lit)
 
+def rms(x):
+    """Root mean square of an array"""
+    return(np.sqrt(np.mean(x**2)))
 
 def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False):
@@ -150,8 +155,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     See this IPython Notebook [1]_.
     References
     ----------
-    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/
-                                    notebooks/DetectPeaks.ipynb
+    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
     Examples
     --------
     >>> from findpeaks import findpeaks
@@ -249,21 +253,41 @@ def isempty(m):
     if isinstance(m, (list, tuple, str, np.ndarray)):
         return(len(m) == 0)
 
-def rms(x):
-    """Root mean square of an array"""
-    return(np.sqrt(np.mean(x**2)))
-
-
-def is_numeric(obj): # to check if a numpy object is numeric
-    attrs = ['__add__', '__sub__', '__mul__', '__div__', '__pow__']
-    return all(hasattr(obj, attr) for attr in attrs)
-
-    if not is_numeric(A) or np.ndim(A)!=2 or any([s!=4 for s in np.shape(A)]):
-        raise(IOError(\
-        "Order expression '%s' did not return a valid 4x4 matrix."%(order)))
-
-    return(A, T, R, Z, S)
-
+def isnumeric(obj):
+    """Check if an object is numeric, or that elements in a list of objects 
+    are numeric"""
+    def f(x):
+        attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
+        return all(hasattr(x, attr) for attr in attrs)
+    
+    # Allow application to iterables
+    f_vec = np.frompyfunc(f, 1, 1)
+    tf = f_vec(obj)
+    if isinstance(tf, np.ndarray):
+        tf = tf.astype(dtype=bool)
+    return tf
+    
+def isrow(v):
+    v = np.asarray(v)
+    return True if len(v.shape)==1 else False
+    
+def iscol(v):
+    v = np.asarray(v)
+    return True if len(v.shape)==2 and v.shape[1] == 1 else False
+    
+def isvector(v):
+    v = np.asarray(v)
+    return True if len(v.shape) == 1 or v.shape[0] == 1 or v.shape[1] == 1 else False
+    
+def ismatrix(v):
+    v = np.asarray(v)
+    shape = v.shape
+    if len(shape) == 2:
+        return True if all([s>1 for s in shape]) else False
+    elif len(shape) > 2:
+        return True if sum([s>1 for s in shape])>=2 else False
+    else:
+        return False
 
 def padzeros(x):
     """Pad zeros to make the array length 2^n for fft or filtering
@@ -319,8 +343,141 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
 
 
 def sort_nicely( l ):
-    """ Sort the given list in the way that humans expect."""
+    """ Sort the given list of strings in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     l.sort( key=alphanum_key )
-    return l
+    return l     
+    
+    
+def sortrows(A, col=None):
+    A = np.asarray(A)
+    if not ismatrix(A):
+        if isrow(A):
+            return np.sort(A), np.argsort(A)
+        else:
+            return np.sort(A, axis=0), np.argsort(A, axis=0)
+            
+    # Sort the whole row
+    if not col:
+        col = list(range(A.shape[1]))
+    
+    nrows = A.shape[0]
+    I = np.arange(nrows)[:, np.newaxis]
+    A = np.concatenate((A, I), axis=1)
+    A = np.asarray(sorted(A, key=operator.itemgetter(*col)))
+    I = list(A[:, -1]) # get the index
+    # convert to numeric if index in string
+    for n, i in enumerate(I):
+        if not isnumeric(i):
+            I[n] = str2num(i)
+    # I = I[:, np.newaxis]
+    I = np.asarray(I)
+    A = A[:, :-1]
+    
+    return A, I
+    
+
+def unique(A, byrow=False, occurrence='first', stable=False):
+    """MATLAB's unique. Can apply to both numerical matrices and list of 
+    strings. Not for performance, but for better outputs
+    Inputs:
+        A: list, list of list, numpy nadarray
+        byrow: [True,False]. If True, the matrix A will be converted into
+                a list, column wise. If False, returns the unique rows of A.
+        occurence: ['first', 'last']. Specify which index is returned in IA in 
+                    the case of repeated values (or rows) in A. The default 
+                    value is OCCURENCE = 'first', which returns the index of 
+                    the first occurrence of each repeated value (or row) in A, 
+                    while OCCURRENCE = 'last' returns the index of the last 
+                    occurrence of each repeated value (or row) in A.
+        stable: [True, False]. Whether or not sort the result C. If True, 
+                returns the values of C in the same order that they appear in 
+                A; if False, returns the values of C in sorted order. If A is 
+                a row vector, then C will be a row vector as well, otherwise C
+                will be a column vector. IA and IC are column vectors. If 
+                there are repeated values in A, then IA returns the index of 
+                the first occurrence of each repeated value.
+    
+    Return: 
+        C: list of unique items
+        IA: index of ('first', 'last', specified by occurrence parameter)
+            occurence, such that C = A[IA]
+        IC: index such that A = C[IC]
+    """
+    # convert to numpy array for easier manipulation
+    A = np.asarray(A, order='F')
+    
+        # Return if there is only 1 item
+    if A.size < 2:
+        return A
+    
+    iscolvec = iscol(A) # take note the shape of input
+    
+    if byrow and not ismatrix(A):
+        # call the function itself without sorting by rows
+        return unique(A, byrow=False, occurrence=occurrence, stable=stable)
+    
+    if not byrow:
+        # if not by row, convert to column vector
+        A = A.flatten(order='F')[:, np.newaxis]
+        nRows = A.size
+    else:
+        nRows, _ = A.shape
+        
+    # Sort the input
+    sortA, indSortA = sortrows(A, col=None)
+
+    # groupsSortA indicates the location of the non-matching entires
+    groupsSortA = sortA[:-1, :] != sortA[1:, :]
+    groupsSortA = groupsSortA.any(axis=1) # row vector
+        
+    if occurrence == 'last':
+        groupsSortA = np.append(groupsSortA, True) # Final element is always a member of unique list.
+    else: # occurrence == 'first' or stalbe==True
+        groupsSortA = np.insert(groupsSortA, 0, True) # Final element is always a member of unique list.
+        
+    # Extract unique elements
+    if stable:
+        invIndSortA = indSortA
+        invIndSortA[invIndSortA] = np.arange(nRows) # Find inverse permutation
+        logIndA = groupsSortA[invIndSortA] # Create new logical by indexing into groupsSortA
+        C = A[logIndA, :] 
+        IA = np.where(logIndA)[0] # Find the indices of the unsorted logical
+    else:
+        C = sortA[groupsSortA, :]
+        IA = indSortA[groupsSortA] # Find the indices of the sorted logical
+    
+    # Find IC
+    IC = np.zeros(nRows, dtype=np.int64)
+    for n, a in enumerate(A):
+        IC[n] = int(np.where((C==a).all(axis=1))[0])
+        
+    # If A is column vector, return C as column vector
+    if iscolvec:
+        C = C[:, np.newaxis]
+        
+    
+    return C, IA, IC
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

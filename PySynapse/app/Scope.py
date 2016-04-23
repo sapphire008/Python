@@ -75,9 +75,7 @@ class SideDockPanel(QtGui.QWidget):
         self.accWidget = AccordionWidget(self)
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
-        self.accWidget.addItem("Layout", self.layoutWidget())
-        # self.accWidget.addItem("A", self.buildFrame())
-        # self.accWidget.addItem("B", self.buildFrame())
+        self.accWidget.addItem("Layout", self.layoutWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -85,58 +83,69 @@ class SideDockPanel(QtGui.QWidget):
 
     def layoutWidget(self):
         """Setting layout of the graphicsview of the scope"""
-        return self.buildFrame()
+        # return self.buildTextFrame()
         widgetFrame = QtGui.QFrame(self)
         widgetFrame.setLayout(QtGui.QGridLayout())
         # Generate a list of available channels and streams
-        all_layouts = self.friend.getAvailableStreams()
-        all_streams =  sorted(set([l[0] for l in all_layouts]))
+        all_layouts = self.friend.getAvailableStreams(warning=False)
+        if not all_layouts: # if no data loaded
+            return self.buildTextFrame(text="No Data Loaded")
+        all_streams = sorted(set([l[0] for l in all_layouts]))
         all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
         all_channels = sorted(set([l[1] for l in all_layouts]))
         # Layout setting table
-        self.cstable = QtGui.QTableWidget()
+        self.layout_table = QtGui.QTableWidget()
         for l in self.friend.layout: # current layout from scope
             self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
-                                    current_streram=l[0], current_channel=l[1])
+                                    current_stream=l[0], current_channel=l[1])
         # Buttons for adding and removing channels and streams
         addButton = QtGui.QPushButton("Add") # Add a channel
-        addButton.clicked.connect(self.addLayoutRow)
+        addButton.clicked.connect(lambda: self.addLayoutRow(all_streams=all_streams, all_channels=all_channels))
         removeButton = QtGui.QPushButton("Remove") # Remove a channel
         removeButton.clicked.connect(self.removeLayoutRow)
         # Add the exisiting channels and streams to the table
         widgetFrame.layout().addWidget(addButton, 0, 0)
         widgetFrame.layout().addWidget(removeButton, 0, 1)
-        widgetFrame.layout().addWidget(self.cstable)
-
+        # Calculate the grid that the table will occupy
+        tableGrid = [[x+1, 0, x+1, 1] for x in range(self.layout_table.rowCount())]
+        tableGRid = [item for sublist in tableGrid for item in sublist]
+        widgetFrame.layout().addWidget(self.layout_table, *tableGrid)
         return widgetFrame
 
     def addLayoutRow(self, all_streams=['Voltage','Current','Stimulus'], \
                            all_channels=['A','B','C','D'], \
                            current_stream='Voltage', current_channel='A'):
+        """Create a row of 2 combo boxes, one for stream, one for channel"""
         scomb = QtGui.QComboBox()
         scomb.addItems(all_streams)
         scomb.setCurrentIndex(all_streams.index(current_stream))
         ccomb = QtGui.QComboBox()
         ccomb.addItem(all_channels)
         ccomb.setCurrentIndex(all_channels.index(current_channel))
-        row = self.cstable.rowCount()
-        self.cstable.setCellWidget(row, 0, scomb) # Stream
-        self.cstable.setCellWidget(row, 1, scomb) # Channel
-        scomb.currentIndexChanged.connect(self.friend.updateEpisodes)
-        ccomb.currentIndexChanged.connect(self.friend.updateEpisodes)
+        row = self.layout_table.rowCount()
+        self.layout_table.setCellWidget(row, 0, scomb) # Stream
+        self.layout_table.setCellWidget(row, 1, scomb) # Channel
+        self.friend.updateEpisodes() # update the display
+        self.friend.layout.append([current_stream, current_channel, row, 0])
+        scomb.currentIndexChanged.connect(lambda: self.refreshData(row=row, stream=str(scomb.currentText()), channel=str(ccomb.currentText())))
+        ccomb.currentIndexChanged.connect(lambda: self.refreshData(row=row, stream=str(scomb.currentText()), channel=str(ccomb.currentText())))
+
+    def refreshData(self, row, stream, channel):
+    	self.friend.setLayout(stream, channel, row, 0, index=row)
+    	self.friend.updateEpisodes()
 
     def removeLayoutRow(self):
-        row = self.cstable.rowCount()-1
+        row = self.layout_table.rowCount()-1
         self.beginRemoveRows(QtCore.QModelIndex(), row, row)
         self.endRemoveRows()
+        self.friend.layout[:-1]
 
-
-    def buildFrame(self):
+    def buildTextFrame(self, text="Not Available"):
+        """Simply displaying some text inside a frame"""
         someFrame = QtGui.QFrame(self)
         someFrame.setLayout(QtGui.QVBoxLayout())
-        button = QtGui.QPushButton("Test")
-        someFrame.layout().addWidget(button)
-
+        labelarea = QtGui.QLabel(text)
+        someFrame.layout().addWidget(labelarea)
         return someFrame
 
     def sizeHint(self):
@@ -196,7 +205,7 @@ class ScopeWindow(QtGui.QMainWindow):
         MainWindow.setCentralWidget(self.centralwidget)
 
         # Side panel layout: initialize as a list view
-        self.dockWidget = QtGui.QDockWidget("Analysis", self)
+        self.dockWidget = QtGui.QDockWidget("Toolbox", self)
         self.dockWidget.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.dockWidget.setObjectName(_fromUtf8("dockwidget"))
         # self.dockWidget.hide() # keep the dock hidden by default
@@ -286,7 +295,7 @@ class ScopeWindow(QtGui.QMainWindow):
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
         keepPrev.triggered.connect(lambda: self.toggleKeepPrev(keepPrev.isChecked()))
         viewMenu.addAction(keepPrev)
-        # View: show settings
+        # View: show toolbox
         viewMenu.addAction(self.dockWidget.toggleViewAction())
 
     def printme(self, msg='doing stuff'): # for debugging
@@ -351,6 +360,9 @@ class ScopeWindow(QtGui.QMainWindow):
         if not bool_old_episode: # artists have been cleared. Add it back
             self.reissueArtists()
 
+        # Update the companion, Toolbox: Layout
+        self.dockPanel.layoutWidget()
+
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
         # Set up pen color
@@ -404,13 +416,33 @@ class ScopeWindow(QtGui.QMainWindow):
                 del self._usedColors[r]
 
     # ----------------------- Layout utilities --------------------------------
-    def setLayout(self):
-        return
+    def setLayout(self, stream, channel, row, col, index=None):
+    	l = [stream, channel, row, col]
+    	if not index:
+    		self.layout.append(l)
+    	elif all(hasattr(index, attr) for attr in ['__add__', '__sub__', '__mul__', '__div__', '__pow__']): # is numeric
+    		if index>=len(self.layout):
+    			self.layout.append(l)
+    		else:
+    			self.layout[index] = l
 
-    def getAvailableStreams(self):
+    def indexStreamChannel(self, stream, channel):
+    	"""Return the index of given stream & channel pair in self.layout"""
+    	index = [n for n, sc in enumerate(self.layout) if sc[0]==stream and sc[1]==channel]
+    	if len(index)==1:
+    		index = index[0]
+
+    	return index
+
+    def getAvailableStreams(self, warning=True):
         """Construct all available data streams"""
         # Assuming when the scope window is called, there is at least one data
-        zData = self.episodes['Data'][self.index[0]]
+        try:
+            zData = self.episodes['Data'][self.index[0]]
+        except:
+            if warning:
+                print('No data loaded')
+            return None
         streams = []
         for s in ['Voltage', 'Current', 'Stimulus']:
             if not hasattr(zData, s):
