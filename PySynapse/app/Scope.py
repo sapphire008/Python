@@ -75,20 +75,21 @@ class SideDockPanel(QtGui.QWidget):
         self.accWidget = AccordionWidget(self)
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
-        self.accWidget.addItem("Layout", self.layoutWidget(), collapsed=True)
-        # self.accWidget.addItem("Banner2", self.buildTextFrame(text="Great"), collapsed=True)
+        self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
+        self.accWidget.addItem("Analysis", self.analysisWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
         self.verticalLayout.addWidget(self.accWidget)
 
+    # ------- Layout control -------------------------------------------------
     def layoutWidget(self):
         """Setting layout of the graphicsview of the scope"""
         # Generate a list of available channels and streams
         all_layouts = self.friend.getAvailableStreams(warning=False)
         if not all_layouts: # if no data loaded
             return self.buildTextFrame(text="No Data Loaded")
-        
+
         # Initialize the layout widget
         widgetFrame = QtGui.QFrame(self)
         widgetFrame.setLayout(QtGui.QGridLayout())
@@ -114,6 +115,7 @@ class SideDockPanel(QtGui.QWidget):
         self.layout_table = QtGui.QTableWidget(0, 2) # (re)initialize
         self.layout_table.verticalHeader().setVisible(False)
         self.layout_table.horizontalHeader().setVisible(False)
+        self.layout_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
         for l in self.friend.layout: # current layout from scope
             self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
                                 current_stream=l[0], current_channel=l[1])
@@ -152,7 +154,27 @@ class SideDockPanel(QtGui.QWidget):
         labelarea = QtGui.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
-        
+
+    # ------- Analysis tools -------------------------------------------------
+    def analysisWidget(self):
+        # Initalize the widget
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("AnalysisWidgetFrame"))
+        widgetFrame.layout().setSpacing(10)
+        # Detect spikes button
+        detectSpikesButton = QtGui.QPushButton("Detect Spikes")
+        # Detect PSPs button
+        detectPSPsButton = QtGui.QPushButton("Detect PSP")
+        detectPSPComboBox = QtGui.QComboBox()
+        detectPSPComboBox.addItems(['EPSP', 'IPSP', 'EPSC', 'IPSC'])
+        # Curve fitting
+        curveFitButton = QtGui.QPushButton("Curve Fitting")
+        curveFitComboBox = QtGui.QComboBox()
+        curveFitComboBox.addItems(['Single Exponential', 'Double Exponential', 'Linear', 'Polynomial', 'Power', 'Custom'])
+        return widgetFrame
+
+    # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
         self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed, index=index)
@@ -368,7 +390,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # print(self.index)
         if not bool_old_episode: # artists have been cleared. Add it back
             self.reissueArtists()
-            
+
         # Update the companion, Toolbox: Layout
         if self.dockPanel.accWidget.widgetAt(0).objectName() == 'Banner':
             # Replace the banner widget with real widget

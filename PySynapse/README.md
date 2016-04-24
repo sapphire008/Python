@@ -41,14 +41,20 @@ Script structure
       - ~~allow update of table columns via menu bar Episodes --> columns --> checklist --> update button~~
       - ~~columns are header information of the data~~
     - ~~pyqtgraph for traces~~
-    - View layout configuration: channels x streams of data to display
+    - ~~View layout configuration: channels x streams of data to display~~
     - Range selection ~~/ cursor tool~~: for event detection and data analyses
-      * Initial and end values, end - initial difference
+      * ~~Initial and end values, end - initial difference~~
       * max, min, average, median, std
       * EPSP, IPSP, EPSC, IPSC, action potentials, extracellular spikes
       * exponential / double exponential curve fitting
       * input resistance
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
+    - Average trace display
+
+## Update Apr 24, 2016
+* Side dock panel toolbox
+  - Added "Channel" toolbox. Now can add and remove data channel at ease.
+  - Started "Analysis" toolbox. Need to write the corresponding analysis functions first.
 
 ## Update Apr 9, 2016
 * Export multiple traces using matplotlib; only 'overlap' configuration is fully working
