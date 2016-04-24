@@ -76,6 +76,7 @@ class SideDockPanel(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Layout", self.layoutWidget(), collapsed=True)
+        # self.accWidget.addItem("Banner2", self.buildTextFrame(text="Great"), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -87,12 +88,12 @@ class SideDockPanel(QtGui.QWidget):
         all_layouts = self.friend.getAvailableStreams(warning=False)
         if not all_layouts: # if no data loaded
             return self.buildTextFrame(text="No Data Loaded")
-
+        
         # Initialize the layout widget
-        widgetFrame = QtGui.QFrame(self.accWidget)
-        widgetFrame.setLayout(QtGui.QGridLayout(widgetFrame))
-        widgetFrame.layout().setSpacing(10)
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("LayoutWidgetFrame"))
+        widgetFrame.layout().setSpacing(0)
         all_streams = sorted(set([l[0] for l in all_layouts]))
         all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
         all_channels = sorted(set([l[1] for l in all_layouts]))
@@ -111,6 +112,8 @@ class SideDockPanel(QtGui.QWidget):
 
     def setLayoutTable(self, all_streams, all_channels):
         self.layout_table = QtGui.QTableWidget(0, 2) # (re)initialize
+        self.layout_table.verticalHeader().setVisible(False)
+        self.layout_table.horizontalHeader().setVisible(False)
         for l in self.friend.layout: # current layout from scope
             self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
                                 current_stream=l[0], current_channel=l[1])
@@ -149,6 +152,10 @@ class SideDockPanel(QtGui.QWidget):
         labelarea = QtGui.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
+        
+    def replaceWidget(self, widget=None, index=0):
+        old_widget = self.accWidget.takeAt(index)
+        self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed, index=index)
 
     def sizeHint(self):
         """Helps with initial dock window size"""
@@ -361,14 +368,12 @@ class ScopeWindow(QtGui.QMainWindow):
         # print(self.index)
         if not bool_old_episode: # artists have been cleared. Add it back
             self.reissueArtists()
-
+            
         # Update the companion, Toolbox: Layout
         if self.dockPanel.accWidget.widgetAt(0).objectName() == 'Banner':
             # Replace the banner widget with real widget
             layoutWidget = self.dockPanel.layoutWidget()
-            self.dockPanel.accWidget.itemAt(0)._widget = layoutWidget
-
-
+            self.dockPanel.replaceWidget(widget=layoutWidget, index=0)
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""

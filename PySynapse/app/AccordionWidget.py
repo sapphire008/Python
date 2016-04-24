@@ -445,13 +445,15 @@ class AccordionWidget(QScrollArea):
         self.widget().layout().setSpacing(spaceInt)
 
 
-    def addItem( self, title, widget, collapsed=False ):
+    def addItem( self, title, widget, collapsed=False, index=None ):
         self.setUpdatesEnabled(False)
         item = self._itemClass(self, title, widget)
         item.setRolloutStyle(self.rolloutStyle())
         item.setDragDropMode(self.dragDropMode())
         layout = self.widget().layout()
-        layout.insertWidget(layout.count() - 1, item)
+        if index is None: # append if not specified index
+            index = layout.count() -1
+        layout.insertWidget(index, item)
         layout.setStretchFactor(item, 0)
 
         if collapsed:
@@ -459,7 +461,6 @@ class AccordionWidget(QScrollArea):
 
         self.setUpdatesEnabled(True)
         return item
-
 
     def clear( self ):
         self.setUpdatesEnabled(False)
