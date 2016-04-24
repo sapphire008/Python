@@ -83,34 +83,37 @@ class SideDockPanel(QtGui.QWidget):
 
     def layoutWidget(self):
         """Setting layout of the graphicsview of the scope"""
-        # return self.buildTextFrame()
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
         # Generate a list of available channels and streams
         all_layouts = self.friend.getAvailableStreams(warning=False)
         if not all_layouts: # if no data loaded
             return self.buildTextFrame(text="No Data Loaded")
+
+        # Initialize the layout widget
+        widgetFrame = QtGui.QFrame(self.accWidget)
+        widgetFrame.setLayout(QtGui.QGridLayout(widgetFrame))
+        widgetFrame.layout().setSpacing(10)
+        widgetFrame.setObjectName(_fromUtf8("LayoutWidgetFrame"))
         all_streams = sorted(set([l[0] for l in all_layouts]))
         all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
         all_channels = sorted(set([l[1] for l in all_layouts]))
         # Layout setting table
-        self.layout_table = QtGui.QTableWidget()
-        for l in self.friend.layout: # current layout from scope
-            self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
-                                    current_stream=l[0], current_channel=l[1])
+        self.setLayoutTable(all_streams, all_channels)
         # Buttons for adding and removing channels and streams
         addButton = QtGui.QPushButton("Add") # Add a channel
         addButton.clicked.connect(lambda: self.addLayoutRow(all_streams=all_streams, all_channels=all_channels))
         removeButton = QtGui.QPushButton("Remove") # Remove a channel
         removeButton.clicked.connect(self.removeLayoutRow)
         # Add the exisiting channels and streams to the table
-        widgetFrame.layout().addWidget(addButton, 0, 0)
-        widgetFrame.layout().addWidget(removeButton, 0, 1)
-        # Calculate the grid that the table will occupy
-        tableGrid = [[x+1, 0, x+1, 1] for x in range(self.layout_table.rowCount())]
-        tableGRid = [item for sublist in tableGrid for item in sublist]
-        widgetFrame.layout().addWidget(self.layout_table, *tableGrid)
+        widgetFrame.layout().addWidget(addButton, 1, 0)
+        widgetFrame.layout().addWidget(removeButton, 1, 1)
+        widgetFrame.layout().addWidget(self.layout_table, 2, 0, self.layout_table.rowCount(), 2)
         return widgetFrame
+
+    def setLayoutTable(self, all_streams, all_channels):
+        self.layout_table = QtGui.QTableWidget(0, 2) # (re)initialize
+        for l in self.friend.layout: # current layout from scope
+            self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
+                                current_stream=l[0], current_channel=l[1])
 
     def addLayoutRow(self, all_streams=['Voltage','Current','Stimulus'], \
                            all_channels=['A','B','C','D'], \
@@ -120,30 +123,29 @@ class SideDockPanel(QtGui.QWidget):
         scomb.addItems(all_streams)
         scomb.setCurrentIndex(all_streams.index(current_stream))
         ccomb = QtGui.QComboBox()
-        ccomb.addItem(all_channels)
+        ccomb.addItems(all_channels)
         ccomb.setCurrentIndex(all_channels.index(current_channel))
         row = self.layout_table.rowCount()
+        self.layout_table.insertRow(row)
         self.layout_table.setCellWidget(row, 0, scomb) # Stream
-        self.layout_table.setCellWidget(row, 1, scomb) # Channel
-        self.friend.updateEpisodes() # update the display
-        self.friend.layout.append([current_stream, current_channel, row, 0])
-        scomb.currentIndexChanged.connect(lambda: self.refreshData(row=row, stream=str(scomb.currentText()), channel=str(ccomb.currentText())))
-        ccomb.currentIndexChanged.connect(lambda: self.refreshData(row=row, stream=str(scomb.currentText()), channel=str(ccomb.currentText())))
-
-    def refreshData(self, row, stream, channel):
-    	self.friend.setLayout(stream, channel, row, 0, index=row)
-    	self.friend.updateEpisodes()
+        self.layout_table.setCellWidget(row, 1, ccomb) # Channel
+        if row+1 > len(self.friend.layout): # update layout
+            self.friend.addSubplot(layout=[current_stream, current_channel, row, 0])
+        scomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
+        ccomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
 
     def removeLayoutRow(self):
         row = self.layout_table.rowCount()-1
-        self.beginRemoveRows(QtCore.QModelIndex(), row, row)
-        self.endRemoveRows()
-        self.friend.layout[:-1]
+        if row < 1:
+            return
+        self.layout_table.removeRow(row)
+        self.friend.removeSubplot(layout = self.friend.layout[-1])
 
     def buildTextFrame(self, text="Not Available"):
         """Simply displaying some text inside a frame"""
         someFrame = QtGui.QFrame(self)
         someFrame.setLayout(QtGui.QVBoxLayout())
+        someFrame.setObjectName("Banner")
         labelarea = QtGui.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
@@ -310,7 +312,7 @@ class ScopeWindow(QtGui.QMainWindow):
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
 
     # ------------- Episode plotting utilities --------------------------------
-    def updateEpisodes(self, episodes=None, index=[]):
+    def updateEpisodes(self, episodes=None, index=[], updateLayout=False):
         """First compare episodes with self.episodes and index with self.index
         Only update the difference in the two sets. The update does not sort
         the index; i.e. it will be kept as the order of insert / click
@@ -330,7 +332,7 @@ class ScopeWindow(QtGui.QMainWindow):
         index_insert = list(set(index) - set(self.index))
         index_remove = list(set(self.index) - set(index))
 
-        if bool_old_episode and not index_insert and not index_remove: # same episode, same index
+        if bool_old_episode and not index_insert and not index_remove and not updateLayout: # same episode, same index
             return
         elif not bool_old_episode: # new item / cell
             index_insert = index
@@ -361,7 +363,12 @@ class ScopeWindow(QtGui.QMainWindow):
             self.reissueArtists()
 
         # Update the companion, Toolbox: Layout
-        self.dockPanel.layoutWidget()
+        if self.dockPanel.accWidget.widgetAt(0).objectName() == 'Banner':
+            # Replace the banner widget with real widget
+            layoutWidget = self.dockPanel.layoutWidget()
+            self.dockPanel.accWidget.itemAt(0)._widget = layoutWidget
+
+
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
@@ -420,7 +427,7 @@ class ScopeWindow(QtGui.QMainWindow):
     	l = [stream, channel, row, col]
     	if not index:
     		self.layout.append(l)
-    	elif all(hasattr(index, attr) for attr in ['__add__', '__sub__', '__mul__', '__div__', '__pow__']): # is numeric
+    	elif all(hasattr(index, attr) for attr in ['__add__', '__sub__', '__mul__', '__abs__', '__pow__']): # is numeric
     		if index>=len(self.layout):
     			self.layout.append(l)
     		else:
@@ -454,11 +461,13 @@ class ScopeWindow(QtGui.QMainWindow):
 
         return streams
 
-    def addSubplot(self, layout):
-        """Insert another data stream into the display"""
-        if layout in self.layout:
-            return # Check for duplicates. Need to decide
+    def addSubplot(self, layout, check_duplicates=False):
+        """Append another data stream into the display"""
+        if check_duplicates and layout in self.layout:
+            return # Check for duplicates.
         self.layout.append(layout)
+        # Sort data
+        self.layout = sorted(self.layout, key=lambda x: (x[2], x[3]))
         # Plot this new data stream
         for n, i in enumerate(self.index):
             zData = self.episodes['Data'][i]
@@ -469,13 +478,25 @@ class ScopeWindow(QtGui.QMainWindow):
         # Redraw the artists
         self.reissueArtists()
 
-    def removeSubplot(self, layout):
+    def removeSubplot(self, layout, exact_match=False):
         """Remove a data stream from the display"""
-        if layout not in self.layout: # nothing to remove
+        if exact_match and layout not in self.layout: # nothing to remove
             return
         l = self.graphicsView.getItem(row=layout[2], col=layout[3])
+        if not l:
+            return # if item not found
         self.graphicsView.removeItem(l)
-        self.layout.remove(layout)
+        if exact_match:
+            self.layout.remove(layout)
+        else:
+            for lo in self.layout:
+                if lo[2] == layout[2] and lo[3] == layout[3]:
+                    self.layout.remove(lo)
+
+    def updateStream(self, old_layout, new_layout):
+        """Replace one stream with another stream"""
+        self.removeSubplot(old_layout, exact_match=False)
+        self.addSubplot(new_layout, check_duplicates=False)
 
     # ----------------------- Option utilities ----------------------------------
     def toggleTraceColors(self, checked):
@@ -793,7 +814,6 @@ class ScopeWindow(QtGui.QMainWindow):
 
 
 run_example = False
-
 
 if __name__ == '__main__' and not run_example:
     episodes = {'Duration': [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 90000, 90000, 90000, 50000, 50000], 'Name': 'Neocortex F.08Feb16', 'Drug Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '3.4 sec', '2:03', '3:40', '5:37', '8:29'], 'Drug Level': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], 'Comment': ['', 'DAC0: PulseB 200', 'DAC0: PulseB -50', 'DAC0: PulseB -75', 'DAC0: PulseB -50', 'DAC0: PulseB 50', 'DAC0: PulseB 100', 'DAC0: PulseB 150', 'DAC0: PulseB 200', 'DAC0: PulseB 200', '', '', '', '', 'DAC0: PulseB 200', 'DAC0: PulseB 200'], 'Dirs': ['D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E1.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E2.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E3.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E4.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E5.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E6.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E7.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E8.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E9.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E10.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E11.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E12.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E13.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E14.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E15.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E16.dat'], 'Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '6:43', '8:42', '10:19', '12:16', '15:08'], 'Drug Name': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], 'Epi': ['S1.E1', 'S1.E2', 'S1.E3', 'S1.E4', 'S1.E5', 'S1.E6', 'S1.E7', 'S1.E8', 'S1.E9', 'S1.E10', 'S1.E11', 'S1.E12', 'S1.E13', 'S1.E14', 'S1.E15', 'S1.E16'], 'Sampling Rate': [0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001]}

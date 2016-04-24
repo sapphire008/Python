@@ -458,8 +458,12 @@ def unique(A, byrow=False, occurrence='first', stable=False):
         C = C[:, np.newaxis]
         
     
-    return C, IA, IC
+    return C, IA, IC, groupsSortA, sortA, indSortA
     
+    
+if __name__ == '__main__':
+    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
+    C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=False)
     
     
     

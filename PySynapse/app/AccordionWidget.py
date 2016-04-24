@@ -430,6 +430,7 @@ class AccordionWidget(QScrollArea):
         self._scrollInitY = 0
         self._scrollInitVal = 0
         self._itemClass = AccordionItem
+        self._items = {}
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
