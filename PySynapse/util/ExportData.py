@@ -280,8 +280,8 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
     # Start the figure
     nchannels = len(viewRange.keys())
     if not fig_size: # if not specified size, set to (4*nchannels, 4)
-        fig_size = (4*nchannels, 4)
-        
+        fig_size = (4, 4*nchannels)
+
     if not colorfy:
         colorfy=['k']
     fig, _= plt.subplots(nrows=nchannels, ncols=1, sharex=True)

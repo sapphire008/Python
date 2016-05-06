@@ -22,8 +22,8 @@ import subprocess
 import pandas as pd
 
 
-sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
-sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
+# sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
+# sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
 from app.Scope import ScopeWindow
 
@@ -330,7 +330,8 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
     def insertNodes(self, position, nodes, parent=QtCore.QModelIndex()):
         node = self.getNode(parent)
-
+        success = False
+        
         self.beginInsertRows(parent, position, position + len(nodes) - 1)
 
         for child in nodes:
@@ -672,8 +673,8 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
-    # w = Synapse_MainWindow()
-    w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/04.April/')
+    w = Synapse_MainWindow()
+    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/04.April/')
     w.show()
     # Connect upon closing
     # app.aboutToQuit.connect(restartpyshell)

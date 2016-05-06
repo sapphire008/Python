@@ -8,7 +8,10 @@ Python implemented MATLAB utilities
 """
 
 import numpy as np
+from skimage.draw import polygon
 import re
+import glob
+import os
 import operator
 from pdb import set_trace
 
@@ -186,7 +189,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     """
     x = np.atleast_1d(x).astype('float64')
     if x.size < 3:
-        return np.array([], dtype=int)
+        return  np.array([], dtype=int), np.array([], dtype=float)
     if valley:
         x = -x
     # find indexes of all peaks
@@ -235,7 +238,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         ind = np.sort(ind[~idel])
 
     pks = np.array([x[p] for p in ind])
-
+    
     return(ind, pks)
 
 def nextpow2(n):
@@ -246,12 +249,18 @@ def nextpow2(n):
 def isempty(m):
     """Return true if:
     a). an empty string
-    b). an list of length zero
-    c). an tuple of length zero
-    d). an numpy array of length zero
+    b). a list of length zero
+    c). a tuple of length zero
+    d). a numpy array of length zero
+    e). a singleton that is not None
     """
     if isinstance(m, (list, tuple, str, np.ndarray)):
-        return(len(m) == 0)
+        if len(m) == 0:
+            return True
+        else:
+            return all([not x for x in m])
+    else:
+        return True if m else False
 
 def isnumeric(obj):
     """Check if an object is numeric, or that elements in a list of objects 
@@ -288,6 +297,21 @@ def ismatrix(v):
         return True if sum([s>1 for s in shape])>=2 else False
     else:
         return False
+        
+def listintersect(*args):
+    """Find common elements in lists"""
+    args = [x for x in args if x is not None] # get rid of None
+    def LINT(A,B):  #short for list intersection
+        return list(set(A) & set(B))
+    if len(args) == 0:
+        return(None)
+    elif len(args) == 1:
+        return(args[0])
+    elif len(args) == 2:
+        return(LINT(args[0],args[1]))
+    else:
+        newargs = tuple([LINT(args[0], args[1])]) + args[2:]
+        return(listintersect(*newargs))
 
 def padzeros(x):
     """Pad zeros to make the array length 2^n for fft or filtering
@@ -460,7 +484,47 @@ def unique(A, byrow=False, occurrence='first', stable=False):
     
     return C, IA, IC, groupsSortA, sortA, indSortA
     
+
+def poly2mask(r, c, m, n):
+    """m, n: canvas size that contains this polygon mask"""
+    fill_row_coords, fill_col_coords = polygon(r, c, (m, n))
+    mask = np.zeros((m, n), dtype=np.bool)
+    mask[fill_row_coords, fill_col_coords] = True
+    return mask
+
+
+def midpoint(v):
+    """find the midpoints of a vector"""
+    return v[:-1] + np.diff(v)/2.0
     
+
+def SearchFiles(path, pattern, sortby='Name'):
+    """sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
+    P = glob.glob(path+pattern)
+
+    N = [[]] * len(P)
+    M = [[]] * len(P)
+    C = [[]] * len(P)
+    B = [[]] * len(P)
+    for n, p in enumerate(P):
+        N[n] = os.path.basename(os.path.normpath(p))
+        M[n] = os.path.getmtime(p)
+        C[n] = os.path.getctime(p)
+        B[n] = os.path.getsize(p)
+    
+    # Sort
+    if sortby == 'Name':
+        pass
+    elif sortby == 'Modified Date':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
+    elif sortby == 'Created Date':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(C, P, N))])
+    elif sortby == 'Size':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
+        
+    return P, N
+        
+        
 if __name__ == '__main__':
     A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
     C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=False)

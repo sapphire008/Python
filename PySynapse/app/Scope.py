@@ -26,6 +26,8 @@ from PyQt4 import QtGui, QtCore
 import pyqtgraph as pg
 from pyqtgraph import GraphicsLayoutWidget
 # from pyqtgraph.flowchart import Flowchart
+sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
+from util.spk_util import *
 
 
 try:
@@ -105,9 +107,10 @@ class SideDockPanel(QtGui.QWidget):
         addButton.clicked.connect(lambda: self.addLayoutRow(all_streams=all_streams, all_channels=all_channels))
         removeButton = QtGui.QPushButton("Remove") # Remove a channel
         removeButton.clicked.connect(self.removeLayoutRow)
-        # Add the exisiting channels and streams to the table
+        # Add the buttons
         widgetFrame.layout().addWidget(addButton, 1, 0)
         widgetFrame.layout().addWidget(removeButton, 1, 1)
+        # Add the exisiting channels and streams to the table
         widgetFrame.layout().addWidget(self.layout_table, 2, 0, self.layout_table.rowCount(), 2)
         return widgetFrame
 
@@ -164,6 +167,10 @@ class SideDockPanel(QtGui.QWidget):
         widgetFrame.layout().setSpacing(10)
         # Detect spikes button
         detectSpikesButton = QtGui.QPushButton("Detect Spikes")
+        detectSpikesTextBox =QtGui.QLabel("NaN")
+        detectSpikesButton.clicked.connect(lambda : self.detectSpikes(detectSpikesTextBox))
+        widgetFrame.layout().addWidget(detectSpikesButton, 1, 0)
+        widgetFrame.layout().addWidget(detectSpikesTextBox, 2, 0)
         # Detect PSPs button
         detectPSPsButton = QtGui.QPushButton("Detect PSP")
         detectPSPComboBox = QtGui.QComboBox()
@@ -173,7 +180,26 @@ class SideDockPanel(QtGui.QWidget):
         curveFitComboBox = QtGui.QComboBox()
         curveFitComboBox.addItems(['Single Exponential', 'Double Exponential', 'Linear', 'Polynomial', 'Power', 'Custom'])
         return widgetFrame
-
+        
+    def detectSpikes(self, textboxhandle):
+        
+        if not self.friend.index or len(self.friend.index)>1:
+            textboxhandle.setText("Can only detect spikes in one episode at a time")
+            
+        zData = self.friend.episodes['Data'][self.friend.index[-1]]
+        ts = zData.Protocol.msPerPoint
+        if self.friend.viewRegionOn:
+            selectedWindow = self.friend.selectedRange
+        else:
+            selectedWindow = [None, None]
+        final_label_text = ""
+        for c, Vs in zData.Voltage.items():
+            Vs = spk_window(Vs, ts,selectedWindow, t0=0)
+            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=-10.0, msd=1.0)
+            final_label_text = final_label_text + c + " : " + str(num_spikes) + "\n"
+        
+        textboxhandle.setText(final_label_text)
+        
     # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
@@ -844,7 +870,7 @@ run_example = False
 
 if __name__ == '__main__' and not run_example:
     episodes = {'Duration': [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 90000, 90000, 90000, 50000, 50000], 'Name': 'Neocortex F.08Feb16', 'Drug Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '3.4 sec', '2:03', '3:40', '5:37', '8:29'], 'Drug Level': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], 'Comment': ['', 'DAC0: PulseB 200', 'DAC0: PulseB -50', 'DAC0: PulseB -75', 'DAC0: PulseB -50', 'DAC0: PulseB 50', 'DAC0: PulseB 100', 'DAC0: PulseB 150', 'DAC0: PulseB 200', 'DAC0: PulseB 200', '', '', '', '', 'DAC0: PulseB 200', 'DAC0: PulseB 200'], 'Dirs': ['D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E1.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E2.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E3.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E4.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E5.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E6.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E7.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E8.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E9.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E10.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E11.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E12.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E13.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E14.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E15.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E16.dat'], 'Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '6:43', '8:42', '10:19', '12:16', '15:08'], 'Drug Name': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], 'Epi': ['S1.E1', 'S1.E2', 'S1.E3', 'S1.E4', 'S1.E5', 'S1.E6', 'S1.E7', 'S1.E8', 'S1.E9', 'S1.E10', 'S1.E11', 'S1.E12', 'S1.E13', 'S1.E14', 'S1.E15', 'S1.E16'], 'Sampling Rate': [0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001]}
-    index = [2]
+    index = [7]
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow()
     w.updateEpisodes(episodes=episodes, index=index)

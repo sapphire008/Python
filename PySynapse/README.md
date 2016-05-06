@@ -14,18 +14,13 @@ Script structure
 * `resources`: assets, icons, fonts, etc
 
 **Planned features of Scope window**
-* ~~Allows multiple channels of display: voltage, current, stim~~
-* ~~Allows multiple episodes of display in the same channel, with different color~~
-* ~~Exporting graphs as EPS, SVG, PNG, TIFF~~
-* Spin up a second smaller window to allow zoomed in display; view linked to selection range
-
-**Planned features of Analysis for traces**
 * Line up the plot with baseline removed. Baseline is a selected window
-* Spike, EPSP/EPSC/IPSP/IPSC detection
+* Spike, action potential, EPSP/EPSC/IPSP/IPSC detection
 
-**Planned features of Imreg window**
+**Planned features of Mirage window**
 * Display a stack as movie
 * Display the Maximum Pixel Intensity image
+* dF/F trace
 
 #########################################################################
 1. Dependencies:
@@ -42,7 +37,7 @@ Script structure
       - ~~columns are header information of the data~~
     - ~~pyqtgraph for traces~~
     - ~~View layout configuration: channels x streams of data to display~~
-    - Range selection ~~/ cursor tool~~: for event detection and data analyses
+    - ~~Range selection / cursor tool~~: for event detection and data analyses
       * ~~Initial and end values, end - initial difference~~
       * max, min, average, median, std
       * EPSP, IPSP, EPSC, IPSC, action potentials, extracellular spikes

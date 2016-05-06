@@ -29,8 +29,11 @@ def time2ind(t, ts, t0=0):
     Output:
         ind: index
     """
+    if isempty(t):
+        return t
     if np.isscalar(t):
         t = [t]
+    
     return(np.array([int(a) for a in (np.array(t) - t0) / ts]))
 
 def ind2time(ind, ts, t0=0):
@@ -48,6 +51,8 @@ def ind2time(ind, ts, t0=0):
      Output:
          t: current time in ms
     """
+    if isempty(ind):
+        return ind
     if np.isscalar(ind):
         ind = [ind]
     return(np.array(ind) * ts + t0)
@@ -72,7 +77,19 @@ def spk_window(Vs, ts, Window, t0=0):
     start_ind, end_ind = time2ind(np.asarray(Window), ts, t0)
     # Duration
     dur = len(Vs)
-    start_ind, end_ind = min(start_ind, dur), min(end_ind+1, dur)
+    
+    if start_ind is None or start_ind <0:
+        start_ind = 0
+    elif start_ind > dur:
+        start_ind = dur
+        
+    if end_ind is None or end_ind+1 > dur:
+        end_ind = dur
+    elif end_ind<0:
+        end_ind = 0
+    else:
+        end_ind + 1
+        
     return(Vs[start_ind:end_ind])
 
 
@@ -299,6 +316,7 @@ def stionary_rect_kernel(ts, window=500.):
 
 if __name__ == '__main__':
     # test smoothed firing rate
+    from ImportData import *
     zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
     zData = NeuroData(zData, old=True)
     Vs = zData.Voltage['A']

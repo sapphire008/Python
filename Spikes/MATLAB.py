@@ -8,7 +8,12 @@ Python implemented MATLAB utilities
 """
 
 import numpy as np
+from skimage.draw import polygon
 import re
+import glob
+import os
+import operator
+from pdb import set_trace
 
 def getfield(struct, *args): # layered /serial indexing
     """Get value from a field from a dictionary /structure"""
@@ -111,6 +116,9 @@ def str2num(lit):
     lit = lit[0] if len(lit)==1 else lit
     return(lit)
 
+def rms(x):
+    """Root mean square of an array"""
+    return(np.sqrt(np.mean(x**2)))
 
 def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False):
@@ -150,8 +158,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     See this IPython Notebook [1]_.
     References
     ----------
-    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/
-                                    notebooks/DetectPeaks.ipynb
+    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
     Examples
     --------
     >>> from findpeaks import findpeaks
@@ -182,7 +189,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     """
     x = np.atleast_1d(x).astype('float64')
     if x.size < 3:
-        return np.array([], dtype=int)
+        return  np.array([], dtype=int), np.array([], dtype=float)
     if valley:
         x = -x
     # find indexes of all peaks
@@ -231,7 +238,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         ind = np.sort(ind[~idel])
 
     pks = np.array([x[p] for p in ind])
-
+    
     return(ind, pks)
 
 def nextpow2(n):
@@ -242,28 +249,69 @@ def nextpow2(n):
 def isempty(m):
     """Return true if:
     a). an empty string
-    b). an list of length zero
-    c). an tuple of length zero
-    d). an numpy array of length zero
+    b). a list of length zero
+    c). a tuple of length zero
+    d). a numpy array of length zero
+    e). a singleton that is not None
     """
     if isinstance(m, (list, tuple, str, np.ndarray)):
-        return(len(m) == 0)
+        if len(m) == 0:
+            return True
+        else:
+            return all([not x for x in m])
+    else:
+        return True if m else False
 
-def rms(x):
-    """Root mean square of an array"""
-    return(np.sqrt(np.mean(x**2)))
-
-
-def is_numeric(obj): # to check if a numpy object is numeric
-    attrs = ['__add__', '__sub__', '__mul__', '__div__', '__pow__']
-    return all(hasattr(obj, attr) for attr in attrs)
-
-    if not is_numeric(A) or np.ndim(A)!=2 or any([s!=4 for s in np.shape(A)]):
-        raise(IOError(\
-        "Order expression '%s' did not return a valid 4x4 matrix."%(order)))
-
-    return(A, T, R, Z, S)
-
+def isnumeric(obj):
+    """Check if an object is numeric, or that elements in a list of objects 
+    are numeric"""
+    def f(x):
+        attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
+        return all(hasattr(x, attr) for attr in attrs)
+    
+    # Allow application to iterables
+    f_vec = np.frompyfunc(f, 1, 1)
+    tf = f_vec(obj)
+    if isinstance(tf, np.ndarray):
+        tf = tf.astype(dtype=bool)
+    return tf
+    
+def isrow(v):
+    v = np.asarray(v)
+    return True if len(v.shape)==1 else False
+    
+def iscol(v):
+    v = np.asarray(v)
+    return True if len(v.shape)==2 and v.shape[1] == 1 else False
+    
+def isvector(v):
+    v = np.asarray(v)
+    return True if len(v.shape) == 1 or v.shape[0] == 1 or v.shape[1] == 1 else False
+    
+def ismatrix(v):
+    v = np.asarray(v)
+    shape = v.shape
+    if len(shape) == 2:
+        return True if all([s>1 for s in shape]) else False
+    elif len(shape) > 2:
+        return True if sum([s>1 for s in shape])>=2 else False
+    else:
+        return False
+        
+def listintersect(*args):
+    """Find common elements in lists"""
+    args = [x for x in args if x is not None] # get rid of None
+    def LINT(A,B):  #short for list intersection
+        return list(set(A) & set(B))
+    if len(args) == 0:
+        return(None)
+    elif len(args) == 1:
+        return(args[0])
+    elif len(args) == 2:
+        return(LINT(args[0],args[1]))
+    else:
+        newargs = tuple([LINT(args[0], args[1])]) + args[2:]
+        return(listintersect(*newargs))
 
 def padzeros(x):
     """Pad zeros to make the array length 2^n for fft or filtering
@@ -319,8 +367,185 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
 
 
 def sort_nicely( l ):
-    """ Sort the given list in the way that humans expect."""
+    """ Sort the given list of strings in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     l.sort( key=alphanum_key )
-    return l
+    return l     
+    
+    
+def sortrows(A, col=None):
+    A = np.asarray(A)
+    if not ismatrix(A):
+        if isrow(A):
+            return np.sort(A), np.argsort(A)
+        else:
+            return np.sort(A, axis=0), np.argsort(A, axis=0)
+            
+    # Sort the whole row
+    if not col:
+        col = list(range(A.shape[1]))
+    
+    nrows = A.shape[0]
+    I = np.arange(nrows)[:, np.newaxis]
+    A = np.concatenate((A, I), axis=1)
+    A = np.asarray(sorted(A, key=operator.itemgetter(*col)))
+    I = list(A[:, -1]) # get the index
+    # convert to numeric if index in string
+    for n, i in enumerate(I):
+        if not isnumeric(i):
+            I[n] = str2num(i)
+    # I = I[:, np.newaxis]
+    I = np.asarray(I)
+    A = A[:, :-1]
+    
+    return A, I
+    
+
+def unique(A, byrow=False, occurrence='first', stable=False):
+    """MATLAB's unique. Can apply to both numerical matrices and list of 
+    strings. Not for performance, but for better outputs
+    Inputs:
+        A: list, list of list, numpy nadarray
+        byrow: [True,False]. If True, the matrix A will be converted into
+                a list, column wise. If False, returns the unique rows of A.
+        occurence: ['first', 'last']. Specify which index is returned in IA in 
+                    the case of repeated values (or rows) in A. The default 
+                    value is OCCURENCE = 'first', which returns the index of 
+                    the first occurrence of each repeated value (or row) in A, 
+                    while OCCURRENCE = 'last' returns the index of the last 
+                    occurrence of each repeated value (or row) in A.
+        stable: [True, False]. Whether or not sort the result C. If True, 
+                returns the values of C in the same order that they appear in 
+                A; if False, returns the values of C in sorted order. If A is 
+                a row vector, then C will be a row vector as well, otherwise C
+                will be a column vector. IA and IC are column vectors. If 
+                there are repeated values in A, then IA returns the index of 
+                the first occurrence of each repeated value.
+    
+    Return: 
+        C: list of unique items
+        IA: index of ('first', 'last', specified by occurrence parameter)
+            occurence, such that C = A[IA]
+        IC: index such that A = C[IC]
+    """
+    # convert to numpy array for easier manipulation
+    A = np.asarray(A, order='F')
+    
+        # Return if there is only 1 item
+    if A.size < 2:
+        return A
+    
+    iscolvec = iscol(A) # take note the shape of input
+    
+    if byrow and not ismatrix(A):
+        # call the function itself without sorting by rows
+        return unique(A, byrow=False, occurrence=occurrence, stable=stable)
+    
+    if not byrow:
+        # if not by row, convert to column vector
+        A = A.flatten(order='F')[:, np.newaxis]
+        nRows = A.size
+    else:
+        nRows, _ = A.shape
+        
+    # Sort the input
+    sortA, indSortA = sortrows(A, col=None)
+
+    # groupsSortA indicates the location of the non-matching entires
+    groupsSortA = sortA[:-1, :] != sortA[1:, :]
+    groupsSortA = groupsSortA.any(axis=1) # row vector
+        
+    if occurrence == 'last':
+        groupsSortA = np.append(groupsSortA, True) # Final element is always a member of unique list.
+    else: # occurrence == 'first' or stalbe==True
+        groupsSortA = np.insert(groupsSortA, 0, True) # Final element is always a member of unique list.
+        
+    # Extract unique elements
+    if stable:
+        invIndSortA = indSortA
+        invIndSortA[invIndSortA] = np.arange(nRows) # Find inverse permutation
+        logIndA = groupsSortA[invIndSortA] # Create new logical by indexing into groupsSortA
+        C = A[logIndA, :] 
+        IA = np.where(logIndA)[0] # Find the indices of the unsorted logical
+    else:
+        C = sortA[groupsSortA, :]
+        IA = indSortA[groupsSortA] # Find the indices of the sorted logical
+    
+    # Find IC
+    IC = np.zeros(nRows, dtype=np.int64)
+    for n, a in enumerate(A):
+        IC[n] = int(np.where((C==a).all(axis=1))[0])
+        
+    # If A is column vector, return C as column vector
+    if iscolvec:
+        C = C[:, np.newaxis]
+        
+    
+    return C, IA, IC, groupsSortA, sortA, indSortA
+    
+
+def poly2mask(r, c, m, n):
+    """m, n: canvas size that contains this polygon mask"""
+    fill_row_coords, fill_col_coords = polygon(r, c, (m, n))
+    mask = np.zeros((m, n), dtype=np.bool)
+    mask[fill_row_coords, fill_col_coords] = True
+    return mask
+
+
+def midpoint(v):
+    """find the midpoints of a vector"""
+    return v[:-1] + np.diff(v)/2.0
+    
+
+def SearchFiles(path, pattern, sortby='Name'):
+    """sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
+    P = glob.glob(path+pattern)
+
+    N = [[]] * len(P)
+    M = [[]] * len(P)
+    C = [[]] * len(P)
+    B = [[]] * len(P)
+    for n, p in enumerate(P):
+        N[n] = os.path.basename(os.path.normpath(p))
+        M[n] = os.path.getmtime(p)
+        C[n] = os.path.getctime(p)
+        B[n] = os.path.getsize(p)
+    
+    # Sort
+    if sortby == 'Name':
+        pass
+    elif sortby == 'Modified Date':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
+    elif sortby == 'Created Date':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(C, P, N))])
+    elif sortby == 'Size':
+        P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
+        
+    return P, N
+        
+        
+if __name__ == '__main__':
+    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
+    C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=False)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

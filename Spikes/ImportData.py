@@ -11,7 +11,7 @@ import os
 import zipfile
 import six
 import re
-# from pdb import set_trace
+from pdb import set_trace
 
 # import matplotlib.pyplot as plt
 
@@ -27,6 +27,19 @@ def readVBString(fid):
         elif six.PY3:
             tmp = np.fromfile(fid, '|S1', stringLength)
             return(np.ndarray.tostring(tmp).decode('UTF-8'))
+            
+def isempty(m):
+    """Return true if:
+    a). an empty string
+    b). a list of length zero
+    c). a tuple of length zero
+    d). a numpy array of length zero
+    e). a singleton that is not None
+    """
+    if isinstance(m, (list, tuple, str, np.ndarray)):
+        return len(m) == 0
+    else:
+        return True if m else False
 
 class Protocol(object): # for composition
     pass
@@ -252,6 +265,13 @@ class NeuroData(object):
         else:
             retStr = ""
         return retStr.strip()
+        
+def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
+    """Wrapper function to load NeuroData, assuming the data structure we have
+    implemented in get_cellpath"""
+    cell_path = os.path.join(basedir, get_cellpath(cellname))
+    zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
+    return zData
 
 """ 2photon image data"""
 class ImageData(object):
@@ -337,13 +357,13 @@ class ImageData(object):
         if not infoOnly:
             # read image data
             fid.seek(self.Protocol.DataOffset - 1, 0)
-            self.img = np.zeros((self.Protocol.Width, self.Protocol.Height, self.Protocol.NumImages), dtype=np.int16)
+            self.img = np.zeros((self.Protocol.Height, self.Protocol.Width, self.Protocol.NumImages), dtype=np.int16)
             # set_trace()
             for x in range(self.Protocol.NumImages):
                 tmp = np.fromfile(fid, np.int16, self.Protocol.Width * self.Protocol.Height) # / 4096
-                self.img[:,:,x] = tmp.reshape((self.Protocol.Width, self.Protocol.Height), order='F')
+                self.img[:,:,x] = tmp.reshape((self.Protocol.Width, self.Protocol.Height), order='F').T
             # Rotate the image
-            self.img = self.img[:, ::-1, :]
+            # self.img = self.img[:, ::-1, :]
         else:
             self.img = -1
 
@@ -601,15 +621,47 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     data_folder = os.path.join(year_dir, month_dir, data_folder, cell_label+episode+'.dat')
     data_folder = data_folder.replace('\\','/')
     return data_folder
-
-
-def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
-    """Wrapper function to load NeuroData, assuming the data structure we have
-    implemented in get_cellpath"""
-    cell_path = os.path.join(basedir, get_cellpath(cellname))
-    zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
-    return zData
-
+    
+    
+class ROI(object):
+    """Helper class for structuring ROIs"""
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+class ROIData(list):
+    def __init__(self, roifile=None, old=True, *args, **kwargs):
+        self.roifile = roifile
+        if roifile is not None:
+            self.loadROI(roifile=roifile, old=old, *args, *kwargs)
+            
+    def loadROI(self, roifile, old=True, *args, **kwargs):
+        if old:
+            self.loadOldROIData(roifile, *args, **kwargs)
+    
+    def loadOldROIData(self, roifile, roitype='square'):
+        fid = open(roifile, 'rb')
+        fid.seek(4, 0)
+        n = 0
+        while n < 1000:
+            # initialize
+            roi = ROI(center=0, unknown1=0, size=0, unknown2=0, position=0)
+            roi.center = np.fromfile(fid, np.int16, 2)
+            if isempty(roi.center):
+                return
+            roi.unknown1 = np.fromfile(fid, np.int16, 1)
+            roi.size = np.fromfile(fid, np.int16, 2)
+            roi.unknwon2 = np.fromfile(fid, np.int16, 9)
+            # Position of the square
+            roi.position = np.fromfile(fid, np.int16, 4)
+            roi.position = np.reshape(roi.position, (2,2))
+            self.append(roi)
+            n += 1
+        
+        # should in theory never reach this, but could indicate some problem
+        if n>=1000: 
+            print('Maximum iteration exceeded. Loading only 1000 ROIs')
+                
 
 
 if __name__ == '__main__':
@@ -621,4 +673,6 @@ if __name__ == '__main__':
     # zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
     # mData = ImageData(dataFile = 'D:/Data/2photon/2015/03.March/Image 10 Mar 2015/Neocortex D/Neocortex D 01/Neocortex D 01.512x512y1F.m21.img', old=True)
     # plt.imshow(mData.img[:,:,0])
-    zData = load_trace('Neocortex F.15Jun15.S1.E10')
+    # zData = load_trace('Neocortex F.15Jun15.S1.E10')
+    roifile = 'C:/Users/Edward/Desktop/Slice B CCh Double.512x200y75F.m1.img.roi'
+    R = ROIData(roifile)
