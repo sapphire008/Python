@@ -331,7 +331,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
     def insertNodes(self, position, nodes, parent=QtCore.QModelIndex()):
         node = self.getNode(parent)
         success = False
-        
+
         self.beginInsertRows(parent, position, position + len(nodes) - 1)
 
         for child in nodes:

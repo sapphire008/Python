@@ -9,6 +9,7 @@ Some routines for electrophysiology data analyses
 
 import numpy as np
 import scipy.signal as sg
+# from pdb import set_trace
 try:
     from MATLAB import *
 except:
@@ -29,11 +30,9 @@ def time2ind(t, ts, t0=0):
     Output:
         ind: index
     """
-    if isempty(t):
-        return t
     if np.isscalar(t):
         t = [t]
-    
+
     return(np.array([int(a) for a in (np.array(t) - t0) / ts]))
 
 def ind2time(ind, ts, t0=0):
@@ -51,8 +50,6 @@ def ind2time(ind, ts, t0=0):
      Output:
          t: current time in ms
     """
-    if isempty(ind):
-        return ind
     if np.isscalar(ind):
         ind = [ind]
     return(np.array(ind) * ts + t0)
@@ -73,24 +70,25 @@ def spk_window(Vs, ts, Window, t0=0):
     Output:
         Vs: windows Vs
     """
-    # Start / end indices
-    start_ind, end_ind = time2ind(np.asarray(Window), ts, t0)
-    # Duration
     dur = len(Vs)
-    
-    if start_ind is None or start_ind <0:
-        start_ind = 0
-    elif start_ind > dur:
-        start_ind = dur
-        
-    if end_ind is None or end_ind+1 > dur:
-        end_ind = dur
-    elif end_ind<0:
-        end_ind = 0
-    else:
-        end_ind + 1
-        
-    return(Vs[start_ind:end_ind])
+    # Start / end indices
+    def parse_window(x, none_allowed, min_allowed, max_allowed, func):
+        if x is None:
+            x = none_allowed
+        else:
+            x = func(x) # apply the transformation
+            if x < min_allowed:
+                x = min_allowed
+            elif x > max_allowed:
+                x = max_allowed
+
+        return x
+
+    func = lambda y: time2ind(y, ts, t0)[0]
+    start_ind = parse_window(Window[0], 0, 0, dur, func=func)
+    end_ind = parse_window(Window[1], dur, 0, dur, func=func)
+
+    return Vs[start_ind:end_ind]
 
 
 def spk_average(Vs, ts=None, Window=None, axis=0, t0=0):

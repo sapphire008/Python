@@ -69,6 +69,7 @@ class SideDockPanel(QtGui.QWidget):
         super(SideDockPanel, self).__init__(parent)
         self.parent = parent
         self.friend = friend
+        self.detectedEvents = []
         self.setupUi()
 
     def setupUi(self):
@@ -78,7 +79,7 @@ class SideDockPanel(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
-        self.accWidget.addItem("Analysis", self.analysisWidget(), collapsed=True)
+        self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -159,33 +160,80 @@ class SideDockPanel(QtGui.QWidget):
         return someFrame
 
     # ------- Analysis tools -------------------------------------------------
-    def analysisWidget(self):
+    def eventDetectionWidget(self):
         # Initalize the widget
         widgetFrame = QtGui.QFrame(self)
         widgetFrame.setLayout(QtGui.QGridLayout())
-        widgetFrame.setObjectName(_fromUtf8("AnalysisWidgetFrame"))
+        widgetFrame.setObjectName(_fromUtf8("EventDetectionWidgetFrame"))
         widgetFrame.layout().setSpacing(10)
         # Detect spikes button
-        detectSpikesButton = QtGui.QPushButton("Detect Spikes")
-        detectSpikesTextBox =QtGui.QLabel("NaN")
-        detectSpikesButton.clicked.connect(lambda : self.detectSpikes(detectSpikesTextBox))
-        widgetFrame.layout().addWidget(detectSpikesButton, 1, 0)
-        widgetFrame.layout().addWidget(detectSpikesTextBox, 2, 0)
-        # Detect PSPs button
-        detectPSPsButton = QtGui.QPushButton("Detect PSP")
-        detectPSPComboBox = QtGui.QComboBox()
-        detectPSPComboBox.addItems(['EPSP', 'IPSP', 'EPSC', 'IPSC'])
-        # Curve fitting
-        curveFitButton = QtGui.QPushButton("Curve Fitting")
-        curveFitComboBox = QtGui.QComboBox()
-        curveFitComboBox.addItems(['Single Exponential', 'Double Exponential', 'Linear', 'Polynomial', 'Power', 'Custom'])
+        detectButton = QtGui.QPushButton("Detect")
+        # Type of Event detection to run
+        # Summary box
+        detectTextBox = QtGui.QLabel("NaN")
+        detectTextBox.setStyleSheet("background-color: white")
+        # Even type selection
+        eventTypeComboBox = QtGui.QComboBox()
+        eventTypeComboBox.addItems(['Action Potential', 'Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
+        # Asking to draw on the plot
+        drawCheckBox = QtGui.QCheckBox("Mark Event")
+        drawCheckBox.stateChanged.connect(self.clearEvents)
+        # Detection settings
+        minHeightLabel = QtGui.QLabel("Min Height")
+        minHeightTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("-10"))
+        minHeightUnitLabel = QtGui.QLabel("mV")
+        minDistLabel = QtGui.QLabel("Min Dist")
+        minDistTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+        minDistUnitLabel = QtGui.QLabel("ms")
+        # Summary box behavior
+        detectButton.clicked.connect(lambda : self.detectEvents(eventTypeComboBox.currentText(), detectTextBox, minHeightTextEdit, minDistTextEdit, drawCheckBox.checkState()))
+
+        widgetFrame.layout().addWidget(detectButton, 1, 0, 1, 3)
+        widgetFrame.layout().addWidget(eventTypeComboBox, 2, 0, 1, 1)
+        widgetFrame.layout().addWidget(drawCheckBox, 2, 1,1,2)
+        widgetFrame.layout().addWidget(minHeightLabel, 3,0)
+        widgetFrame.layout().addWidget(minHeightTextEdit, 3, 1)
+        widgetFrame.layout().addWidget(minHeightUnitLabel, 3, 2)
+        widgetFrame.layout().addWidget(minDistLabel, 4, 0)
+        widgetFrame.layout().addWidget(minDistTextEdit, 4, 1)
+        widgetFrame.layout().addWidget(minDistUnitLabel, 4, 2)
+        widgetFrame.layout().addWidget(detectTextBox, 5, 0, 1, 3)
+
         return widgetFrame
-        
-    def detectSpikes(self, textboxhandle):
-        
+
+    def detectEvents(self, event='Action Potential', *args, **kwargs):
+        self.detectedEvents.append(event)
+        if event == 'Action Potential':
+            self.detectAPs(*args, **kwargs)
+        elif event == 'EPSP':
+            return
+        elif event == 'IPSP':
+            return
+        elif event == 'EPSC':
+            return
+        elif event == 'IPSC':
+            return
+
+    def clearEvents(self, checked, eventTypes=None, which_layout=None):
+        """Wraps removeEvent. Clear all event types if not specified event
+        type. Connected to checkbox state"""
+        if checked or not self.detectedEvents:
+            return
+            
+        if not eventTypes:
+            eventTypes = self.detectedEvents
+            
+        if isinstance(eventTypes, str):
+            eventTypes = [eventTypes]
+
+        for evt in eventTypes:
+            self.friend.removeEvent(info=[evt], which_layout=which_layout)
+            self.detectedEvents.remove(evt)
+
+    def detectAPs(self, detectTextBox, minHeightTextEdit, minDistTextEdit, drawEvent=False):
         if not self.friend.index or len(self.friend.index)>1:
             textboxhandle.setText("Can only detect spikes in one episode at a time")
-            
+
         zData = self.friend.episodes['Data'][self.friend.index[-1]]
         ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
@@ -193,13 +241,24 @@ class SideDockPanel(QtGui.QWidget):
         else:
             selectedWindow = [None, None]
         final_label_text = ""
+        msh = float(minHeightTextEdit.toPlainText())
+        msd = float(minDistTextEdit.toPlainText())
         for c, Vs in zData.Voltage.items():
             Vs = spk_window(Vs, ts,selectedWindow, t0=0)
-            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=-10.0, msd=1.0)
-            final_label_text = final_label_text + c + " : " + str(num_spikes) + "\n"
-        
-        textboxhandle.setText(final_label_text)
-        
+            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd)
+            final_label_text = final_label_text + c + " : \n"
+            final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
+            final_label_text = final_label_text + "  mean ISI: "
+            final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
+            final_label_text += "\n"
+            # Draw event markers
+            if drawEvent:
+                if selectedWindow is not None:
+                    spike_time += selectedWindow[0]
+                self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
+
+        detectTextBox.setText(final_label_text[:-1])
+
     # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
@@ -207,7 +266,16 @@ class SideDockPanel(QtGui.QWidget):
 
     def sizeHint(self):
         """Helps with initial dock window size"""
-        return QtCore.QSize(self.friend.frameGeometry().width()/6, 20)
+        return QtCore.QSize(self.friend.frameGeometry().width()/4.95, 20)
+
+    def adjustQTextEdit(self, textEdit):
+        fontMetrics = QtGui.QFontMetrics(textEdit.font())
+        height = fontMetrics.height() + (1 + textEdit.frameWidth()) * 2
+        textEdit.setFixedHeight(height)
+        textEdit.setMinimumWidth(0)
+        textEdit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        textEdit.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        return textEdit
 
 class ScopeWindow(QtGui.QMainWindow):
     def __init__(self, parent=None, maxepisodes=10, layout=None):
@@ -227,7 +295,9 @@ class ScopeWindow(QtGui.QMainWindow):
         # layout = [channel, stream, row, col]
         self.layout =[['Voltage', 'A', 0, 0]] if not layout else layout# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
         # range of axes
-        self.viewMode = 'default'
+        self.viewMode = 'keep'
+        # Recording view Range
+        self.viewRange = dict()
         # view region
         self.viewRegionOn = False
         # self.linkViewRegion = True
@@ -379,6 +449,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
         # reset the grpahicsview if user not keeping traces from older dataset
         if not self.keepOther and not bool_old_episode:
+            self.getDataViewRange() # Get the data range before clearing
             self.graphicsView.clear()
             self._usedColors = []
             self._loaded_array = []
@@ -412,10 +483,12 @@ class ScopeWindow(QtGui.QMainWindow):
         for j in index_remove:
             self.removeEpisode(info=(self.episodes['Name'], self.episodes['Epi'][j]))
 
-        self.setDataViewRange()
         # print(self.index)
-        if not bool_old_episode: # artists have been cleared. Add it back
-            self.reissueArtists()
+        if not bool_old_episode:
+            self.reissueArtists() # artists have been cleared. Add it back
+            self.setDataViewRange(viewMode='reset')
+        else:
+            self.setDataViewRange(viewMode='keep')
 
         # Update the companion, Toolbox: Layout
         if self.dockPanel.accWidget.widgetAt(0).objectName() == 'Banner':
@@ -454,7 +527,6 @@ class ScopeWindow(QtGui.QMainWindow):
 
             p.plot(x=zData.Time, y=getattr(zData, l[0])[l[1]], pen=pen, name=pname)
 
-
     def removeEpisode(self, info=None):
         if not info:
             return
@@ -474,6 +546,51 @@ class ScopeWindow(QtGui.QMainWindow):
         if remove_index and self.colorfy:
             for r in remove_index:
                 del self._usedColors[r]
+
+    def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom'):
+        p = None
+        for l in self.layout:
+            if which_layout[0] in l and which_layout[1] in l:
+                # get graphics handle
+                p = self.graphicsView.getItem(row=l[2], col=l[3])
+                break
+        if not p:
+            return
+
+        yRange = self.viewRange[l[0], l[1]][1]
+        if linesize is None:
+            linesize = yRange[1] / 15.0
+        if drawat == 'bottom':
+            ypos_0, ypos_1 = yRange[0], yRange[0] + linesize
+        else: # top
+            ypos_0, ypos_1 = yRange[1], yRange[1] - linesize
+
+        # Cell + Episode + Even type + Stream + Channel
+        pname = ".".join(info)+'.'+l[0]+'.'+l[1]
+        for t in eventTime:
+            p.plot(x=[t,t], y=[ypos_0, ypos_1], pen=color, name=pname)
+
+    def removeEvent(self, info=None, which_layout=None):
+        """Remove one event type from specified layout (which_layout) or all
+        members of thelayout, if not specifying which_layout"""
+        if not info:
+            return
+
+        for l in self.layout:
+            if which_layout and (which_layout[0] not in l or which_layout[1] not in l):
+                continue # specified which_layout but does not match current iteration
+            # Get viewbox
+            p = self.graphicsView.getItem(row=l[2], col=l[3])
+            # Remove based on item name
+            pname = ".".join(info)+'.'+l[0]+'.'+l[1]
+            for k, a in enumerate(p.listDataItems()):
+                if pname in a.name(): # matching
+                    p.removeItem(a)
+
+            if which_layout: # if specified which_layout
+                break
+
+
 
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self, stream, channel, row, col, index=None):
@@ -527,9 +644,11 @@ class ScopeWindow(QtGui.QMainWindow):
             self.drawEpisode(zData, info=(self.episodes['Name'], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
 
         # Set the proper view range
-        self.setDataViewRange()
+        self.setDataViewRange('keep')
         # Redraw the artists
         self.reissueArtists()
+        # Force the new subplot to start with default view range
+        self.setDataViewRange(viewMode='default')
 
     def removeSubplot(self, layout, exact_match=False):
         """Remove a data stream from the display"""
@@ -586,10 +705,12 @@ class ScopeWindow(QtGui.QMainWindow):
         # self.graphicsView.setForegroundBrush
         # change color / format of all objects
 
-    def setDataViewRange(self, viewMode=None, xRange=None, yRange=None):
+    def setDataViewRange(self, viewMode, xRange=None, yRange=None):
         # print('view range %s'%self.viewMode)
-        self.viewMode = viewMode if viewMode is not None else self.viewMode
-        self.viewRange = collections.OrderedDict()
+        self.viewMode = viewMode
+        if not self.viewRange.keys():
+            self.viewMode = 'default'
+
         # Loop through all the subplots
         for n, l in enumerate(self.layout):
             # get viewbox
@@ -601,12 +722,38 @@ class ScopeWindow(QtGui.QMainWindow):
                 yRange = {'Voltage':(-100, 40), 'Current': (-500, 500),
                           'Stimulus':(-500, 500)}.get(l[0])
                 p.setYRange(yRange[0], yRange[1], padding=0)
+                # Update current viewRange
+                self.viewRange[l[0], l[1]] = p.viewRange()
+                self.viewMode = viewMode
             elif self.viewMode == 'auto':
                 p.autoRange()
+                # Update current viewRange
+                self.viewRange[l[0], l[1]] = p.viewRange()
+            elif self.viewMode == 'keep':
+                # Update current viewRange
+                self.viewRange[l[0], l[1]] = p.viewRange()
+                # no chnage in viewRange
+                return
+            elif self.viewMode == 'reset':
+                if p.viewRange() != self.viewRange[l[0], l[1]]:
+                    X, Y = self.viewRange[l[0], l[1]]
+                    p.setXRange(X[0], X[1], padding=0)
+                    p.setYRange(Y[0], Y[1], padding=0)
+                    self.viewMode = 'keep'
             elif self.viewMode == 'manual':
-                return # not implemented
+                if xRange is not None:
+                    p.setXRange(xRange)
+                if yRange is not None:
+                    p.setYRange(yRange)
             else:
                 raise(TypeError('Unrecognized view mode'))
+
+    def getDataViewRange(self):
+        for l in self.layout:
+            p = self.graphicsView.getItem(row=l[2], col=l[3])
+            if p is None:
+                return
+            self.viewRange[l[0], l[1]] = p.viewRange()
 
     def reissueArtists(self):
         """In case artists are removed, toggle back on the artists"""
