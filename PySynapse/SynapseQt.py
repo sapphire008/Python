@@ -91,13 +91,22 @@ class Node(object):
 
     def insert_child(self, position, child):
         if position < 0 or position > self.child_count():
-            return(False)
+            return False
 
         self.children.insert(position, child)
         child.parent = self
 
-        return(True)
-
+        return True
+        
+    def remove_child(self, position, child):
+        if position < 0 or position > self.child_count():
+            return False
+        
+        if child in self.children:
+            self.children.remove(child)
+        
+        return True
+        
     def child(self, row):
         return self.children[row]
 
@@ -260,7 +269,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
         # insert custom stack
         for t in stack:
-            file_path = os.path.join(path, s['Name']+'.{}.dat')
+            file_path = os.path.join(path, s['Name']+'.{}.IMG')
             node = Node("{} ({:d})".format(s['Name'], len(s['Dirs'])), file_path, parent=parent, info=s)
             node.is_dir = False
             node.type = "stack"
@@ -339,8 +348,18 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
 
         self.endInsertRows()
 
-        return(success)
-
+        return success
+        
+    def refreshNode(self, parent=QtCore.QModelIndex()):
+        node = self.getNode(parent)
+        # set_trace()
+        # Remove old items
+        self.beginRemoveRows(parent, 0, len(node.children))        
+        node.children = []        
+        self.endRemoveRows()
+        # Add new items
+        self.fetchMore(parent)
+        
     def fileName(self, index):
         return(self.getNode(index))
 
@@ -541,14 +560,21 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def setMenuBarItems(self):
          # File Menu
         fileMenu = self.menubar.addMenu('&File')
-
+        
+        # File: Refresh. Refresh currently selected item/directory
+        refreshAction = QtGui.QAction('Refresh', self)
+        refreshAction.setShortcut('F5')
+        refreshAction.setStatusTip('Refresh currently selected item / directory')
+        refreshAction.triggered.connect(self.refreshCurrentBranch)
+        fileMenu.addAction(refreshAction)
+        
         # File: Exit
         exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Synapse')
         exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
-
+        
         # View Menu
         viewMenu = self.menubar.addMenu('&View')
 
@@ -575,6 +601,14 @@ class Synapse_MainWindow(QtGui.QMainWindow):
             self.tableview.hideColumn(column)
             action.setChecked(False)
             self.tableview.hiddenColumnList.append(column)
+            
+    def refreshCurrentBranch(self):
+        # Get parent index
+        index = self.treeview.selectionModel().currentIndex()
+        node = self.treeview.model.getNode(index)
+        if node.type == "directory":
+            self.treeview.model.refreshNode(index)
+        
 
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
@@ -586,7 +620,11 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         #    event.accept()
         #else:
         #    event.ignore()
-
+        # Consider if close the Scope window when closing Synapse main window
+        # if hasattr(self, 'sw') and not self.sw.isclosed:
+        #     self.sw.close()
+        #     delattr(self, 'sw')
+            
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
@@ -611,7 +649,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         if node.type == "sequence":
             # populuate the table view on the other panel
             self.setEpisodeListTableView(node.info)
-
+        
     # --------------- Episode list behaviors ----------------------------------
     def setEpisodeListTableView(self, sequence=None):
         if not sequence:

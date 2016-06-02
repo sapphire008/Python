@@ -310,6 +310,50 @@ def stionary_rect_kernel(ts, window=500.):
     t = time2ind(window, ts)
     w = np.concatenate((np.zeros(10), np.ones(t), np.zeros(10)))
     return(w)
+    
+
+def detectPSP_template_matching(Vs, ts, event, criterion='correlation'):
+    """Intracellular post synaptic potential event detection based on
+    Jonas et al, 1993: Quantal components of unitary EPSCs at the mossy fibre synapse on CA3 pyramidal cells of rat hippocampus.
+    Clements and Bekkers, 1997: Detection of spontaneous synaptic events with an optimally scaled template.
+    Cited by Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
+    """
+    def p_t(t, amp, tau_RISE, tau_DECAY): # Template function. Upward PSP
+        return amp * (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
+    
+def detectPSP_deconvolution():
+    return
+    
+    
+def detectPSPs(Vs, ts, eventType='EPSP', method='template matching', criterion='correlation'):
+    """Main function to handle all cases of detection of synaptic potentials. 
+    Methods are used by:
+    Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
+    
+    event_start, event_peak, event_amplitude = detectPSPs(Vs, ts, ...)
+    
+    Inputs:
+        Vs: voltage or current time series
+        ts: sampling rate [ms]
+        eventType: ["EPSP" (default), "IPSP", "EPSC", "IPSC"]. Type of events
+        method: ["template matching", "deconvolution"] methods used to detect
+                events. Default is "template matching"
+        criterion: ['correlation', 'noise']. Criterion for deeming event detection 
+                is significant. Only relevant for template matching.
+                'correlation': correlation between optimally scaled template and 
+                               data. This is the default.
+                'noise': compare the scaling factor with noise standard deviation.
+    """
+    if eventType == "EPSP" or eventType == "IPSC":
+        event = "down" # downward events
+    else:
+        event = "up" # upward events
+        
+    if method == "template matching":
+        event_start, event_peak, event_amplitude = detectPSP_template_matching(Vs, ts, event=event)
+    else:
+        event_start, event_peak, event_amplitude = detectPSP_deconvolution(Vs, ts, event=event)
+
 
 
 if __name__ == '__main__':

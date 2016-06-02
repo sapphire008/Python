@@ -44,7 +44,6 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
 sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
 from util.ExportData import *
@@ -161,6 +160,7 @@ class SideDockPanel(QtGui.QWidget):
 
     # ------- Analysis tools -------------------------------------------------
     def eventDetectionWidget(self):
+        """This returns the initialized event detection widget"""
         # Initalize the widget
         widgetFrame = QtGui.QFrame(self)
         widgetFrame.setLayout(QtGui.QGridLayout())
@@ -170,48 +170,97 @@ class SideDockPanel(QtGui.QWidget):
         detectButton = QtGui.QPushButton("Detect")
         # Type of Event detection to run
         # Summary box
-        detectTextBox = QtGui.QLabel("NaN")
-        detectTextBox.setStyleSheet("background-color: white")
+        detectReportBox = QtGui.QLabel("NaN")
+        detectReportBox.setStyleSheet("background-color: white")
         # Even type selection
         eventTypeComboBox = QtGui.QComboBox()
         eventTypeComboBox.addItems(['Action Potential', 'Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
         # Asking to draw on the plot
         drawCheckBox = QtGui.QCheckBox("Mark Event")
         drawCheckBox.stateChanged.connect(self.clearEvents)
-        # Detection settings
-        minHeightLabel = QtGui.QLabel("Min Height")
-        minHeightTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("-10"))
-        minHeightUnitLabel = QtGui.QLabel("mV")
-        minDistLabel = QtGui.QLabel("Min Dist")
-        minDistTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
-        minDistUnitLabel = QtGui.QLabel("ms")
+        
+        # Arrange the widget        
+        widgetFrame.layout().addWidget(detectButton, 0, 0, 1, 3)
+        widgetFrame.layout().addWidget(eventTypeComboBox, 1, 0, 1, 1)
+        widgetFrame.layout().addWidget(drawCheckBox, 1, 1, 1,1)
+        
+        # Setting of event detection
+        self.setEDSettingWidgetFrame(widgetFrame, detectReportBox, eventTypeComboBox.currentText())
+        
+        # Refresh setting section when event type changed        
+        eventTypeComboBox.currentIndexChanged.connect(lambda: self.setEDSettingWidgetFrame(widgetFrame, detectReportBox, eventTypeComboBox.currentText()))
         # Summary box behavior
-        detectButton.clicked.connect(lambda : self.detectEvents(eventTypeComboBox.currentText(), detectTextBox, minHeightTextEdit, minDistTextEdit, drawCheckBox.checkState()))
-
-        widgetFrame.layout().addWidget(detectButton, 1, 0, 1, 3)
-        widgetFrame.layout().addWidget(eventTypeComboBox, 2, 0, 1, 1)
-        widgetFrame.layout().addWidget(drawCheckBox, 2, 1,1,2)
-        widgetFrame.layout().addWidget(minHeightLabel, 3,0)
-        widgetFrame.layout().addWidget(minHeightTextEdit, 3, 1)
-        widgetFrame.layout().addWidget(minHeightUnitLabel, 3, 2)
-        widgetFrame.layout().addWidget(minDistLabel, 4, 0)
-        widgetFrame.layout().addWidget(minDistTextEdit, 4, 1)
-        widgetFrame.layout().addWidget(minDistUnitLabel, 4, 2)
-        widgetFrame.layout().addWidget(detectTextBox, 5, 0, 1, 3)
+        detectButton.clicked.connect(lambda : self.detectEvents(eventTypeComboBox.currentText(), detectReportBox, drawCheckBox.checkState()))
 
         return widgetFrame
-
-    def detectEvents(self, event='Action Potential', *args, **kwargs):
+        
+    def setEDSettingWidgetFrame(self, widgetFrame, detectReportBox, event):
+        # Remove everthing at and below the setting rows: rigid setting
+        nrows = widgetFrame.layout().rowCount()
+        if nrows>2:
+            for row in range(2,nrows):
+                for col in range(widgetFrame.layout().columnCount()):
+                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
+                    if currentItem is not None:
+                        if currentItem.widget() is not detectReportBox:
+                            currentItem.widget().deleteLater()
+                        else:
+                            widgetFrame.layout().removeItem(currentItem)
+                
+        # Get the setting table again
+        self.getEDSettingTable(event)
+        for key, val in self.EDsettingTable.items():
+            widgetFrame.layout().addWidget(val, key[0], key[1])
+        # Report box
+        widgetFrame.layout().addWidget(detectReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
+        
+    def getEDSettingTable(self, event='Action Potential'):
+        """return a table for settings of each even detection"""
+        if event == 'Action Potential':
+            minHeightLabel = QtGui.QLabel("Min Height")
+            minHeightTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("-10"))
+            minHeightUnitLabel = QtGui.QLabel("mV")
+            minDistLabel = QtGui.QLabel("Min Dist")
+            minDistTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            minDistUnitLabel = QtGui.QLabel("ms")
+            self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit,
+                            (3,2): minHeightUnitLabel, (4,0):minDistLabel,
+                            (4,1): minDistTextEdit, (4,2): minDistUnitLabel}
+        elif event in ['EPSP', 'IPSP', 'EPSC','IPSC']:
+            ampLabel = QtGui.QLabel("Amplitude")
+            ampTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            ampUnitLabel = QtGui.QLabel("mV")
+            xoffsetLabel = QtGui.QLabel("Offset")
+            xoffsetTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            xoffsetUnitLabel = QtGui.QLabel("ms")
+            riseTimeLabel = QtGui.QLabel("Rise Time")
+            riseTimeTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            riseTimeUnitLabel = QtGui.QLabel("ms")
+            decayTimeLabel = QtGui.QLabel("Decay Time")
+            decayTimeTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            decayTimeUnitLabel = QtGui.QLabel("ms")
+            self.EDsettingTable = {(3,0):ampLabel, (3,1):ampTextEdit, (3,2):ampUnitLabel,
+                            (4,0):xoffsetLabel, (4,1):xoffsetTextEdit, (4,2):xoffsetUnitLabel,
+                            (5,0):riseTimeLabel, (5,1):riseTimeTextEdit, (5,2):riseTimeUnitLabel,
+                            (6,0):decayTimeLabel, (6,1):decayTimeTextEdit, (6,2):decayTimeUnitLabel}
+        elif event == 'Spike':
+            self.EDsettingTable = {}
+        else:
+            raise(Exception('Unrecognized event type %s')%(event))
+        
+    def detectEvents(self, event='Action Potential', detectReportBox=None, drawEvents=False, *args, **kwargs):
         self.detectedEvents.append(event)
         if event == 'Action Potential':
-            self.detectAPs(*args, **kwargs)
-        elif event == 'EPSP':
-            return
-        elif event == 'IPSP':
-            return
-        elif event == 'EPSC':
-            return
-        elif event == 'IPSC':
+            msh = float(self.EDsettingTable[(3,1)].toPlainText())
+            msd = float(self.EDsettingTable[(4,1)].toPlainText())
+            self.detectAPs(detectReportBox, drawEvents, msh, msd)
+        elif event in ['EPSP', 'IPSP', 'EPSC', 'IPSC']:
+            amp = float(self.EDsettingTable[(3,1)].toPlainText())
+            xoffset = float(self.EDsettingTable[(4,1)].toPlainText())
+            riseTime = float(self.EDsettingTable[(5,1)].toPlainText())
+            decayTime = float(self.EDsettingTable[(6,1)].toPlainText())
+            self.detectPSPs(detectReportBox, drawEvents, event, amp, xoffset, riseTime, decayTime)
+        elif event == 'Spike':
             return
 
     def clearEvents(self, checked, eventTypes=None, which_layout=None):
@@ -219,10 +268,10 @@ class SideDockPanel(QtGui.QWidget):
         type. Connected to checkbox state"""
         if checked or not self.detectedEvents:
             return
-            
+
         if not eventTypes:
             eventTypes = self.detectedEvents
-            
+
         if isinstance(eventTypes, str):
             eventTypes = [eventTypes]
 
@@ -230,9 +279,10 @@ class SideDockPanel(QtGui.QWidget):
             self.friend.removeEvent(info=[evt], which_layout=which_layout)
             self.detectedEvents.remove(evt)
 
-    def detectAPs(self, detectTextBox, minHeightTextEdit, minDistTextEdit, drawEvent=False):
+    def detectAPs(self, detectReportBox, drawEvent=False, msh=-10, msd=1):
+        """detectAPs(detectReportBox, drawEvent, 'additional settings',...)"""
         if not self.friend.index or len(self.friend.index)>1:
-            textboxhandle.setText("Can only detect spikes in one episode at a time")
+            detectReportBox.setText("Can only detect spikes in one episode at a time")
 
         zData = self.friend.episodes['Data'][self.friend.index[-1]]
         ts = zData.Protocol.msPerPoint
@@ -241,8 +291,6 @@ class SideDockPanel(QtGui.QWidget):
         else:
             selectedWindow = [None, None]
         final_label_text = ""
-        msh = float(minHeightTextEdit.toPlainText())
-        msd = float(minDistTextEdit.toPlainText())
         for c, Vs in zData.Voltage.items():
             Vs = spk_window(Vs, ts,selectedWindow, t0=0)
             num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd)
@@ -253,11 +301,14 @@ class SideDockPanel(QtGui.QWidget):
             final_label_text += "\n"
             # Draw event markers
             if drawEvent:
-                if selectedWindow is not None:
+                if selectedWindow[0] is not None:
                     spike_time += selectedWindow[0]
                 self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
 
-        detectTextBox.setText(final_label_text[:-1])
+        detectReportBox.setText(final_label_text[:-1])
+        
+    def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', amp=1, xoffset=1, riseTime=1, decayTime=1):
+        return
 
     # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
@@ -335,7 +386,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.dockWidget = QtGui.QDockWidget("Toolbox", self)
         self.dockWidget.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.dockWidget.setObjectName(_fromUtf8("dockwidget"))
-        # self.dockWidget.hide() # keep the dock hidden by default
+        self.dockWidget.hide() # keep the dock hidden by default
         # Dock content, containing widgets
         self.dockWidgetContents = QtGui.QWidget()
         self.dockWidgetContents.setObjectName(_fromUtf8("dockWidgetContents"))
@@ -591,7 +642,6 @@ class ScopeWindow(QtGui.QMainWindow):
                 break
 
 
-
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self, stream, channel, row, col, index=None):
     	l = [stream, channel, row, col]
@@ -765,7 +815,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self.toggleDataCursor(checked=False)
             self.toggleDataCursor(checked=True)
 
-    def toggleRegionSelection(self, checked, plotitem=None, rng=(0, 500), rememberRange=True, cmd=None):
+    def toggleRegionSelection(self, checked, plotitem=None, rng=None, rememberRange=True, cmd=None):
         """Add linear view region. Region selection for data analysis
         rememberRange: when toggling, if set to True, when checked again, the
                        region was set to the region before the user unchecked
@@ -793,14 +843,15 @@ class ScopeWindow(QtGui.QMainWindow):
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
 
         elif (not self.viewRegionOn and checked) or cmd == 'add': # add
+            # Update current data view range
+            if rng is None:
+                self.getDataViewRange()
+                xRange = np.array(list(self.viewRange.values())[0][0])
+                rng = (xRange[0], xRange[0] + np.diff(xRange)[0] / 10.0)
             # Record selection range
             if not hasattr(self, 'selectedRange'):
                 self.selectedRange = rng
-            # Add a data tip label
-            label = pg.LabelItem(justify='right')
-            label.setText(self.regionDataTip(rng=self.selectedRange))
-            self.graphicsView.addItem(label)
-            self.graphicsView.artists.append(label)
+
             # Add the view region on top of the viewbox
             def addRegion(pm):
                 # Initialize the region
@@ -817,6 +868,12 @@ class ScopeWindow(QtGui.QMainWindow):
             addRegion = np.frompyfunc(addRegion, 1, 1) # (minX, maxX)
             # Add the view region
             addRegion(plotitem)
+
+            # Add a data tip label
+            label = pg.LabelItem(justify='right')
+            label.setText(self.regionDataTip(rng=self.selectedRange))
+            self.graphicsView.addItem(label)
+            self.graphicsView.artists.append(label)
         else:
             raise(Exception('toggleRegionSelection fell through'))
 
@@ -933,7 +990,7 @@ class ScopeWindow(QtGui.QMainWindow):
         xpos = None
         for p in pm:
             if p.sceneBoundingRect().contains(pos):
-                mousePoint = p.getViewBox().mapSceneToView(pos)
+                mousePoint = p.vb.mapSceneToView(pos)
                 xpos = mousePoint.x() # modify xpos
                 cursor.setPos(mousePoint.x())
 
@@ -1016,7 +1073,17 @@ class ScopeWindow(QtGui.QMainWindow):
 run_example = False
 
 if __name__ == '__main__' and not run_example:
-    episodes = {'Duration': [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 90000, 90000, 90000, 50000, 50000], 'Name': 'Neocortex F.08Feb16', 'Drug Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '3.4 sec', '2:03', '3:40', '5:37', '8:29'], 'Drug Level': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], 'Comment': ['', 'DAC0: PulseB 200', 'DAC0: PulseB -50', 'DAC0: PulseB -75', 'DAC0: PulseB -50', 'DAC0: PulseB 50', 'DAC0: PulseB 100', 'DAC0: PulseB 150', 'DAC0: PulseB 200', 'DAC0: PulseB 200', '', '', '', '', 'DAC0: PulseB 200', 'DAC0: PulseB 200'], 'Dirs': ['D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E1.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E2.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E3.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E4.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E5.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E6.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E7.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E8.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E9.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E10.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E11.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E12.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E13.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E14.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E15.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E16.dat'], 'Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '6:43', '8:42', '10:19', '12:16', '15:08'], 'Drug Name': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], 'Epi': ['S1.E1', 'S1.E2', 'S1.E3', 'S1.E4', 'S1.E5', 'S1.E6', 'S1.E7', 'S1.E8', 'S1.E9', 'S1.E10', 'S1.E11', 'S1.E12', 'S1.E13', 'S1.E14', 'S1.E15', 'S1.E16'], 'Sampling Rate': [0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001]}
+    episodes = {'Duration': [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 90000, 90000, 90000, 50000, 50000],
+    'Name': 'Neocortex F.08Feb16',
+    'Drug Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '3.4 sec', '2:03', '3:40', '5:37', '8:29'],
+    'Drug Level': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+    'Comment': ['', 'DAC0: PulseB 200', 'DAC0: PulseB -50', 'DAC0: PulseB -75', 'DAC0: PulseB -50', 'DAC0: PulseB 50', 'DAC0: PulseB 100', 'DAC0: PulseB 150', 'DAC0: PulseB 200', 'DAC0: PulseB 200', '', '', '', '', 'DAC0: PulseB 200', 'DAC0: PulseB 200'],
+    'Dirs': ['D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E1.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E2.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E3.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E4.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E5.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E6.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E7.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E8.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E9.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E10.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E11.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E12.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E13.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E14.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E15.dat', 'D:/Data/Traces/2016/02.February/Data 8 Feb 2016/Neocortex F.08Feb16.S1.E16.dat'],
+    'Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '6:43', '8:42', '10:19', '12:16', '15:08'], 'Drug Name': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    'Epi': ['S1.E1', 'S1.E2', 'S1.E3', 'S1.E4', 'S1.E5', 'S1.E6', 'S1.E7', 'S1.E8', 'S1.E9', 'S1.E10', 'S1.E11', 'S1.E12', 'S1.E13', 'S1.E14', 'S1.E15', 'S1.E16'],
+    'Sampling Rate': [0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001]}
+    #episodes = {'Duration': [40000], 'Name': 'Neocortex A.10Aug16', 'Drug Time': ['17:34'], 'Drug Level': [1], 'Comment':[''],
+    #            'Dirs':['D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E16.dat'],'Time':['18:35'], 'Epi':['S1.E16'], 'Sampling Rate': [0.1]}
     index = [7]
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow()
