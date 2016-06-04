@@ -6,14 +6,21 @@ Some routines for electrophysiology data analyses
 
 @author: Edward
 """
-
+import sys
 import numpy as np
 import scipy.signal as sg
+import scipy.stats as st
 # from pdb import set_trace
 try:
     from MATLAB import *
 except:
-    from util.MATLAB import *
+    try:
+        from util.MATLAB import *
+    except:
+        sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/Spikes/')
+        from MATLAB import *
+    
+        
 
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector
@@ -312,57 +319,115 @@ def stionary_rect_kernel(ts, window=500.):
     return(w)
     
 
-def detectPSP_template_matching(Vs, ts, event, criterion='correlation'):
+def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, mph=0.5, mpd=1, step=1, criterion='se', thresh=3):
     """Intracellular post synaptic potential event detection based on
     Jonas et al, 1993: Quantal components of unitary EPSCs at the mossy fibre synapse on CA3 pyramidal cells of rat hippocampus.
     Clements and Bekkers, 1997: Detection of spontaneous synaptic events with an optimally scaled template.
     Cited by Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
+    Inputs:    
+        * Vs: voltage or current time series  
+        * ts: sampling rate [ms]
+        * event: event type
+        * w: window of the template [ms]
+        * tau_RISE: rise time of the template gamma function [ms]. Default 1ms
+        * tau_DECAY: decay time of the template gamma function [ms]. Default 4ms
+        * mph: minimum event size [mV]. Default 0.5mV
+        * mpd: minimum event distance [ms]. Default 1ms
+        * step: step size to match template. Default is 1ms
+        * criterion: ['se'|'corr']
+            'se': standard error [Default]
+            'corr': correlation
+        * thresh: threshold applied on detection criterion to detect the event.
+            This value depends on the criterion selected.
+            'se': which is the default setting. Recommend 3 [Default]
+            'corr': Recommend 0.95 (significance level of the correlation)
+            
     """
-    def p_t(t, amp, tau_RISE, tau_DECAY): # Template function. Upward PSP
-        return amp * (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
+    step = step/ts
+    t_vect = np.arange(0,w+ts,ts)
+    def p_t(t, tau_RISE, tau_DECAY): # Template function. Upward PSP
+        g = (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
+        g = g / np.max(g) # normalize the peak
+        return g
+        
+    p = p_t(t_vect, tau_RISE, tau_DECAY)
     
+    # Do some preprocessing first
+    r_mean = np.mean(Vs)
+    r = Vs - r_mean
+    r = np.concatenate((r, np.zeros_like(p)))
+    # length of trasnversion
+    h = len(p)
+    # Append some zeros
+    chi_sq = np.zeros((np.arange(0, len(Vs), step).size,4)) # store fitting results
+    A = np.vstack([p, np.ones(h)]).T
+    for n, k in enumerate(np.arange(0, len(Vs), step, dtype=int)): # has total l steps
+        chi_sq[n,0] = int(k) # record index        
+        r_t = r[int(k):int(k+h)]
+        q = np.linalg.lstsq(A, r_t)
+        m, c = q[0] # m=scale, c=offset
+        chi_sq[n, 1:3] = q[0]
+        if criterion=='se':
+            chi_sq[n,3] = float(q[1]) # sum squared residual
+        elif criterion == 'corr':
+            chi_sq[n,3] = np.corrcoef(r_t, m*p+c)[0,1]
+    
+    if criterion=='se':
+        DetectionCriterion = chi_sq[:,1] / (np.sqrt(chi_sq[:,3]/(h-1)))
+        if event in ['IPSP', 'EPSC']:
+            DetectionCriterion = -1.0 * DetectionCriterion
+    elif criterion=='corr':
+        DetectionCriterion = chi_sq[:,3]
+        DetectionCriterion = DetectionCriterion / np.sqrt((1-DetectionCriterion**2) /(h-2)) # t value
+        DetectionCriterion = 1-st.t.sf(np.abs(DetectionCriterion), h-1)
+    
+    # Run through general peak detection on the detection criterion trace
+    ind, _ = findpeaks(DetectionCriterion, mph=thresh, mpd=mpd/ts)
+          
+    pks = chi_sq[ind,1]
+    ind = chi_sq[ind,0]
+    # Filter out the detected events that is less than the minimum peak height requirement
+    if event in ['EPSP', 'IPSC']:    
+        valid_ind = pks>abs(mph)
+    else:
+        valid_ind = pks<-1*abs(mph)
+    
+    pks = pks[valid_ind]
+    ind = ind[valid_ind]
+    
+        
+    return ind, pks, DetectionCriterion, chi_sq
+            
+
 def detectPSP_deconvolution():
     return
-    
-    
-def detectPSPs(Vs, ts, eventType='EPSP', method='template matching', criterion='correlation'):
-    """Main function to handle all cases of detection of synaptic potentials. 
-    Methods are used by:
-    Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
-    
-    event_start, event_peak, event_amplitude = detectPSPs(Vs, ts, ...)
-    
-    Inputs:
-        Vs: voltage or current time series
-        ts: sampling rate [ms]
-        eventType: ["EPSP" (default), "IPSP", "EPSC", "IPSC"]. Type of events
-        method: ["template matching", "deconvolution"] methods used to detect
-                events. Default is "template matching"
-        criterion: ['correlation', 'noise']. Criterion for deeming event detection 
-                is significant. Only relevant for template matching.
-                'correlation': correlation between optimally scaled template and 
-                               data. This is the default.
-                'noise': compare the scaling factor with noise standard deviation.
-    """
-    if eventType == "EPSP" or eventType == "IPSC":
-        event = "down" # downward events
-    else:
-        event = "up" # upward events
-        
-    if method == "template matching":
-        event_start, event_peak, event_amplitude = detectPSP_template_matching(Vs, ts, event=event)
-    else:
-        event_start, event_peak, event_amplitude = detectPSP_deconvolution(Vs, ts, event=event)
-
 
 
 if __name__ == '__main__':
     # test smoothed firing rate
+#    from ImportData import *
+#    zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
+#    zData = NeuroData(zData, old=True)
+#    Vs = zData.Voltage['A']
+#    ts = zData.Protocol.msPerPoint
+#    R = spk_firing_rate(Vs, ts, sigma=300.)
+#    from matplotlib import pyplot as plt
+#    plt.plot(R)
     from ImportData import *
-    zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
-    zData = NeuroData(zData, old=True)
+    zData = NeuroData('D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E35.dat', old=True)
     Vs = zData.Voltage['A']
     ts = zData.Protocol.msPerPoint
-    R = spk_firing_rate(Vs, ts, sigma=300.)
+
+    
+    ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
+    
+    print(pks[0])
+    print(pks[1])
+    print(pks[2])
+    print(pks[3])
+    
     from matplotlib import pyplot as plt
-    plt.plot(R)
+    plt.plot(Vs)
+    plt.plot(ind, -65*np.ones_like(ind), 'ro')
+    plt.figure()
+    plt.plot(DetectionCriterion)
