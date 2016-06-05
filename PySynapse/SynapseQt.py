@@ -228,7 +228,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
         dat_files, other_files, img_files = [], [], []
         # first separate files into two categories
         for file in os.listdir(path):
-            if str(os.path.splitext(file)[1]).lower() == '.dat':
+            if str(os.path.splitext(file)[1]).lower() == '.dat' and re.findall('.S(\d+).E(\d+).dat', file):
                 dat_files.append(file)
             elif str(os.path.splitext(file)[1].lower()) == '.img':
                 img_files.append(file)
