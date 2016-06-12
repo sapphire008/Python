@@ -394,9 +394,10 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
     
     pks = pks[valid_ind]
     ind = ind[valid_ind]
+    event_time = ind2time(ind, ts)
     
         
-    return ind, pks, DetectionCriterion, chi_sq
+    return event_time, pks, DetectionCriterion, chi_sq
             
 
 def detectPSP_deconvolution():

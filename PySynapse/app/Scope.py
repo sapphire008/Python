@@ -77,12 +77,71 @@ class SideDockPanel(QtGui.QWidget):
         self.accWidget = AccordionWidget(self)
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
+        self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
         self.verticalLayout.addWidget(self.accWidget)
+
+    # --------- Trace arithmetic tools ---------------------------------------
+    def arithmeticWidget(self):
+        """Setting widget for trace manipulation"""
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("ArithmeticWidgetFrame"))
+        # widgetFrame.layout().setSpacing(0)
+
+        calculateButton = QtGui.QPushButton("Calculate")
+        # Remove baseline from the trace check box
+        nullCheckBox = QtGui.QCheckBox("Null")
+        nullCheckBox.setToolTip("Remove baseline")
+        # null baseline range
+        rangeTextBox = QtGui.QLineEdit()
+        rangeTextBox.setToolTip("Range of baseline.\nEnter a single number or a range [min, max] in ms")
+        rangeTextBox.setText("0")
+        # Range unit label
+        rangeUnitLabel = QtGui.QLabel("ms")
+
+        # Formula
+        formulaTextBox = QtGui.QLineEdit()
+        formulaTextBox.setPlaceholderText("Formula. Not implemented yet.")
+        Tooltips = "Examples:\n"
+        Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
+        Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
+        Tooltips += "Diff between regions: [100, 500] - [1100, 1500]\n"
+        Tooltips += "Multiple manipulations: {S1.E1 - S1.E2, S1.E3 - S1.E4, S1.E5 - S1.E6}"
+        formulaTextBox.setToolTip(Tooltips)
+
+        # Connect all the items to calculationevents
+        nullCheckBox.stateChanged.connect(lambda checked: self.nullTraces(checked, rangeTextBox))
+        # calculateButton.clicked.connect(self.calculateTraces)
+
+        # Organize all the items in the frame
+        widgetFrame.layout().addWidget(calculateButton, 0, 0, 1, 3)
+        widgetFrame.layout().addWidget(nullCheckBox, 1, 0)
+        widgetFrame.layout().addWidget(rangeTextBox, 1, 1)
+        widgetFrame.layout().addWidget(rangeUnitLabel, 1, 2)
+        widgetFrame.layout().addWidget(formulaTextBox, 2, 0, 1, 3)
+
+        return widgetFrame
+    
+    def nullTraces(self, checked, rangeTextBox):
+        self.friend.isnull = checked
+        # parse the range
+        r = rangeTextBox.text()
+        if "[" not in r: # presumbaly a single number
+            self.friend.nullRange = float(r)
+        else: # parse the range
+            r=r.replace("[","").replace("]","").replace(","," ")
+            self.friend.nullRange = [float(k) for k in r.split()]
+        
+        # Redraw episodes
+        index = list(self.friend.index) # keep the current index. Make a copy
+        episodes = self.friend.episodes # keep the current episode
+        self.friend.updateEpisodes(episodes=episodes, index=[], updateLayout=False) # clear all the episodes
+        self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
 
     # ------- Layout control -------------------------------------------------
     def layoutWidget(self):
@@ -178,22 +237,22 @@ class SideDockPanel(QtGui.QWidget):
         # Asking to draw on the plot
         drawCheckBox = QtGui.QCheckBox("Mark Event")
         drawCheckBox.stateChanged.connect(self.clearEvents)
-        
-        # Arrange the widget        
+
+        # Arrange the widget
         widgetFrame.layout().addWidget(detectButton, 0, 0, 1, 3)
         widgetFrame.layout().addWidget(eventTypeComboBox, 1, 0, 1, 1)
         widgetFrame.layout().addWidget(drawCheckBox, 1, 1, 1,1)
-        
+
         # Setting of event detection
         self.setEDSettingWidgetFrame(widgetFrame, detectReportBox, eventTypeComboBox.currentText())
-        
-        # Refresh setting section when event type changed        
+
+        # Refresh setting section when event type changed
         eventTypeComboBox.currentIndexChanged.connect(lambda: self.setEDSettingWidgetFrame(widgetFrame, detectReportBox, eventTypeComboBox.currentText()))
         # Summary box behavior
         detectButton.clicked.connect(lambda : self.detectEvents(eventTypeComboBox.currentText(), detectReportBox, drawCheckBox.checkState()))
 
         return widgetFrame
-        
+
     def setEDSettingWidgetFrame(self, widgetFrame, detectReportBox, event):
         # Remove everthing at and below the setting rows: rigid setting
         nrows = widgetFrame.layout().rowCount()
@@ -206,60 +265,81 @@ class SideDockPanel(QtGui.QWidget):
                             currentItem.widget().deleteLater()
                         else:
                             widgetFrame.layout().removeItem(currentItem)
-                
+
         # Get the setting table again
         self.getEDSettingTable(event)
         for key, val in self.EDsettingTable.items():
             widgetFrame.layout().addWidget(val, key[0], key[1])
         # Report box
         widgetFrame.layout().addWidget(detectReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
-        
+
     def getEDSettingTable(self, event='Action Potential'):
         """return a table for settings of each even detection"""
         if event == 'Action Potential':
             minHeightLabel = QtGui.QLabel("Min Height")
-            minHeightTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("-10"))
+            minHeightTextEdit = QtGui.QLineEdit("-10")
             minHeightUnitLabel = QtGui.QLabel("mV")
             minDistLabel = QtGui.QLabel("Min Dist")
-            minDistTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            minDistTextEdit = QtGui.QLineEdit("1")
             minDistUnitLabel = QtGui.QLabel("ms")
             self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit,
                             (3,2): minHeightUnitLabel, (4,0):minDistLabel,
                             (4,1): minDistTextEdit, (4,2): minDistUnitLabel}
         elif event in ['EPSP', 'IPSP', 'EPSC','IPSC']:
             ampLabel = QtGui.QLabel("Amplitude")
-            ampTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            ampLabel.setToolTip("Minimum Amplitude of the event")
+            ampTextEdit =  QtGui.QLineEdit("0.5")
             ampUnitLabel = QtGui.QLabel("mV")
-            xoffsetLabel = QtGui.QLabel("Offset")
-            xoffsetTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
-            xoffsetUnitLabel = QtGui.QLabel("ms")
             riseTimeLabel = QtGui.QLabel("Rise Time")
-            riseTimeTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            riseTimeLabel.setToolTip("Rise time of PSP template")
+            riseTimeTextEdit = QtGui.QLineEdit("1")
             riseTimeUnitLabel = QtGui.QLabel("ms")
             decayTimeLabel = QtGui.QLabel("Decay Time")
-            decayTimeTextEdit = self.adjustQTextEdit(QtGui.QTextEdit("1"))
+            decayTimeLabel.setToolTip("Decay time of the PSP template")
+            decayTimeTextEdit =  QtGui.QLineEdit("4")
             decayTimeUnitLabel = QtGui.QLabel("ms")
+            criterionLabel = QtGui.QLabel("Criterion")
+            criterionLabel.setToolTip("Detection statistical criterion: \n'se': standard error\n'corr': correlation")
+            criterionTextEdit =  QtGui.QLineEdit("se")
+            criterionUnitLabel = QtGui.QLabel("")
+            threshLabel = QtGui.QLabel("Threshold")
+            threshLabel.setToolTip("Threshold of statistical criterion")
+            threshTextEdit =  QtGui.QLineEdit("3")
+            threshUnitLabel = QtGui.QLabel("")
+            stepLabel = QtGui.QLabel("Step")
+            stepLabel.setToolTip("Step size to convolve the template with the trace")
+            stepTextEdit =  QtGui.QLineEdit("20")
+            stepUnitLabel = QtGui.QLabel("")
+            
             self.EDsettingTable = {(3,0):ampLabel, (3,1):ampTextEdit, (3,2):ampUnitLabel,
-                            (4,0):xoffsetLabel, (4,1):xoffsetTextEdit, (4,2):xoffsetUnitLabel,
-                            (5,0):riseTimeLabel, (5,1):riseTimeTextEdit, (5,2):riseTimeUnitLabel,
-                            (6,0):decayTimeLabel, (6,1):decayTimeTextEdit, (6,2):decayTimeUnitLabel}
+                                   (4,0):riseTimeLabel, (4,1):riseTimeTextEdit, (4,2):riseTimeUnitLabel,
+                                   (5,0):decayTimeLabel, (5,1):decayTimeTextEdit, (5,2):decayTimeUnitLabel,
+                                   (6,0):criterionLabel, (6,1):criterionTextEdit, (6,2):criterionUnitLabel,
+                                   (7,0):threshLabel, (7,1):threshTextEdit, (7,2):threshUnitLabel,
+                                   (8,0):stepLabel, (8,1):stepTextEdit, (8,2):stepUnitLabel
+                                   }
+                                   
+
         elif event == 'Spike':
             self.EDsettingTable = {}
         else:
             raise(Exception('Unrecognized event type %s')%(event))
-        
+
     def detectEvents(self, event='Action Potential', detectReportBox=None, drawEvents=False, *args, **kwargs):
         self.detectedEvents.append(event)
         if event == 'Action Potential':
-            msh = float(self.EDsettingTable[(3,1)].toPlainText())
-            msd = float(self.EDsettingTable[(4,1)].toPlainText())
+            msh = float(self.EDsettingTable[(3,1)].text())
+            msd = float(self.EDsettingTable[(4,1)].text())
             self.detectAPs(detectReportBox, drawEvents, msh, msd)
         elif event in ['EPSP', 'IPSP', 'EPSC', 'IPSC']:
-            amp = float(self.EDsettingTable[(3,1)].toPlainText())
-            xoffset = float(self.EDsettingTable[(4,1)].toPlainText())
-            riseTime = float(self.EDsettingTable[(5,1)].toPlainText())
-            decayTime = float(self.EDsettingTable[(6,1)].toPlainText())
-            self.detectPSPs(detectReportBox, drawEvents, event, amp, xoffset, riseTime, decayTime)
+            amp = float(self.EDsettingTable[(3,1)].text())
+            riseTime = float(self.EDsettingTable[(4,1)].text())
+            decayTime = float(self.EDsettingTable[(5,1)].text())
+            criterion = self.EDsettingTable[(6,1)].text()
+            thresh = float(self.EDsettingTable[7,1].text())
+            step = float(self.EDsettingTable[(8,1)].text())
+            
+            self.detectPSPs(detectReportBox, drawEvents, event, riseTime, decayTime, amp, step, criterion, thresh)
         elif event == 'Spike':
             return
 
@@ -306,10 +386,42 @@ class SideDockPanel(QtGui.QWidget):
                 self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
 
         detectReportBox.setText(final_label_text[:-1])
-        
-    def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', amp=1, xoffset=1, riseTime=1, decayTime=1):
-        return
 
+    def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', riseTime=1, decayTime=4, amp=1, step=20, criterion='se', thresh=3.0):
+        if not self.friend.index or len(self.friend.index)>1:
+            detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
+        
+        zData = self.friend.episodes['Data'][self.friend.index[-1]]
+        ts = zData.Protocol.msPerPoint
+        if self.friend.viewRegionOn:
+            selectedWindow = self.friend.selectedRange
+        else:
+            selectedWindow = [None, None]
+        final_label_text = ""
+        if event in ['EPSP', 'IPSP']:
+            stream = 'Voltage'
+        else: # ['EPSC', 'IPSC']
+            stream = 'Current'
+        
+        # Get events
+        for c, S in getattr(zData, stream).items():
+            S = spk_window(S, ts, selectedWindow, t0=0)
+            event_time, pks, _, _ = detectPSP_template_matching(S, ts, event=event, \
+                                            w=200, tau_RISE=riseTime, tau_DECAY=decayTime, \
+                                            mph=amp, step=step, criterion=criterion, thresh=thresh)
+            final_label_text = final_label_text + c + ": \n"
+            final_label_text = final_label_text + "  # " + event + ": " + str(len(event_time)) +  "\n"
+            final_label_text += "  mean IEI: "
+            final_label_text += "{:0.2f}".format(np.mean(np.diff(event_time))) if len(event_time)>1 else "NaN"
+            final_label_text += "\n"
+            # Draw event markers
+            if drawEvent:
+                if selectedWindow[0] is not None:
+                    event_time += selectedWindow[0]
+                self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
+            
+        detectReportBox.setText(final_label_text[:-1])
+        
     # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
@@ -319,14 +431,6 @@ class SideDockPanel(QtGui.QWidget):
         """Helps with initial dock window size"""
         return QtCore.QSize(self.friend.frameGeometry().width()/4.95, 20)
 
-    def adjustQTextEdit(self, textEdit):
-        fontMetrics = QtGui.QFontMetrics(textEdit.font())
-        height = fontMetrics.height() + (1 + textEdit.frameWidth()) * 2
-        textEdit.setFixedHeight(height)
-        textEdit.setMinimumWidth(0)
-        textEdit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        textEdit.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        return textEdit
 
 class ScopeWindow(QtGui.QMainWindow):
     def __init__(self, parent=None, maxepisodes=10, layout=None):
@@ -349,6 +453,10 @@ class ScopeWindow(QtGui.QMainWindow):
         self.viewMode = 'keep'
         # Recording view Range
         self.viewRange = dict()
+        # Null the baseline
+        self.isnull = False
+        # Range of baseline for null
+        self.nullRange = None
         # view region
         self.viewRegionOn = False
         # self.linkViewRegion = True
@@ -475,13 +583,21 @@ class ScopeWindow(QtGui.QMainWindow):
         viewMenu.addAction(keepPrev)
         # View: show toolbox
         viewMenu.addAction(self.dockWidget.toggleViewAction())
-
+    
+    # ------------- Helper functions ----------------------------------------
     def printme(self, msg='doing stuff'): # for debugging
         print(msg)
 
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         self.isclosed = True
+    
+    def getNullBaseline(self, Y, ts):
+        """Get the baseline of null"""
+        if isinstance(self.nullRange, list):
+            return np.mean(spk_window(Y, ts, self.nullRange))
+        else: # a single number
+            return Y[time2ind(self.nullRange, ts)]
 
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
@@ -492,6 +608,7 @@ class ScopeWindow(QtGui.QMainWindow):
         """First compare episodes with self.episodes and index with self.index
         Only update the difference in the two sets. The update does not sort
         the index; i.e. it will be kept as the order of insert / click
+        updateLayout: 
         """
         if not isinstance(episodes, dict) or not isinstance(self.episodes, dict):
             bool_old_episode = False
@@ -527,8 +644,8 @@ class ScopeWindow(QtGui.QMainWindow):
             if not self.episodes['Data'][i]: # load if not already loaded
                 self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=True, infoOnly=False, getTime=True)
             self._loaded_array.append(i)
-            # call self.drawPlot
-            self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i]))
+            # Draw the episode
+            self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i], i))
 
         # Remove episodes
         for j in index_remove:
@@ -542,10 +659,10 @@ class ScopeWindow(QtGui.QMainWindow):
             self.setDataViewRange(viewMode='keep')
 
         # Update the companion, Toolbox: Layout
-        if self.dockPanel.accWidget.widgetAt(0).objectName() == 'Banner':
+        if self.dockPanel.accWidget.widgetAt(1).objectName() == 'Banner':
             # Replace the banner widget with real widget
             layoutWidget = self.dockPanel.layoutWidget()
-            self.dockPanel.replaceWidget(widget=layoutWidget, index=0)
+            self.dockPanel.replaceWidget(widget=layoutWidget, index=1)
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
@@ -576,8 +693,11 @@ class ScopeWindow(QtGui.QMainWindow):
             else:
                 pname = None
 
-            p.plot(x=zData.Time, y=getattr(zData, l[0])[l[1]], pen=pen, name=pname)
-
+            Y = getattr(zData, l[0])[l[1]]
+            if self.isnull and self.nullRange is not None:
+                Y = Y - self.getNullBaseline(Y, zData.Protocol.msPerPoint)
+            p.plot(x=zData.Time, y=Y, pen=pen, name=pname)
+    
     def removeEpisode(self, info=None):
         if not info:
             return
@@ -608,9 +728,11 @@ class ScopeWindow(QtGui.QMainWindow):
         if not p:
             return
 
-        yRange = self.viewRange[l[0], l[1]][1]
+        # yRange = self.viewRange[l[0], l[1]][1]
+        # set_trace()
+        yRange = p.viewRange()[1]
         if linesize is None:
-            linesize = yRange[1] / 15.0
+            linesize = abs((yRange[1]-yRange[0]) / 15.0)
         if drawat == 'bottom':
             ypos_0, ypos_1 = yRange[0], yRange[0] + linesize
         else: # top
@@ -640,7 +762,6 @@ class ScopeWindow(QtGui.QMainWindow):
 
             if which_layout: # if specified which_layout
                 break
-
 
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self, stream, channel, row, col, index=None):
@@ -1067,7 +1188,7 @@ class ScopeWindow(QtGui.QMainWindow):
         elif arrangement == 'horizontal':
             PlotTracesHorizontally(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
         else:
-            raise(TypeError('Unrecognized export arragement'))
+            raise(TypeError('Unrecognized export arrangement'))
 
 
 run_example = False
