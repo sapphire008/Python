@@ -1,21 +1,22 @@
-# README for new Synapse written in Python ##
+# README for new Synapse written in Python 3 ##
 Script structure
 
 * `SynapseQt.py`: main window
 * `app`: other apps / windows
   - `app/Scope.py`: window for trace display
-  - `app/Imreg.py`: window for image display
+  - `app/AccordionWidget.py`: a class for designing side dock panel toolbox
+  - `app/Mirage.py`: window for image display
 
 * `util`: utility functions
   - `util/ImportData`: data reading utilities
   - `util/Database`: database function (To be implemented)
-  - `util/Analyzer`: simple data analyzers (To be implemented)
 
 * `resources`: assets, icons, fonts, etc
 
 **Planned features of Scope window**
-* Line up the plot with baseline removed. Baseline is a selected window
-* Spike, action potential, EPSP/EPSC/IPSP/IPSC detection
+* Curve fitting
+* Extracellular spike detection
+* Trace subtraction, average, ... arithmetic manipulation
 
 **Planned features of Mirage window**
 * Display a stack as movie
@@ -40,11 +41,17 @@ Script structure
     - ~~Range selection / cursor tool~~: for event detection and data analyses
       * ~~Initial and end values, end - initial difference~~
       * max, min, average, median, std
-      * EPSP, IPSP, EPSC, IPSC, action potentials, extracellular spikes
+      * ~EPSP, IPSP, EPSC, IPSC, action potentials~, extracellular spikes
       * exponential / double exponential curve fitting
-      * input resistance
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - Average trace display
+
+## Update Jun 11, 2016
+* Added "Arithmetic", "Layout", and "Event" tools in the toolbox
+  - "Arithemtic": remove baseline ("null" checkbox) and trace averaging / manipulation (to be implemented)
+  - "Layout": add and remove data streams
+  - "Event": event detector, including APs, PSPs. Extracellular spike detection is yet to be implemented
+* Fixed various bugs and fine tuned some behaviors.
 
 ## Update Apr 24, 2016
 * Side dock panel toolbox
