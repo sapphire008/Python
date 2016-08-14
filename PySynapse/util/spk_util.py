@@ -21,7 +21,6 @@ except:
         from MATLAB import *
     
         
-
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector
     ind = time2ind(t, ts, t0)
@@ -240,7 +239,7 @@ def spk_firing_rate(Vs, ts, method='gaussian', debug=False, sigma=300., n=5,
                 'gaussian'. Available options are the following:
         1). 'gaussian': specify a Gaussian moving kernel to calculate firing
                         rate. (..., 'gaussian', sigma=0.3., n=5),
-                        where sigma is the standard deviation (default is 0.1s)
+                        where sigma is the standard deviation (default is 0.3s)
                         and n is the number of standard deviations of Gaussian
                         kernel to use to convolve the data (default 5).
         2). 'rect': sepcify a rectangular moving kernel to calculate firing

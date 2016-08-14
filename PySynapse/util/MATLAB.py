@@ -101,7 +101,10 @@ def str2numeric(lit):
             return float(lit)
         except ValueError:
             pass
-        return complex(lit)
+        try:
+            complex(lit)
+        except ValueError:
+            raise(ValueError('String must contain only numerics'))
 
 def str2num(lit):
     """MATLAB behavior of str2num.
@@ -276,6 +279,14 @@ def isnumeric(obj):
     if isinstance(tf, np.ndarray):
         tf = tf.astype(dtype=bool)
     return tf
+    
+def isstrnum(obj):
+    """Check if a string can be converted into numeric"""
+    try:
+        str2numeric(obj)
+        return True
+    except:
+        return False
     
 def isrow(v):
     v = np.asarray(v)

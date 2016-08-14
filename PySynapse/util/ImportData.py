@@ -664,7 +664,7 @@ class ROIData(list):
 
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and False:
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
     # dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'

@@ -14,6 +14,7 @@ Scope window
 """
 import sys
 import os
+import re
 import collections
 
 from pdb import set_trace
@@ -54,7 +55,8 @@ from app.AccordionWidget import AccordionWidget
 # Global variables
 __version__ = "Scope Window 0.3"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd154','#17becf'] # tableau10, or odd of tableau20
+colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+old = True # load old data format
 
 class SideDockPanel(QtGui.QWidget):
     """Collapsible dock widget that displays settings and analysis results for
@@ -63,7 +65,9 @@ class SideDockPanel(QtGui.QWidget):
     # Keep track of position of the widget added
     _widget_index = 0
     _sizehint = None
-
+    # used for replace formula variables, total allow 52 replacements, from a-zA-Z
+    _newvarsList = [chr(i) for i in 65+np.arange(26)]+[chr(i) for i in 97+np.arange(26)]
+    
     def __init__(self, parent=None, friend=None):
         super(SideDockPanel, self).__init__(parent)
         self.parent = parent
@@ -110,13 +114,17 @@ class SideDockPanel(QtGui.QWidget):
         Tooltips = "Examples:\n"
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
         Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
-        Tooltips += "Diff between regions: [100, 500] - [1100, 1500]\n"
         Tooltips += "Multiple manipulations: {S1.E1 - S1.E2, S1.E3 - S1.E4, S1.E5 - S1.E6}"
         formulaTextBox.setToolTip(Tooltips)
 
+        # Report box
+        arithReportBox = QtGui.QLabel("NaN")
+        arithReportBox.setStyleSheet("background-color: white")
+
         # Connect all the items to calculationevents
         nullCheckBox.stateChanged.connect(lambda checked: self.nullTraces(checked, rangeTextBox))
-        # calculateButton.clicked.connect(self.calculateTraces)
+        calculateButton.clicked.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), arithReportBox))
+        formulaTextBox.returnPressed.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), arithReportBox))
 
         # Organize all the items in the frame
         widgetFrame.layout().addWidget(calculateButton, 0, 0, 1, 3)
@@ -124,9 +132,10 @@ class SideDockPanel(QtGui.QWidget):
         widgetFrame.layout().addWidget(rangeTextBox, 1, 1)
         widgetFrame.layout().addWidget(rangeUnitLabel, 1, 2)
         widgetFrame.layout().addWidget(formulaTextBox, 2, 0, 1, 3)
+        widgetFrame.layout().addWidget(arithReportBox, 3, 0, 1, 3)
 
         return widgetFrame
-    
+
     def nullTraces(self, checked, rangeTextBox):
         self.friend.isnull = checked
         # parse the range
@@ -136,12 +145,181 @@ class SideDockPanel(QtGui.QWidget):
         else: # parse the range
             r=r.replace("[","").replace("]","").replace(","," ")
             self.friend.nullRange = [float(k) for k in r.split()]
-        
+
         # Redraw episodes
         index = list(self.friend.index) # keep the current index. Make a copy
         episodes = self.friend.episodes # keep the current episode
         self.friend.updateEpisodes(episodes=episodes, index=[], updateLayout=False) # clear all the episodes
         self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
+
+    def calculateTraces(self, formula, isNulled, arithReportBox):
+        if isNulled:
+            r = self.friend.nullRange # should have been already calculated before
+        else:
+            r = None
+            
+        stream, channel, _, _ = self.friend.layout[0]
+
+        def parseSimpleFormula(f):
+            """Simple linear basic four operations
+            e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8" -->
+            D = [S1.E1, S1.E2, S1.E3, S1.E4], K = [1, 1, -0.5, 0.375]
+            """
+            # separate the formula first
+            groups = [s.replace(" ","") for s in filter(None, re.split(r"(\+|-)", f))]
+            D = [] # data variable
+            K = [] # scale factors
+            C = 0 # constant
+
+            for n, g in enumerate(groups):
+                # initialize scale factor
+                if n==0 or groups[n-1] == '+':
+                    k = 1
+                elif groups[n-1] == '-':
+                    k = -1
+                    
+                if g == "-" or g == "+":
+                    continue
+                elif isstrnum(g): # constants
+                    C += k * str2numeric(g)
+                elif "/" not in g and "*" not in g: # single episodes
+                    D.append(g)
+                    K.append(k) # scale factor
+                elif "/" in g or "*" in g:
+                    hubs = [s.replace(" ","") for s in filter(None, re.split(r"(\*|/)", g))]
+                    for m, h in enumerate(hubs):
+                        if h == '*' or h == '/':
+                            continue
+                        elif isstrnum(h):
+                            # examine the operator before
+                            if m == 0 or hubs[m-1] == '*':
+                                k *= str2numeric(h)
+                            elif hubs[m-1] == '/':
+                                k = k/str2numeric(h)
+                            else:
+                                arithReportBox.setText("Unrecognized operation " + hubs[m-1])
+                                return
+                        else: # Data variable
+                            D.append(h)
+                    K.append(k)
+                else: # fall through for some reason. Need check
+                    arithReportBox.setText("Unexpected formula")
+                    return
+
+            return D, K, C
+
+        def simpleMath(f, **kwargs):
+            """" f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8"
+            Additional variables can be provided by **kwargs"""
+            D, K, Y = parseSimpleFormula(f)
+            # calculate only from the top stream / channel
+
+            for d, k in zip(D, K):
+                if d not in kwargs.keys():
+                    # load episodes
+                    try:
+                        yind = self.friend.episodes['Epi'].index(d)
+                    except:
+                        # arithReportBox.setText(g + " is not a valid episode")
+                        return
+
+                    if not self.friend.episodes['Data'][yind]: # if empty
+                        self.friend.episodes['Data'][yind] = NeuroData(dataFile=self.friend.episodes['Dirs'][yind], old=old, infoOnly=False)
+
+                    y = getattr(self.friend.episodes['Data'][yind], stream)[channel] # get the time series
+                    # null the time series
+                    if r is not None:
+                        y = y - self.friend.getNullBaseline(y, self.friend.episodes['Data'][yind].Protocol.msPerPoint, r)
+                else:
+                    y = kwargs[d] # assume everything is processed
+
+                # final assembly
+                Y += y * k
+
+            return Y
+            
+        def callback(match):
+            return next(callback.v)
+        
+#        mmdict = {}
+#        for kk, vv in self.friend.episodes.items():
+#            if kk == 'Name':
+#                mmdict[kk] = vv
+#                continue
+#            mmdict[kk] = list(np.array(vv)[np.array(self.friend.index)])
+#            
+#        print(mmdict)
+#        return
+
+        # parse formula
+        if "{" in formula:
+            # separate each formula
+            formula = formula.replace("{","").replace("}","")
+            formula = formula.split(",")
+        else:
+            formula = [formula]
+            
+        # parse each formula
+        for f in formula:
+            # if has parenthesis
+            if "(" in f:
+                # separate into a list of simple ones
+                fSimpleList = re.findall('\(([^()]*)\)', f)
+                # for each simple ones, do calculation
+                YList = [simpleMath(fSimple) for fSimple in fSimpleList]
+
+                newvars = self._newvarsList[:len(fSimpleList)] # ['A','B','C',...]
+                callback.v = iter(newvars)
+                # new formula: replace all parentheses with a new variable
+                nf = re.sub(r'\(([^()]*)\)', callback, f)
+                # build a dictionary between the parentheses values and new variables
+                nfdict = {}
+                for nn, v in enumerate(newvars):
+                    nfdict[v] = YList[nn]
+                # use the new variable, together with episode names that was not 
+                # in the parentheses to calculate the final Y
+                y = simpleMath(nf, **nfdict)
+            else:
+                y = simpleMath(f)
+                        
+            episodes = {'Duration': [50000], 'Name': 'Neocortex B.13Oct15', 'Drug Time': ['10:29'], 'Drug Level': [3], 'Comment':[''],
+                'Dirs':['D:/Data/Traces/2015/10.October/Data 13 Oct 2015/Neocortex B.13Oct15.S1.E24.dat'],'Time':['1:04:31'], 'Epi':['S1.E24'], 'Sampling Rate': [0.1]}
+            # Append the data to friend's episodes object
+            ts = self.friend.episodes['Sampling Rate'][0]
+            self.friend.episodes['Duration'].append(ind2time(len(y)-1,ts)[0])
+            self.friend.episodes['Drug Time'].append('00:00')
+            self.friend.episodes['Drug Name'].append('')
+            self.friend.episodes['Drug Level'].append(-1)
+            self.friend.episodes['Comment'].append('')
+            self.friend.episodes['Dirs'].append(f)
+            self.friend.episodes['Time'].append('00:00')
+            self.friend.episodes['Epi'].append(f)
+            self.friend.episodes['Sampling Rate'].append(ts)
+            # Make up fake data. Be more complete so that it can be exported correctly
+            zData = NeuroData()
+            setattr(zData, stream, {channel: y})
+            if stream == 'Voltage':
+                zData.Current = {channel: np.zeros_like(y)}
+            else:
+                zData.Voltage = {channel: np.zeros_like(y)}
+                    
+            zData.Time = np.arange(len(y)) * ts
+            zData.Protocol.msPerPoint = ts
+            zData.Protocol.WCtimeStr = ""
+            zData.Protocol.readDataFrom = f
+            self.friend.episodes['Data'].append(zData)
+            
+         # Redraw episodes with new calculations
+        episodes = self.friend.episodes # keep the current episode
+        index = list(range(len(episodes['Epi'])-len(formula), len(episodes['Epi']))) # keep the current index. Make a copy
+        self.friend.updateEpisodes(episodes=episodes, index=[], updateLayout=False) # clear all the episodes
+        # temporarily disable isnull
+        self.friend.isnull = False
+        # Draw the episodes
+        self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
+        # Turn back isnull
+        self.friend.isnull = isNulled
+    
 
     # ------- Layout control -------------------------------------------------
     def layoutWidget(self):
@@ -310,7 +488,7 @@ class SideDockPanel(QtGui.QWidget):
             stepLabel.setToolTip("Step size to convolve the template with the trace")
             stepTextEdit =  QtGui.QLineEdit("20")
             stepUnitLabel = QtGui.QLabel("")
-            
+
             self.EDsettingTable = {(3,0):ampLabel, (3,1):ampTextEdit, (3,2):ampUnitLabel,
                                    (4,0):riseTimeLabel, (4,1):riseTimeTextEdit, (4,2):riseTimeUnitLabel,
                                    (5,0):decayTimeLabel, (5,1):decayTimeTextEdit, (5,2):decayTimeUnitLabel,
@@ -318,7 +496,7 @@ class SideDockPanel(QtGui.QWidget):
                                    (7,0):threshLabel, (7,1):threshTextEdit, (7,2):threshUnitLabel,
                                    (8,0):stepLabel, (8,1):stepTextEdit, (8,2):stepUnitLabel
                                    }
-                                   
+
 
         elif event == 'Spike':
             self.EDsettingTable = {}
@@ -338,7 +516,7 @@ class SideDockPanel(QtGui.QWidget):
             criterion = self.EDsettingTable[(6,1)].text()
             thresh = float(self.EDsettingTable[7,1].text())
             step = float(self.EDsettingTable[(8,1)].text())
-            
+
             self.detectPSPs(detectReportBox, drawEvents, event, riseTime, decayTime, amp, step, criterion, thresh)
         elif event == 'Spike':
             return
@@ -390,7 +568,7 @@ class SideDockPanel(QtGui.QWidget):
     def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', riseTime=1, decayTime=4, amp=1, step=20, criterion='se', thresh=3.0):
         if not self.friend.index or len(self.friend.index)>1:
             detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
-        
+
         zData = self.friend.episodes['Data'][self.friend.index[-1]]
         ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
@@ -402,7 +580,7 @@ class SideDockPanel(QtGui.QWidget):
             stream = 'Voltage'
         else: # ['EPSC', 'IPSC']
             stream = 'Current'
-        
+
         # Get events
         for c, S in getattr(zData, stream).items():
             S = spk_window(S, ts, selectedWindow, t0=0)
@@ -419,9 +597,9 @@ class SideDockPanel(QtGui.QWidget):
                 if selectedWindow[0] is not None:
                     event_time += selectedWindow[0]
                 self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
-            
+
         detectReportBox.setText(final_label_text[:-1])
-        
+
     # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
@@ -433,7 +611,7 @@ class SideDockPanel(QtGui.QWidget):
 
 
 class ScopeWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None, maxepisodes=10, layout=None):
+    def __init__(self, parent=None, maxepisodes=10, layout=None, hideDock=True):
         super(ScopeWindow, self).__init__(parent)
         self.episodes = None
         self.index = []
@@ -441,6 +619,8 @@ class ScopeWindow(QtGui.QMainWindow):
         self.maxepisodes = maxepisodes
         # Record state of the scope window
         self.isclosed = True
+        # Hide side dock panel
+        self.hideDock = hideDock
         # This keeps track of the indices of which episodes are loaded
         self._loaded_array = []
         # Check if the user decided to keep traces from another cell
@@ -494,7 +674,8 @@ class ScopeWindow(QtGui.QMainWindow):
         self.dockWidget = QtGui.QDockWidget("Toolbox", self)
         self.dockWidget.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.dockWidget.setObjectName(_fromUtf8("dockwidget"))
-        self.dockWidget.hide() # keep the dock hidden by default
+        if self.hideDock:
+            self.dockWidget.hide() # keep the dock hidden by default
         # Dock content, containing widgets
         self.dockWidgetContents = QtGui.QWidget()
         self.dockWidgetContents.setObjectName(_fromUtf8("dockWidgetContents"))
@@ -583,7 +764,7 @@ class ScopeWindow(QtGui.QMainWindow):
         viewMenu.addAction(keepPrev)
         # View: show toolbox
         viewMenu.addAction(self.dockWidget.toggleViewAction())
-    
+
     # ------------- Helper functions ----------------------------------------
     def printme(self, msg='doing stuff'): # for debugging
         print(msg)
@@ -591,13 +772,15 @@ class ScopeWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         self.isclosed = True
-    
-    def getNullBaseline(self, Y, ts):
+
+    def getNullBaseline(self, Y, ts, nullRange=None):
         """Get the baseline of null"""
+        if nullRange is None:
+            nullRange = self.nullRange
         if isinstance(self.nullRange, list):
-            return np.mean(spk_window(Y, ts, self.nullRange))
+            return np.mean(spk_window(Y, ts, nullRange))
         else: # a single number
-            return Y[time2ind(self.nullRange, ts)]
+            return Y[time2ind(nullRange, ts)]
 
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
@@ -608,7 +791,7 @@ class ScopeWindow(QtGui.QMainWindow):
         """First compare episodes with self.episodes and index with self.index
         Only update the difference in the two sets. The update does not sort
         the index; i.e. it will be kept as the order of insert / click
-        updateLayout: 
+        updateLayout:
         """
         if not isinstance(episodes, dict) or not isinstance(self.episodes, dict):
             bool_old_episode = False
@@ -642,7 +825,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # Insert new episodes
         for i in index_insert:
             if not self.episodes['Data'][i]: # load if not already loaded
-                self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=True, infoOnly=False, getTime=True)
+                self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=old, infoOnly=False, getTime=True)
             self._loaded_array.append(i)
             # Draw the episode
             self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i], i))
@@ -697,7 +880,7 @@ class ScopeWindow(QtGui.QMainWindow):
             if self.isnull and self.nullRange is not None:
                 Y = Y - self.getNullBaseline(Y, zData.Protocol.msPerPoint)
             p.plot(x=zData.Time, y=Y, pen=pen, name=pname)
-    
+
     def removeEpisode(self, info=None):
         if not info:
             return
@@ -1164,7 +1347,7 @@ class ScopeWindow(QtGui.QMainWindow):
             channelstr = []
             if self.episodes['Notes'][i]:
                 continue # skip if notes already existed
-            # zData = NeuroData(dataFile=self.episodes['Dir'][i], old=True, infoOnly=True)
+            # zData = NeuroData(dataFile=self.episodes['Dir'][i], old=old, infoOnly=True)
             # iterate over all the streams
             for c in channels:
                 initVolt = self.episodes['Data'][i].Voltage[c][0]
@@ -1203,11 +1386,24 @@ if __name__ == '__main__' and not run_example:
 #    'Time': ['0.0 sec', '58.8 sec', '1:08', '1:22', '1:27', '1:37', '1:49', '1:56', '2:03', '3:38', '4:41', '6:43', '8:42', '10:19', '12:16', '15:08'], 'Drug Name': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
 #    'Epi': ['S1.E1', 'S1.E2', 'S1.E3', 'S1.E4', 'S1.E5', 'S1.E6', 'S1.E7', 'S1.E8', 'S1.E9', 'S1.E10', 'S1.E11', 'S1.E12', 'S1.E13', 'S1.E14', 'S1.E15', 'S1.E16'],
 #    'Sampling Rate': [0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001]}
-    episodes = {'Duration': [40000], 'Name': 'Neocortex A.10Aug16', 'Drug Time': ['17:34'], 'Drug Level': [1], 'Comment':[''],
-                'Dirs':['D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E16.dat'],'Time':['18:35'], 'Epi':['S1.E16'], 'Sampling Rate': [0.1]}
-    index = [0]
+#    episodes = {'Duration': [40000], 'Name': 'Neocortex A.10Aug16', 'Drug Time': ['17:34'], 'Drug Level': [1], 'Comment':[''],
+#                'Dirs':['D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E16.dat'],'Time':['18:35'], 'Epi':['S1.E16'], 'Sampling Rate': [0.1]}
+#    index = [0]
+
+#    episodes = {'Duration': [50000], 'Name': 'Neocortex B.13Oct15', 'Drug Time': ['10:29'], 'Drug Level': [3], 'Comment':[''],
+#                'Dirs':['D:/Data/Traces/2015/10.October/Data 13 Oct 2015/Neocortex B.13Oct15.S1.E24.dat'],'Time':['1:04:31'], 'Epi':['S1.E24'], 'Sampling Rate': [0.1]}
+#    index = [0]
+    
+    episodes = {'Drug Name': ['', '', ''], 'Epi': ['S1.E3', 'S1.E7', 'S1.E13'], 
+    'Duration': [4000, 4000, 4000], 'Drug Level': [0, 0, 0], 'Time': ['31.7 sec', '2:03', '2:54'], 
+    'Name': 'Neocortex I.03Aug16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1, 0.1, 0.1], 
+    'Comment': ['DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75'], 
+    'Dirs': ['D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E3.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E7.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E13.dat']}
+    
+    index = [0,1,2]
+    
     app = QtGui.QApplication(sys.argv)
-    w = ScopeWindow()
+    w = ScopeWindow(hideDock=False)
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)
     # w.toggleDataCursor(checked=True)

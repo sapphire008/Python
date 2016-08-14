@@ -19,6 +19,9 @@ from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker, 
 import matplotlib.ticker as tic
 
 from pdb import set_trace
+sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
+from util.spk_util import *
+
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -206,7 +209,7 @@ def AdjustText(txt, ax=None):
             ax.set_ybound(ymin, ybnd[-1])
 
 def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
-                         fontsize=None, ax=None, xscale=None, yscale=None):
+                         fontsize=None, ax=None, xscale=None, yscale=None, loc=5):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces.
         xscale, yscale: add the trace bar to the specified window of x and y.
@@ -258,7 +261,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         box4 = TextArea(ylab, minimumdescent=False, textprops=dict(color=color))
         box5 = VPacker(children=[box3, boxh], align="right", pad=0, sep=0)
         box = HPacker(children=[box5,box4], align="center", pad=0, sep=2)
-        anchored_box = AnchoredOffsetbox(loc=5, pad=-9, child=box, frameon=False)
+        anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=box, frameon=False)
         ax.add_artist(anchored_box)
         return(anchored_box)
 
@@ -272,6 +275,20 @@ def TurnOffAxis(ax):
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
+def writeEpisodeNote(zData, viewRange, channels, initFunc=None):
+    if initFunc is None:
+        initFunc = lambda x: x[0]
+
+    ts = zData.Protocol.msPerPoint
+    notes = []
+    # Make notes for each channel  
+    for ch in channels:
+        V = initFunc(spk_window(getattr(zData, 'Voltage')[ch], ts, viewRange))
+        I = initFunc(spk_window(getattr(zData, 'Current')[ch], ts, viewRange))
+        notes.append("Channel %s %.1f mV %d pA"%(ch, V , I ))
+        # notes.append("Channel %s %.1f mV %d pA"%(ch, min(getattr(zData, 'Voltage')[ch]), min(getattr(zData, 'Current')[ch])  ))
+    final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
+    return final_notes
 # %%
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default', fig_size=None):
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
@@ -290,14 +307,34 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
     textbox = []
     for n, i in enumerate(index):
         zData = df['Data'][i]
+        ts = zData.Protocol.msPerPoint
+        channels = []
+        
         for c, m in enumerate(viewRange.keys()):
             # Draw plots
-            ax[c].plot(zData.Time, getattr(zData, m[0])[m[1]], color=colorfy[n%len(colorfy)])
+            X = spk_window(zData.Time, ts, viewRange[m][0])
+            Y = spk_window(getattr(zData, m[0])[m[1]], ts, viewRange[m][0])
+            ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
             # Draw initial value
-            ax[c].text(-50,  getattr(zData, m[0])[m[1]][0]-1, df['InitVal'][i][(m[0],m[1])], ha='right', va='center', color=colorfy[n%len(colorfy)])
+            # initY = min(Y)
+            initY = Y[0]
+            InitVal = "{0:0.0f}".format(initY)      
+            if m[0] == 'Voltage':
+                InitVal += 'mV'
+            elif m[0] == 'Current':
+                InitVal += 'pA'
+            else: # Stimulus
+                InitVal = ''
+                
+            if m[1] not in channels:
+                channels.append(m[1])
+            
+            # set_trace()
+            ax[c].text(X[0]-50,  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+        
+        final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels)
         # Draw more annotations
-        textbox.append(TextArea(df['Notes'][i], minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
-        # set_trace()
+        textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
 
     box = VPacker(children=textbox, align="left",pad=0, sep=2)
     annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])

@@ -711,10 +711,10 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
-    w = Synapse_MainWindow()
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/04.April/')
+    # w = Synapse_MainWindow()
+    w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/08.August/Data 3 Aug 2016')
     w.show()
-    # Connect upon closing
+    # Connect upon closin
     # app.aboutToQuit.connect(restartpyshell)
     # Make sure the app stays on the screen
     sys.exit(app.exec_())
