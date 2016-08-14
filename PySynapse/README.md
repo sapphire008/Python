@@ -16,7 +16,7 @@ Script structure
 **Planned features of Scope window**
 * Curve fitting
 * Extracellular spike detection
-* Trace subtraction, average, ... arithmetic manipulation
+* ~~Trace subtraction, average, ... arithmetic manipulation~~
 
 **Planned features of Mirage window**
 * Display a stack as movie
