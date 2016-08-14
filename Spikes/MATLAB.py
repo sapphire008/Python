@@ -101,7 +101,10 @@ def str2numeric(lit):
             return float(lit)
         except ValueError:
             pass
-        return complex(lit)
+        try:
+            complex(lit)
+        except ValueError:
+            raise(ValueError('String must contain only numerics'))
 
 def str2num(lit):
     """MATLAB behavior of str2num.
@@ -261,20 +264,29 @@ def isempty(m):
             return all([not x for x in m])
     else:
         return True if m else False
+    
+def isnumber(obj):
+    """Determine if the object is a single number"""
+    attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
+    return all(hasattr(obj, attr) for attr in attrs)
 
 def isnumeric(obj):
     """Check if an object is numeric, or that elements in a list of objects 
     are numeric"""
-    def f(x):
-        attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
-        return all(hasattr(x, attr) for attr in attrs)
-    
     # Allow application to iterables
-    f_vec = np.frompyfunc(f, 1, 1)
+    f_vec = np.frompyfunc(isnumber, 1, 1)
     tf = f_vec(obj)
     if isinstance(tf, np.ndarray):
         tf = tf.astype(dtype=bool)
     return tf
+    
+def isstrnum(obj):
+    """Check if a string can be converted into numeric"""
+    try:
+        str2numeric(obj)
+        return True
+    except:
+        return False
     
 def isrow(v):
     v = np.asarray(v)

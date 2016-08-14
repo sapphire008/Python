@@ -6,14 +6,21 @@ Some routines for electrophysiology data analyses
 
 @author: Edward
 """
-
+import sys
 import numpy as np
 import scipy.signal as sg
+import scipy.stats as st
+# from pdb import set_trace
 try:
     from MATLAB import *
 except:
-    from util.MATLAB import *
-
+    try:
+        from util.MATLAB import *
+    except:
+        sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/Spikes/')
+        from MATLAB import *
+    
+        
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector
     ind = time2ind(t, ts, t0)
@@ -29,11 +36,9 @@ def time2ind(t, ts, t0=0):
     Output:
         ind: index
     """
-    if isempty(t):
-        return t
     if np.isscalar(t):
         t = [t]
-    
+
     return(np.array([int(a) for a in (np.array(t) - t0) / ts]))
 
 def ind2time(ind, ts, t0=0):
@@ -51,8 +56,6 @@ def ind2time(ind, ts, t0=0):
      Output:
          t: current time in ms
     """
-    if isempty(ind):
-        return ind
     if np.isscalar(ind):
         ind = [ind]
     return(np.array(ind) * ts + t0)
@@ -73,24 +76,25 @@ def spk_window(Vs, ts, Window, t0=0):
     Output:
         Vs: windows Vs
     """
-    # Start / end indices
-    start_ind, end_ind = time2ind(np.asarray(Window), ts, t0)
-    # Duration
     dur = len(Vs)
-    
-    if start_ind is None or start_ind <0:
-        start_ind = 0
-    elif start_ind > dur:
-        start_ind = dur
-        
-    if end_ind is None or end_ind+1 > dur:
-        end_ind = dur
-    elif end_ind<0:
-        end_ind = 0
-    else:
-        end_ind + 1
-        
-    return(Vs[start_ind:end_ind])
+    # Start / end indices
+    def parse_window(x, none_allowed, min_allowed, max_allowed, func):
+        if x is None:
+            x = none_allowed
+        else:
+            x = func(x) # apply the transformation
+            if x < min_allowed:
+                x = min_allowed
+            elif x > max_allowed:
+                x = max_allowed
+
+        return x
+
+    func = lambda y: time2ind(y, ts, t0)[0]
+    start_ind = parse_window(Window[0], 0, 0, dur, func=func)
+    end_ind = parse_window(Window[1], dur, 0, dur, func=func)
+
+    return Vs[start_ind:end_ind]
 
 
 def spk_average(Vs, ts=None, Window=None, axis=0, t0=0):
@@ -235,7 +239,7 @@ def spk_firing_rate(Vs, ts, method='gaussian', debug=False, sigma=300., n=5,
                 'gaussian'. Available options are the following:
         1). 'gaussian': specify a Gaussian moving kernel to calculate firing
                         rate. (..., 'gaussian', sigma=0.3., n=5),
-                        where sigma is the standard deviation (default is 0.1s)
+                        where sigma is the standard deviation (default is 0.3s)
                         and n is the number of standard deviations of Gaussian
                         kernel to use to convolve the data (default 5).
         2). 'rect': sepcify a rectangular moving kernel to calculate firing
@@ -312,15 +316,118 @@ def stionary_rect_kernel(ts, window=500.):
     t = time2ind(window, ts)
     w = np.concatenate((np.zeros(10), np.ones(t), np.zeros(10)))
     return(w)
+    
+
+def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, mph=0.5, mpd=1, step=1, criterion='se', thresh=3):
+    """Intracellular post synaptic potential event detection based on
+    Jonas et al, 1993: Quantal components of unitary EPSCs at the mossy fibre synapse on CA3 pyramidal cells of rat hippocampus.
+    Clements and Bekkers, 1997: Detection of spontaneous synaptic events with an optimally scaled template.
+    Cited by Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
+    Inputs:    
+        * Vs: voltage or current time series  
+        * ts: sampling rate [ms]
+        * event: event type
+        * w: window of the template [ms]
+        * tau_RISE: rise time of the template gamma function [ms]. Default 1ms
+        * tau_DECAY: decay time of the template gamma function [ms]. Default 4ms
+        * mph: minimum event size [mV]. Default 0.5mV
+        * mpd: minimum event distance [ms]. Default 1ms
+        * step: step size to match template. Default is 1ms
+        * criterion: ['se'|'corr']
+            'se': standard error [Default]
+            'corr': correlation
+        * thresh: threshold applied on detection criterion to detect the event.
+            This value depends on the criterion selected.
+            'se': which is the default setting. Recommend 3 [Default]
+            'corr': Recommend 0.95 (significance level of the correlation)
+            
+    """
+    step = step/ts
+    t_vect = np.arange(0,w+ts,ts)
+    def p_t(t, tau_RISE, tau_DECAY): # Template function. Upward PSP
+        g = (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
+        g = g / np.max(g) # normalize the peak
+        return g
+        
+    p = p_t(t_vect, tau_RISE, tau_DECAY)
+    
+    # Do some preprocessing first
+    r_mean = np.mean(Vs)
+    r = Vs - r_mean
+    r = np.concatenate((r, np.zeros_like(p)))
+    # length of trasnversion
+    h = len(p)
+    # Append some zeros
+    chi_sq = np.zeros((np.arange(0, len(Vs), step).size,4)) # store fitting results
+    A = np.vstack([p, np.ones(h)]).T
+    for n, k in enumerate(np.arange(0, len(Vs), step, dtype=int)): # has total l steps
+        chi_sq[n,0] = int(k) # record index        
+        r_t = r[int(k):int(k+h)]
+        q = np.linalg.lstsq(A, r_t)
+        m, c = q[0] # m=scale, c=offset
+        chi_sq[n, 1:3] = q[0]
+        if criterion=='se':
+            chi_sq[n,3] = float(q[1]) # sum squared residual
+        elif criterion == 'corr':
+            chi_sq[n,3] = np.corrcoef(r_t, m*p+c)[0,1]
+    
+    if criterion=='se':
+        DetectionCriterion = chi_sq[:,1] / (np.sqrt(chi_sq[:,3]/(h-1)))
+        if event in ['IPSP', 'EPSC']:
+            DetectionCriterion = -1.0 * DetectionCriterion
+    elif criterion=='corr':
+        DetectionCriterion = chi_sq[:,3]
+        DetectionCriterion = DetectionCriterion / np.sqrt((1-DetectionCriterion**2) /(h-2)) # t value
+        DetectionCriterion = 1-st.t.sf(np.abs(DetectionCriterion), h-1)
+    
+    # Run through general peak detection on the detection criterion trace
+    ind, _ = findpeaks(DetectionCriterion, mph=thresh, mpd=mpd/ts)
+          
+    pks = chi_sq[ind,1]
+    ind = chi_sq[ind,0]
+    # Filter out the detected events that is less than the minimum peak height requirement
+    if event in ['EPSP', 'IPSC']:    
+        valid_ind = pks>abs(mph)
+    else:
+        valid_ind = pks<-1*abs(mph)
+    
+    pks = pks[valid_ind]
+    ind = ind[valid_ind]
+    event_time = ind2time(ind, ts)
+    
+        
+    return event_time, pks, DetectionCriterion, chi_sq
+            
+
+def detectPSP_deconvolution():
+    return
 
 
 if __name__ == '__main__':
     # test smoothed firing rate
+#    from ImportData import *
+#    zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
+#    zData = NeuroData(zData, old=True)
+#    Vs = zData.Voltage['A']
+#    ts = zData.Protocol.msPerPoint
+#    R = spk_firing_rate(Vs, ts, sigma=300.)
+#    from matplotlib import pyplot as plt
+#    plt.plot(R)
     from ImportData import *
-    zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
-    zData = NeuroData(zData, old=True)
+    zData = NeuroData('D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E35.dat', old=True)
     Vs = zData.Voltage['A']
     ts = zData.Protocol.msPerPoint
-    R = spk_firing_rate(Vs, ts, sigma=300.)
+
+    
+    ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
+    
+    print(pks[0])
+    print(pks[1])
+    print(pks[2])
+    print(pks[3])
+    
     from matplotlib import pyplot as plt
-    plt.plot(R)
+    plt.plot(Vs)
+    plt.plot(ind, -65*np.ones_like(ind), 'ro')
+    plt.figure()
+    plt.plot(DetectionCriterion)

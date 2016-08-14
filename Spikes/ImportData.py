@@ -27,7 +27,7 @@ def readVBString(fid):
         elif six.PY3:
             tmp = np.fromfile(fid, '|S1', stringLength)
             return(np.ndarray.tostring(tmp).decode('UTF-8'))
-            
+
 def isempty(m):
     """Return true if:
     a). an empty string
@@ -172,7 +172,7 @@ class NeuroData(object):
 
             if infoOnly: # stop here if only
                 return
-            
+
             # print(fid.tell())
             # Read trace data
             self.Protocol.traceDesc = []
@@ -191,7 +191,7 @@ class NeuroData(object):
                     self.Stimulus[chan[-1]] = traceData
                 else: # fallthrough
                     TypeError('Unrecognized channel type')
-                    
+
             if getTime:
                 self.Time = np.arange(self.Protocol.numPoints) * self.Protocol.msPerPoint
 
@@ -265,7 +265,7 @@ class NeuroData(object):
         else:
             retStr = ""
         return retStr.strip()
-        
+
 def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
     """Wrapper function to load NeuroData, assuming the data structure we have
     implemented in get_cellpath"""
@@ -621,24 +621,24 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     data_folder = os.path.join(year_dir, month_dir, data_folder, cell_label+episode+'.dat')
     data_folder = data_folder.replace('\\','/')
     return data_folder
-    
-    
+
+
 class ROI(object):
     """Helper class for structuring ROIs"""
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-            
+
 class ROIData(list):
     def __init__(self, roifile=None, old=True, *args, **kwargs):
         self.roifile = roifile
         if roifile is not None:
-            self.loadROI(roifile=roifile, old=old, *args, *kwargs)
-            
+            self.loadROI(roifile=roifile, old=old, *args, **kwargs)
+
     def loadROI(self, roifile, old=True, *args, **kwargs):
         if old:
             self.loadOldROIData(roifile, *args, **kwargs)
-    
+
     def loadOldROIData(self, roifile, roitype='square'):
         fid = open(roifile, 'rb')
         fid.seek(4, 0)
@@ -657,14 +657,14 @@ class ROIData(list):
             roi.position = np.reshape(roi.position, (2,2))
             self.append(roi)
             n += 1
-        
+
         # should in theory never reach this, but could indicate some problem
-        if n>=1000: 
+        if n>=1000:
             print('Maximum iteration exceeded. Loading only 1000 ROIs')
-                
 
 
-if __name__ == '__main__':
+
+if __name__ == '__main__' and False:
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
     # dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
