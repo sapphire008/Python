@@ -37,7 +37,7 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
         fontname: fullpath of the font, specified in the global variable
         items: select a list of items to change font. ['title', 'xlab','ylab',
                'xtick','ytick', 'texts','legend','legendtitle','textartist']
-        """
+        """        
         def unpack_anchor_offsetbox(box):
             """Getting only text area items from the anchor offset box"""
             itemList = []
@@ -290,7 +290,7 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None):
     final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes
 # %%
-def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default', fig_size=None):
+def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default', fig_size=None, nullRange=None):
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
     # set_trace()
@@ -314,6 +314,11 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
             # Draw plots
             X = spk_window(zData.Time, ts, viewRange[m][0])
             Y = spk_window(getattr(zData, m[0])[m[1]], ts, viewRange[m][0])
+            if nullRange is not None:
+                if isinstance(nullRange, list):
+                    Y -= np.mean(spk_window(Y, ts, nullRange))
+                else: # a single number
+                    Y -=  Y[time2ind(nullRange, ts)]
             ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
             # Draw initial value
             # initY = min(Y)

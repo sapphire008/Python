@@ -114,7 +114,7 @@ class SideDockPanel(QtGui.QWidget):
         Tooltips = "Examples:\n"
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
         Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
-        Tooltips += "Multiple manipulations: {S1.E1 - S1.E2, S1.E3 - S1.E4, S1.E5 - S1.E6}"
+        Tooltips += "Multiple manipulations: {S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6}"
         formulaTextBox.setToolTip(Tooltips)
 
         # Report box
@@ -212,7 +212,6 @@ class SideDockPanel(QtGui.QWidget):
             """" f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8"
             Additional variables can be provided by **kwargs"""
             D, K, Y = parseSimpleFormula(f)
-            # calculate only from the top stream / channel
 
             for d, k in zip(D, K):
                 if d not in kwargs.keys():
@@ -255,12 +254,18 @@ class SideDockPanel(QtGui.QWidget):
         if "{" in formula:
             # separate each formula
             formula = formula.replace("{","").replace("}","")
-            formula = formula.split(",")
+            formula = formula.split(";")
         else:
             formula = [formula]
-            
+        
         # parse each formula
-        for f in formula:
+        for f0 in formula:
+            if ":" in f0: # has range. Assume each formula hsa only 1 range
+                f, rng = f0.split(":")
+                rng = str2num(rng)
+            else:
+                f = f0
+                rng = None
             # if has parenthesis
             if "(" in f:
                 # separate into a list of simple ones
@@ -281,11 +286,13 @@ class SideDockPanel(QtGui.QWidget):
                 y = simpleMath(nf, **nfdict)
             else:
                 y = simpleMath(f)
-                        
-            episodes = {'Duration': [50000], 'Name': 'Neocortex B.13Oct15', 'Drug Time': ['10:29'], 'Drug Level': [3], 'Comment':[''],
-                'Dirs':['D:/Data/Traces/2015/10.October/Data 13 Oct 2015/Neocortex B.13Oct15.S1.E24.dat'],'Time':['1:04:31'], 'Epi':['S1.E24'], 'Sampling Rate': [0.1]}
-            # Append the data to friend's episodes object
+                
+            # Subset of the time series if range specified
             ts = self.friend.episodes['Sampling Rate'][0]
+            if rng is not None:
+                y = spk_window(y, ts, rng)
+                
+            # Append the data to friend's episodes object
             self.friend.episodes['Duration'].append(ind2time(len(y)-1,ts)[0])
             self.friend.episodes['Drug Time'].append('00:00')
             self.friend.episodes['Drug Name'].append('')
@@ -306,7 +313,7 @@ class SideDockPanel(QtGui.QWidget):
             zData.Time = np.arange(len(y)) * ts
             zData.Protocol.msPerPoint = ts
             zData.Protocol.WCtimeStr = ""
-            zData.Protocol.readDataFrom = f
+            zData.Protocol.readDataFrom = self.friend.episodes['Name'] + " " + f0
             self.friend.episodes['Data'].append(zData)
             
          # Redraw episodes with new calculations
@@ -1365,7 +1372,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
-            PlotTraces(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
+            PlotTraces(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors, nullRange=None if not self.isnull else self.nullRange)
         elif arrangement == 'vertical':
             PlotTracesVertically(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
         elif arrangement == 'horizontal':
@@ -1394,13 +1401,20 @@ if __name__ == '__main__' and not run_example:
 #                'Dirs':['D:/Data/Traces/2015/10.October/Data 13 Oct 2015/Neocortex B.13Oct15.S1.E24.dat'],'Time':['1:04:31'], 'Epi':['S1.E24'], 'Sampling Rate': [0.1]}
 #    index = [0]
     
-    episodes = {'Drug Name': ['', '', ''], 'Epi': ['S1.E3', 'S1.E7', 'S1.E13'], 
-    'Duration': [4000, 4000, 4000], 'Drug Level': [0, 0, 0], 'Time': ['31.7 sec', '2:03', '2:54'], 
-    'Name': 'Neocortex I.03Aug16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1, 0.1, 0.1], 
-    'Comment': ['DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75'], 
-    'Dirs': ['D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E3.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E7.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E13.dat']}
+#    episodes = {'Drug Name': ['', '', ''], 'Epi': ['S1.E3', 'S1.E7', 'S1.E13'], 
+#    'Duration': [4000, 4000, 4000], 'Drug Level': [0, 0, 0], 'Time': ['31.7 sec', '2:03', '2:54'], 
+#    'Name': 'Neocortex I.03Aug16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1, 0.1, 0.1], 
+#    'Comment': ['DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75'], 
+#    'Dirs': ['D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E3.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E7.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E13.dat']}
+#    
+#    index = [0,1,2]
     
-    index = [0,1,2]
+    episodes = {'Drug Name': [''], 'Epi': ['S1.E4'], 
+    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
+    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1], 
+    'Comment': ['DAC0: PulseA -50 PulseB 50'], 
+    'Dirs': ['D:/Data/Traces/2016/06.June/Data 9 Jun 2016/Neocortex E.09Jun16.S1.E4.dat']}
+    index = [0]
     
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow(hideDock=False)
