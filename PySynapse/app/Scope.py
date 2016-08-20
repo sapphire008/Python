@@ -84,7 +84,7 @@ class SideDockPanel(QtGui.QWidget):
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
-        self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=False)
+        self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
@@ -112,16 +112,18 @@ class SideDockPanel(QtGui.QWidget):
 
         # Formula
         formulaTextBox = QtGui.QLineEdit()
-        formulaTextBox.setPlaceholderText("Formula. Not implemented yet.")
+        formulaTextBox.setPlaceholderText("Formula")
         Tooltips = "Examples:\n"
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
         Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
+        Tooltips += "Calculation between regions: S1.E1:[500, 700] - S1.E2:[800, 1000]\n"
         Tooltips += "Multiple manipulations: {S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6}"
         formulaTextBox.setToolTip(Tooltips)
 
         # Report box
-        arithReportBox = QtGui.QLabel("NaN")
+        arithReportBox = QtGui.QLabel("Arithmetic Results")
         arithReportBox.setStyleSheet("background-color: white")
+        arithReportBox.setWordWrap(True)
 
         # Connect all the items to calculationevents
         nullCheckBox.stateChanged.connect(lambda checked: self.nullTraces(checked, rangeTextBox))
@@ -425,16 +427,15 @@ class SideDockPanel(QtGui.QWidget):
         curveTypeComboBox = QtGui.QComboBox()
         curveTypeComboBox.addItems(['Exponential', 'Polynomial', 'Power'])
         # Center and scale
-        csCheckBox = QtGui.QCheckBox("Center and scale")
+        # csCheckBox = QtGui.QCheckBox("Center and scale")
         # Report box
-        cfReportBox = QtGui.QLabel("NaN")
+        cfReportBox = QtGui.QLabel("Curve Fit Results")
         cfReportBox.setStyleSheet("background-color: white")
         cfReportBox.setWordWrap(True)
         
         # Arrange the widget
         widgetFrame.layout().addWidget(fitButton, 0, 0, 1,3)
-        widgetFrame.layout().addWidget(csCheckBox, 1, 0, 1, 3)
-        widgetFrame.layout().addWidget(curveTypeComboBox, 2, 0, 1, 3)
+        widgetFrame.layout().addWidget(curveTypeComboBox, 1, 0, 1, 3)
         
         # Settings of curve fitting
         self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText())
@@ -443,14 +444,14 @@ class SideDockPanel(QtGui.QWidget):
         curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText()))
         
         # Summary box behavior
-        fitButton.clicked.connect(lambda : self.curveFit(curveTypeComboBox.currentText(), cfReportBox, csCheckBox.checkState()))
+        fitButton.clicked.connect(lambda : self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
 
         return widgetFrame
         
     def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
         # Remove everthing at and below the setting rows: rigid setting
         nrows = widgetFrame.layout().rowCount()
-        if nrows>3:
+        if nrows>2:
             for row in range(3,nrows):
                 for col in range(widgetFrame.layout().columnCount()):
                     currentItem = widgetFrame.layout().itemAtPosition(row, col)
@@ -473,32 +474,30 @@ class SideDockPanel(QtGui.QWidget):
             eqLabel = QtGui.QLabel("Equation:")
             eqComboBox = QtGui.QComboBox()
             eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)']) 
-            self.CFsettingTable = {(4,0): eqLabel, (4,1): eqComboBox}
+            self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
         elif curve == 'Power':
             eqLabel = QtGui.QLabel("Equation")
             eqComboBox = QtGui.QComboBox()
             eqComboBox.addItems(['a*x^b', 'a*x^b+c'])
-            self.CFsettingTable = {(4,0): eqLabel, (4,1): eqComboBox}
+            self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
         elif curve == 'Polynomial':
             degLabel = QtGui.QLabel("Degree:")
             degText = QtGui.QLineEdit("1")
-            self.CFsettingTable = {(4,0):degLabel, (4,1): degText}
+            self.CFsettingTable = {(3,0):degLabel, (3,1): degText}
                         
-    def curveFit(self, curve, cfReportBox, centerAndScale):
+    def curveFit(self, curve, cfReportBox):#, centerAndScale):
         # get view
         currentView = [0, 0]
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # clear previous fit artists
+        count_fit = 0
         for k, a in enumerate(p.listDataItems()):
             if 'fit' in a.name():
-                #p.removeItem(a)
-                #print('here')
-                pass
+                count_fit = count_fit + 1
  
-        # Get x, y data
-        #if len(p.listDataItems()) > 1:
-        #    cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
-        #    return
+        if len(p.listDataItems())-count_fit > 1:
+            cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
+            return
         
         # Get the plotted data
         d = p.listDataItems()[0]        
@@ -516,7 +515,7 @@ class SideDockPanel(QtGui.QWidget):
             
         f0 = None
         if curve == 'Exponential':
-            eqText = self.CFsettingTable[(4,1)].currentText()
+            eqText = self.CFsettingTable[(3,1)].currentText()
             if eqText == 'a*exp(b*x)+c':
                 f0 = lambda x, a, b, c: a*np.exp(b*x)+c
                 p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025, 0]
@@ -533,7 +532,7 @@ class SideDockPanel(QtGui.QWidget):
                 # bounds = [(-max(abs(ydata))*1.1, -10, -max(abs(ydata))*1.1, -10),  (max(abs(ydata))*1.1, 10, max(abs(ydata))*1.1, 10)]
                 ptext = ['a','b','c','d']
         elif curve == 'Power':
-            eqText = self.CFsettingTable[(4,1)].currentText()
+            eqText = self.CFsettingTable[(3,1)].currentText()
             if eqText == 'a*x^b':
                 f0 = lambda x, a, b: a*(x**b)
                 p0 = np.ones(2,)
@@ -541,20 +540,33 @@ class SideDockPanel(QtGui.QWidget):
                 ptext = ['a','b']
             elif eqText == 'a*x^b+c':
                 f0 = lambda x, a, b, c: a*(x**b)+c
-                p0 = np.ones(4,)
+                p0 = np.ones(3,)
                 # bounds = [(-np.inf, -np.inf, -np.inf), (np.inf, np.inf, np.inf)]
                 ptext = ['a','b','c']
         elif curve == 'Polynomial':
-            eqText = self.CFsettingTable[(4,1)].text()
+            eqText = self.CFsettingTable[(3,1)].text()
             def f0(x, *p):
                 poly = 0.
                 for i, n in enumerate(p):
                     poly += n * x**i
                 return poly
             deg = int(eqText)
-            p0 = np.ones(deg, )
+            p0 = np.ones(deg+1, )
             ptext = ['p'+str(i) for i in range(deg+1)]
             # bounds = [tuple([-np.inf]*deg), tuple([np.inf]*deg)]
+            eqText = []
+            for m, ppt in enumerate(ptext):
+                if m == 0:
+                    eqText.append(ptext[0])
+                elif m==1:
+                    eqText.append(ptext[1] + "*" + "x")
+                elif m>=2:
+                    if len(ptext)>3:
+                        eqText.append("...")
+                    eqText.append(ptext[-1] + "*" + "x^{:d}".format(len(ptext)-1))
+                    break
+                
+            eqText = "+".join(eqText)
         
         if f0 is None: # shouldn't go here. For debug only
             raise(ValueError('Unrecognized curve equation %s: %s'%(curve, eqText)))
@@ -582,8 +594,8 @@ class SideDockPanel(QtGui.QWidget):
             else:
                 p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: ' + eqText)
         # Report the curve fit
-        final_text = "Model: {}Equation:\n\t{}\n".format(curve, eqText)
-        final_text += "Paraeters:\n"
+        final_text = "Model: {}\nEquation:\n\t{}\n".format(curve, eqText)
+        final_text += "Parameters:\n"
         for ppt, coeff in zip(ptext, popt): # report fitted parameters
             final_text += "\t" + ppt + ": " + "{:.4g}".format(coeff) + "\n"
         if curve == 'Exponential':
@@ -596,7 +608,7 @@ class SideDockPanel(QtGui.QWidget):
                 final_text += "\ttau1: " + "{:.4g} ms".format(tau1) + "\n"
                 final_text += "\ttau2: " + "{:.4g} ms".format(tau2) + "\n"
         
-        final_text += "\nGoodness of fit:\n\tSSE: {:.4g}\n\tR-square: {:.4g}\n\tAdjusted R-square: {:.4g}\n\tRMSE: {:.4g}".format(SSE, R_sq, R_sq_adj, RMSE)
+        final_text += "\nGoodness of fit:\n\tSSE: {:.4g}\n\tR-squared: {:.4g}\n\tAdjusted R-squared: {:.4g}\n\tRMSE: {:.4g}".format(SSE, R_sq, R_sq_adj, RMSE)
         cfReportBox.setText(final_text)
 
     # ------- Analysis tools -------------------------------------------------
@@ -611,14 +623,14 @@ class SideDockPanel(QtGui.QWidget):
         detectButton = QtGui.QPushButton("Detect")
         # Type of Event detection to run
         # Summary box
-        detectReportBox = QtGui.QLabel("NaN")
+        detectReportBox = QtGui.QLabel("Event Detection Results")
         detectReportBox.setStyleSheet("background-color: white")
         detectReportBox.setWordWrap(True)
         # Even type selection
         eventTypeComboBox = QtGui.QComboBox()
         eventTypeComboBox.addItems(['Action Potential', 'Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
         # Asking to draw on the plot
-        drawCheckBox = QtGui.QCheckBox("Mark Event")
+        drawCheckBox = QtGui.QCheckBox("Mark Events")
         drawCheckBox.stateChanged.connect(self.clearEvents)
 
         # Arrange the widget

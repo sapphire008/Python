@@ -14,7 +14,7 @@ Script structure
 * `resources`: assets, icons, fonts, etc
 
 **Planned features of Scope window**
-* Curve fitting
+* ~~Curve fitting~~
 * Extracellular spike detection
 * ~~Trace subtraction, average, ... arithmetic manipulation~~
 
@@ -41,10 +41,16 @@ Script structure
     - ~~Range selection / cursor tool~~: for event detection and data analyses
       * ~~Initial and end values, end - initial difference~~
       * max, min, average, median, std
-      * ~EPSP, IPSP, EPSC, IPSC, action potentials~, extracellular spikes
-      * exponential / double exponential curve fitting
+      * ~~EPSP, IPSP, EPSC, IPSC, action potentials~~, extracellular spikes
+      * ~~exponential / double exponential curve fitting~~
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
-    - Average trace display
+    - ~~Average trace display~~
+
+## Update Aug 20, 2016
+* Added arithmetic tool to calculate traces (averages, subtractions)
+* Added curve fitting tools to fit polynomials, exponentials (3 equations), power law (2 equations)
+* Fixed some bugs on exporting figures
+* Changed to PySynapse ver 0.3
 
 ## Update Jun 11, 2016
 * Added "Arithmetic", "Layout", and "Event" tools in the toolbox
