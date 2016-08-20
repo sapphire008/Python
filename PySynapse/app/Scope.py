@@ -21,6 +21,7 @@ from pdb import set_trace
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 
 from PyQt4 import QtGui, QtCore
 
@@ -83,6 +84,7 @@ class SideDockPanel(QtGui.QWidget):
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
+        self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=False)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
@@ -307,13 +309,19 @@ class SideDockPanel(QtGui.QWidget):
             setattr(zData, stream, {channel: y})
             if stream == 'Voltage':
                 zData.Current = {channel: np.zeros_like(y)}
-            else:
+                zData.Stimulus = {channel: np.zeros_like(y)}
+            elif stream == 'Current':
                 zData.Voltage = {channel: np.zeros_like(y)}
+                zData.Stimulus = {channel: np.zeros_like(y)}
+            elif stream == 'Stimulus':
+                zData.Voltage = {channel: np.zeros_like(y)}
+                zData.Current = {channel: np.zeros_like(y)}
                     
             zData.Time = np.arange(len(y)) * ts
             zData.Protocol.msPerPoint = ts
             zData.Protocol.WCtimeStr = ""
             zData.Protocol.readDataFrom = self.friend.episodes['Name'] + " " + f0
+            zData.Protocol.numPoints = len(y)
             self.friend.episodes['Data'].append(zData)
             
          # Redraw episodes with new calculations
@@ -401,6 +409,195 @@ class SideDockPanel(QtGui.QWidget):
         labelarea = QtGui.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
+        
+    # -------- Curve fitting tools -------------------------------------------
+    def curvefitWidget(self):
+        """This returns the initialized curve fitting widget
+        """
+        # initialize the widget
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("CurveFittingWidgetFrame"))
+        widgetFrame.layout().setSpacing(10)
+        # Curve fitting button
+        fitButton = QtGui.QPushButton("Curve Fit")
+        # Type of curve to fit dropdown box
+        curveTypeComboBox = QtGui.QComboBox()
+        curveTypeComboBox.addItems(['Exponential', 'Polynomial', 'Power'])
+        # Center and scale
+        csCheckBox = QtGui.QCheckBox("Center and scale")
+        # Report box
+        cfReportBox = QtGui.QLabel("NaN")
+        cfReportBox.setStyleSheet("background-color: white")
+        cfReportBox.setWordWrap(True)
+        
+        # Arrange the widget
+        widgetFrame.layout().addWidget(fitButton, 0, 0, 1,3)
+        widgetFrame.layout().addWidget(csCheckBox, 1, 0, 1, 3)
+        widgetFrame.layout().addWidget(curveTypeComboBox, 2, 0, 1, 3)
+        
+        # Settings of curve fitting
+        self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText())
+        
+        # Refresh setting section when cf type changed
+        curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText()))
+        
+        # Summary box behavior
+        fitButton.clicked.connect(lambda : self.curveFit(curveTypeComboBox.currentText(), cfReportBox, csCheckBox.checkState()))
+
+        return widgetFrame
+        
+    def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
+        # Remove everthing at and below the setting rows: rigid setting
+        nrows = widgetFrame.layout().rowCount()
+        if nrows>3:
+            for row in range(3,nrows):
+                for col in range(widgetFrame.layout().columnCount()):
+                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
+                    if currentItem is not None:
+                        if currentItem.widget() is not cfReportBox:
+                            currentItem.widget().deleteLater()
+                        else:
+                            widgetFrame.layout().removeItem(currentItem)
+
+        # Get the setting table again
+        self.getCFSettingTable(curve)
+        for key, val in self.CFsettingTable.items():
+            widgetFrame.layout().addWidget(val, key[0], key[1])
+        # Report box
+        widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
+        return
+        
+    def getCFSettingTable(self, curve):
+        if curve == 'Exponential':
+            eqLabel = QtGui.QLabel("Equation:")
+            eqComboBox = QtGui.QComboBox()
+            eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)']) 
+            self.CFsettingTable = {(4,0): eqLabel, (4,1): eqComboBox}
+        elif curve == 'Power':
+            eqLabel = QtGui.QLabel("Equation")
+            eqComboBox = QtGui.QComboBox()
+            eqComboBox.addItems(['a*x^b', 'a*x^b+c'])
+            self.CFsettingTable = {(4,0): eqLabel, (4,1): eqComboBox}
+        elif curve == 'Polynomial':
+            degLabel = QtGui.QLabel("Degree:")
+            degText = QtGui.QLineEdit("1")
+            self.CFsettingTable = {(4,0):degLabel, (4,1): degText}
+                        
+    def curveFit(self, curve, cfReportBox, centerAndScale):
+        # get view
+        currentView = [0, 0]
+        p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
+        # clear previous fit artists
+        for k, a in enumerate(p.listDataItems()):
+            if 'fit' in a.name():
+                #p.removeItem(a)
+                #print('here')
+                pass
+ 
+        # Get x, y data
+        #if len(p.listDataItems()) > 1:
+        #    cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
+        #    return
+        
+        # Get the plotted data
+        d = p.listDataItems()[0]        
+                    
+        if self.friend.viewRegionOn: # fit between region selection
+            xdata, ydata = spk_window(d.xData, d._ts, self.friend.selectedRange), spk_window(d.yData, d._ts, self.friend.selectedRange)
+        else: # fit within the current view
+            xdata, ydata = spk_window(d.xData, d._ts, p.viewRange()[0]), spk_window(d.yData, d._ts, p.viewRange()[0])
+            
+        # remove baseline: -= and += can be tricky. Use carefully
+        xoffset = xdata[0]
+        xdata = xdata - xoffset
+        yoffset = min(ydata)
+        ydata = ydata - yoffset
+            
+        f0 = None
+        if curve == 'Exponential':
+            eqText = self.CFsettingTable[(4,1)].currentText()
+            if eqText == 'a*exp(b*x)+c':
+                f0 = lambda x, a, b, c: a*np.exp(b*x)+c
+                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025, 0]
+                # bounds = [(-max(abs(ydata))*1.1, -10, -np.inf),  (max(abs(ydata))*1.1, 10, np.inf)]
+                ptext = ['a','b','c']
+            elif eqText == 'a*exp(b*x)':
+                f0 = lambda x, a, b: a*np.exp(b*x)
+                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025]
+                # bounds = [(-max(abs(ydata))*1.1, -10), (max(abs(ydata))*1.1, 10)]
+                ptext = ['a','b']
+            elif eqText == 'a*exp(b*x)+c*exp(d*x)':
+                f0 = lambda x, a, b, c, d: a*np.exp(b*x) + c*np.exp(d*x)
+                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025, max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025]
+                # bounds = [(-max(abs(ydata))*1.1, -10, -max(abs(ydata))*1.1, -10),  (max(abs(ydata))*1.1, 10, max(abs(ydata))*1.1, 10)]
+                ptext = ['a','b','c','d']
+        elif curve == 'Power':
+            eqText = self.CFsettingTable[(4,1)].currentText()
+            if eqText == 'a*x^b':
+                f0 = lambda x, a, b: a*(x**b)
+                p0 = np.ones(2,)
+                # bounds = [(-np.inf, -np.inf), (np.inf, np.inf)]
+                ptext = ['a','b']
+            elif eqText == 'a*x^b+c':
+                f0 = lambda x, a, b, c: a*(x**b)+c
+                p0 = np.ones(4,)
+                # bounds = [(-np.inf, -np.inf, -np.inf), (np.inf, np.inf, np.inf)]
+                ptext = ['a','b','c']
+        elif curve == 'Polynomial':
+            eqText = self.CFsettingTable[(4,1)].text()
+            def f0(x, *p):
+                poly = 0.
+                for i, n in enumerate(p):
+                    poly += n * x**i
+                return poly
+            deg = int(eqText)
+            p0 = np.ones(deg, )
+            ptext = ['p'+str(i) for i in range(deg+1)]
+            # bounds = [tuple([-np.inf]*deg), tuple([np.inf]*deg)]
+        
+        if f0 is None: # shouldn't go here. For debug only
+            raise(ValueError('Unrecognized curve equation %s: %s'%(curve, eqText)))
+        
+        # Fit the curve
+        try:
+            popt, pcov = curve_fit(f0, xdata, ydata, p0=p0, method='trf')
+        except Exception as err:
+            cfReportBox.setText("{}".format(err))
+            return
+            
+        # Generate fitted data
+        yfit = f0(xdata, *popt)
+        # Do some calculations on the fitting before reporting
+        SSE = np.sum((yfit - ydata)**2)
+        RMSE = np.sqrt(SSE/len(yfit))
+        SS_total = np.poly1d(np.polyfit(xdata, ydata, 1))
+        SS_total = np.sum((SS_total(xdata) - ydata)**2)
+        R_sq = 1.0 - SSE / SS_total
+        R_sq_adj = 1.0 - (SSE/(len(xdata)-len(p0))) / (SS_total/(len(xdata)-1))# Adjusted R_sq
+        # Draw the fitted data
+        for a in p.listDataItems():
+            if 'fit' in a.name():
+                a.setData(xdata+xoffset, yfit+yoffset)
+            else:
+                p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: ' + eqText)
+        # Report the curve fit
+        final_text = "Model: {}Equation:\n\t{}\n".format(curve, eqText)
+        final_text += "Paraeters:\n"
+        for ppt, coeff in zip(ptext, popt): # report fitted parameters
+            final_text += "\t" + ppt + ": " + "{:.4g}".format(coeff) + "\n"
+        if curve == 'Exponential':
+            final_text += "Time Constants:\n"
+            if eqText in ['a*exp(b*x)+c', 'a*exp(b*x)']:
+                tau = -1.0/popt[1]
+                final_text += "\ttau: " + "{:.4g} ms".format(tau) + "\n"
+            elif eqText == 'a*exp(b*x)+c*exp(d*x)':
+                tau1, tau2 = -1.0/popt[1], -1.0/popt[3]
+                final_text += "\ttau1: " + "{:.4g} ms".format(tau1) + "\n"
+                final_text += "\ttau2: " + "{:.4g} ms".format(tau2) + "\n"
+        
+        final_text += "\nGoodness of fit:\n\tSSE: {:.4g}\n\tR-square: {:.4g}\n\tAdjusted R-square: {:.4g}\n\tRMSE: {:.4g}".format(SSE, R_sq, R_sq_adj, RMSE)
+        cfReportBox.setText(final_text)
 
     # ------- Analysis tools -------------------------------------------------
     def eventDetectionWidget(self):
@@ -416,6 +613,7 @@ class SideDockPanel(QtGui.QWidget):
         # Summary box
         detectReportBox = QtGui.QLabel("NaN")
         detectReportBox.setStyleSheet("background-color: white")
+        detectReportBox.setWordWrap(True)
         # Even type selection
         eventTypeComboBox = QtGui.QComboBox()
         eventTypeComboBox.addItems(['Action Potential', 'Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
@@ -428,7 +626,7 @@ class SideDockPanel(QtGui.QWidget):
         widgetFrame.layout().addWidget(eventTypeComboBox, 1, 0, 1, 1)
         widgetFrame.layout().addWidget(drawCheckBox, 1, 1, 1,1)
 
-        # Setting of event detection
+        # Settings of event detection
         self.setEDSettingWidgetFrame(widgetFrame, detectReportBox, eventTypeComboBox.currentText())
 
         # Refresh setting section when event type changed
@@ -508,7 +706,7 @@ class SideDockPanel(QtGui.QWidget):
         elif event == 'Spike':
             self.EDsettingTable = {}
         else:
-            raise(Exception('Unrecognized event type %s')%(event))
+            raise(ValueError('Unrecognized event type %s'%(event)))
 
     def detectEvents(self, event='Action Potential', detectReportBox=None, drawEvents=False, *args, **kwargs):
         self.detectedEvents.append(event)
@@ -644,6 +842,8 @@ class ScopeWindow(QtGui.QMainWindow):
         self.isnull = False
         # Range of baseline for null
         self.nullRange = None
+        # Null baseline
+        self.nullBaseline = None
         # view region
         self.viewRegionOn = False
         # self.linkViewRegion = True
@@ -785,9 +985,11 @@ class ScopeWindow(QtGui.QMainWindow):
         if nullRange is None:
             nullRange = self.nullRange
         if isinstance(self.nullRange, list):
-            return np.mean(spk_window(Y, ts, nullRange))
+            self.nullBaseline = np.mean(spk_window(Y, ts, nullRange))
         else: # a single number
-            return Y[time2ind(nullRange, ts)]
+            self.nullBaseline = Y[time2ind(nullRange, ts)][0]
+            
+        return self.nullBaseline
 
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
@@ -886,7 +1088,8 @@ class ScopeWindow(QtGui.QMainWindow):
             Y = getattr(zData, l[0])[l[1]]
             if self.isnull and self.nullRange is not None:
                 Y = Y - self.getNullBaseline(Y, zData.Protocol.msPerPoint)
-            p.plot(x=zData.Time, y=Y, pen=pen, name=pname)
+            cl = p.plot(x=zData.Time, y=Y, pen=pen, name=pname)
+            cl._ts = zData.Protocol.msPerPoint # save the sampling rate to dataitem
 
     def removeEpisode(self, info=None):
         if not info:
@@ -1150,7 +1353,7 @@ class ScopeWindow(QtGui.QMainWindow):
                     self.graphicsView.artists[n] = None
                 if 'LabelItem' in str(type(r)) and r in self.graphicsView.items() and 'Start' in r.text and 'End' in r.text and 'Diff' in r.text:
                     self.graphicsView.removeItem(r)
-                    self.graphicsView.artists[n] = None
+                    self.graphicsView.artists.remove(r)
             self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
 
         elif (not self.viewRegionOn and checked) or cmd == 'add': # add
@@ -1227,6 +1430,9 @@ class ScopeWindow(QtGui.QMainWindow):
                 ind[1] = max(min(ind[1], zData.Protocol.numPoints-1), 0)
                 ymin = float(getattr(zData, l[0])[l[1]][ind[0]])
                 ymax = float(getattr(zData, l[0])[l[1]][ind[1]])
+                if self.isnull:
+                    ymin -= self.nullBaseline
+                    ymax -= self.nullBaseline
             except:
                 return None
             final_HTML += row_HTML.format(l[0]+' '+l[1], ymin, ymax, ymax-ymin)
@@ -1324,7 +1530,14 @@ class ScopeWindow(QtGui.QMainWindow):
             zData = self.episodes['Data'][self.index[-1]] # get the most recently clicked episode
             try:
                 ind = time2ind(x, ts=zData.Protocol.msPerPoint)
-                y = 'NaN' if ind < 0 or ind > zData.Protocol.numPoints else '{:0.1f}'.format(float(getattr(zData, l[0])[l[1]][ind]))
+                if ind < 0 or ind > zData.Protocol.numPoints:
+                    y = 'NaN'
+                else:
+                    y = float(getattr(zData, l[0])[l[1]][ind])
+                    if self.isnull: # remove baseline
+                        y = y - self.nullBaseline # should have been calculated already
+                    
+                    y = '{:0.1f}'.format(y)
             except:
                 return None
             final_HTML += row_HTML.format(l[0]+' '+l[1], y)
