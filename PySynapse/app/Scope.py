@@ -835,7 +835,7 @@ class SideDockPanel(QtGui.QWidget):
         """Helps with initial dock window size"""
         return QtCore.QSize(self.friend.frameGeometry().width()/4.95, 20)
 
-
+# %%
 class ScopeWindow(QtGui.QMainWindow):
     def __init__(self, parent=None, maxepisodes=10, layout=None, hideDock=True):
         super(ScopeWindow, self).__init__(parent)
@@ -885,6 +885,7 @@ class ScopeWindow(QtGui.QMainWindow):
         """This function is converted from the .ui file from the designer"""
         MainWindow.setObjectName(_fromUtf8("Scope Window"))
         MainWindow.resize(1200, 600)
+        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/activity.png'))
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
 

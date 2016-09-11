@@ -451,7 +451,7 @@ class EpisodeTableModel(QtCore.QAbstractTableModel):
 
 
 # Episode Tableview delegate for selection and highlighting
-class TablviewDelegate(QtGui.QItemDelegate):
+class TableviewDelegate(QtGui.QItemDelegate):
     def __init__(self, parent=None, *args):
         QtGui.QItemDelegate.__init__(self, parent, *args)
 
@@ -478,7 +478,7 @@ class TablviewDelegate(QtGui.QItemDelegate):
 
         painter.restore()
 
-
+# %%
 class Synapse_MainWindow(QtGui.QMainWindow):
     def __init__(self, parent=None, startpath=None):
         super(Synapse_MainWindow, self).__init__(parent)
@@ -531,7 +531,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # additional tableview customizations
         self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.tableview.setItemDelegate(TablviewDelegate(self.tableview))
+        self.tableview.setItemDelegate(TableviewDelegate(self.tableview))
         self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs']
         self.tableview.hiddenColumnList = [4, 5, 7] # Drug Name, Drug Time, Dirs
         self.tableview.horizontalHeader().setStretchLastSection(True)

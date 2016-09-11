@@ -46,6 +46,12 @@ Script structure
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - ~~Average trace display~~
 
+## Update Sep 10, 2016
+* Added settings window. Default settings are saved under ./resouces/config.ini and interfaced by GUI under the main synapse window: File/Settings.
+  - For now, implemented settings for exporting traces. Planned to extend the new settings function to other aspects of the program
+  - Extended some functions in trace export
+* Set icons for each app window
+
 ## Update Aug 20, 2016
 * Added arithmetic tool to calculate traces (averages, subtractions)
 * Added curve fitting tools to fit polynomials, exponentials (3 equations), power law (2 equations)
@@ -54,7 +60,7 @@ Script structure
 
 ## Update Jun 11, 2016
 * Added "Arithmetic", "Layout", and "Event" tools in the toolbox
-  - "Arithemtic": remove baseline ("null" checkbox) and trace averaging / manipulation (to be implemented)
+  - "Arithmetic": remove baseline ("null" checkbox) and trace averaging / manipulation (to be implemented)
   - "Layout": add and remove data streams
   - "Event": event detector, including APs, PSPs. Extracellular spike detection is yet to be implemented
 * Fixed various bugs and fine tuned some behaviors.

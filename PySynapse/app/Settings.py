@@ -94,6 +94,7 @@ class Settings(QtGui.QWidget):
     def __init__(self, parent=None, iniPath=None):
         super(Settings, self).__init__(parent)
         self.setWindowTitle("Settings")
+        self.setWindowIcon(QtGui.QIcon('resources/icons/setting.png'))
         self.isclosed = True
         if iniPath == None:
             self.iniPath = os.path.join(__location__,'../resources/config.ini')
