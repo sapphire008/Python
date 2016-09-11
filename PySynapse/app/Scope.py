@@ -19,6 +19,12 @@ import collections
 
 from pdb import set_trace
 
+# Global variables
+__version__ = "Scope Window 0.3"
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+old = True # load old data format
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -27,10 +33,16 @@ from PyQt4 import QtGui, QtCore
 
 import pyqtgraph as pg
 from pyqtgraph import GraphicsLayoutWidget
-# from pyqtgraph.flowchart import Flowchart
-sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
-from util.spk_util import *
 
+# from pyqtgraph.flowchart import Flowchart
+sys.path.append(os.path.join(__location__, '..'))
+from util.spk_util import *
+from util.ImportData import NeuroData
+from util.ExportData import *
+from util.MATLAB import *
+from util.spk_util import *
+from app.AccordionWidget import AccordionWidget
+from app.Settings import readini
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -46,18 +58,6 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
-from util.ImportData import NeuroData
-from util.ExportData import *
-from util.MATLAB import *
-from util.spk_util import *
-from app.AccordionWidget import AccordionWidget
-
-# Global variables
-__version__ = "Scope Window 0.3"
-__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
-old = True # load old data format
 
 class SideDockPanel(QtGui.QWidget):
     """Collapsible dock widget that displays settings and analysis results for
@@ -162,8 +162,6 @@ class SideDockPanel(QtGui.QWidget):
         else:
             r = None
             
-        stream, channel, _, _ = self.friend.layout[0]
-
         def parseSimpleFormula(f):
             """Simple linear basic four operations
             e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8" -->
@@ -212,7 +210,7 @@ class SideDockPanel(QtGui.QWidget):
 
             return D, K, C
 
-        def simpleMath(f, **kwargs):
+        def simpleMath(f, stream, channel, **kwargs):
             """" f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8"
             Additional variables can be provided by **kwargs"""
             D, K, Y = parseSimpleFormula(f)
@@ -271,59 +269,70 @@ class SideDockPanel(QtGui.QWidget):
                 f = f0
                 rng = None
             # if has parenthesis
-            if "(" in f:
-                # separate into a list of simple ones
-                fSimpleList = re.findall('\(([^()]*)\)', f)
-                # for each simple ones, do calculation
-                YList = [simpleMath(fSimple) for fSimple in fSimpleList]
-
-                newvars = self._newvarsList[:len(fSimpleList)] # ['A','B','C',...]
-                callback.v = iter(newvars)
-                # new formula: replace all parentheses with a new variable
-                nf = re.sub(r'\(([^()]*)\)', callback, f)
-                # build a dictionary between the parentheses values and new variables
-                nfdict = {}
-                for nn, v in enumerate(newvars):
-                    nfdict[v] = YList[nn]
-                # use the new variable, together with episode names that was not 
-                # in the parentheses to calculate the final Y
-                y = simpleMath(nf, **nfdict)
-            else:
-                y = simpleMath(f)
+            y = dict()
+            try:
+                if "(" in f:
+                    for s, c, _, _ in self.friend.layout:
+                        # separate into a list of simple ones
+                        fSimpleList = re.findall('\(([^()]*)\)', f)
+                        # for each simple ones, do calculation
+                        YList = [simpleMath(fSimple, s, c) for fSimple in fSimpleList]
+        
+                        newvars = self._newvarsList[:len(fSimpleList)] # ['A','B','C',...]
+                        callback.v = iter(newvars)
+                        # new formula: replace all parentheses with a new variable
+                        nf = re.sub(r'\(([^()]*)\)', callback, f)
+                        # build a dictionary between the parentheses values and new variables
+                        nfdict = {}
+                        for nn, v in enumerate(newvars):
+                            nfdict[v] = YList[nn]
+                        # use the new variable, together with episode names that was not 
+                        # in the parentheses to calculate the final Y
+                        y[(s,c)] = simpleMath(nf, s, c, **nfdict)
+                else:
+                    for s, c, _, _ in self.friend.layout:
+                        y[(s,c)] = simpleMath(f, s, c)
+            except Exception as err:
+                arithReportBox.setText("{}".format(err))
+                return
+                    
+            y_len = len(y[s,c]) # length of time series
                 
             # Subset of the time series if range specified
             ts = self.friend.episodes['Sampling Rate'][0]
             if rng is not None:
-                y = spk_window(y, ts, rng)
+                for s, c, _, _ in self.friend.layout:
+                    y[(s,c)] = spk_window(y[(s,c)], ts, rng)
                 
             # Append the data to friend's episodes object
-            self.friend.episodes['Duration'].append(ind2time(len(y)-1,ts)[0])
+            self.friend.episodes['Duration'].append(ind2time(y_len-1,ts)[0])
             self.friend.episodes['Drug Time'].append('00:00')
             self.friend.episodes['Drug Name'].append('')
             self.friend.episodes['Drug Level'].append(-1)
-            self.friend.episodes['Comment'].append('')
+            self.friend.episodes['Comment'].append('PySynapse Arithmetic Data')
             self.friend.episodes['Dirs'].append(f)
             self.friend.episodes['Time'].append('00:00')
             self.friend.episodes['Epi'].append(f)
             self.friend.episodes['Sampling Rate'].append(ts)
             # Make up fake data. Be more complete so that it can be exported correctly
             zData = NeuroData()
-            setattr(zData, stream, {channel: y})
-            if stream == 'Voltage':
-                zData.Current = {channel: np.zeros_like(y)}
-                zData.Stimulus = {channel: np.zeros_like(y)}
-            elif stream == 'Current':
-                zData.Voltage = {channel: np.zeros_like(y)}
-                zData.Stimulus = {channel: np.zeros_like(y)}
-            elif stream == 'Stimulus':
-                zData.Voltage = {channel: np.zeros_like(y)}
-                zData.Current = {channel: np.zeros_like(y)}
+            for s, c, _, _ in self.friend.layout:
+                setattr(zData, s, {c: y[s,c]})
+            
+            # fill in missing data
+            stream_list,_,_,_ = zip(*self.friend.layout)
+            stream_all = ['Voltage', 'Current', 'Stimulus']
+            for _, c, _, _ in self.friend.layout:
+                for s in stream_all:
+                    if s not in stream_list:
+                        setattr(zData, s, {c: np.zeros(y_len)})
                     
-            zData.Time = np.arange(len(y)) * ts
+            zData.Time = np.arange(y_len) * ts
             zData.Protocol.msPerPoint = ts
             zData.Protocol.WCtimeStr = ""
             zData.Protocol.readDataFrom = self.friend.episodes['Name'] + " " + f0
-            zData.Protocol.numPoints = len(y)
+            zData.Protocol.numPoints = y_len
+            zData.Protocol.Comment = 'PySynapse Arithmetic Data'
             self.friend.episodes['Data'].append(zData)
             
          # Redraw episodes with new calculations
@@ -832,6 +841,8 @@ class ScopeWindow(QtGui.QMainWindow):
         super(ScopeWindow, self).__init__(parent)
         self.episodes = None
         self.index = []
+        # Initialization setting file
+        self.iniPath = os.path.join(__location__,'../resources/config.ini')
         # set a limit on how many episodes to cache
         self.maxepisodes = maxepisodes
         # Record state of the scope window
@@ -1558,7 +1569,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
         return final_HTML
 
-    def exportWithScalebar(self, arrangement='overlap', savedir="R:/temp.eps"):
+    def exportWithScalebar(self, arrangement='overlap'):
         viewRange = collections.OrderedDict()
         channels = []
         for n, l in enumerate(self.layout):
@@ -1594,10 +1605,17 @@ class ScopeWindow(QtGui.QMainWindow):
             channelstr = " ".join(channelstr)
             self.episodes['Notes'][i] = notestr.format(self.episodes['Dirs'][i], channelstr,
                                                        self.episodes['Data'][i].Protocol.WCtimeStr)
-
+        
+        # Get the options before saving the figure
+        options = readini(self.iniPath)
+        # figure out the figure size
+        nchannels = len(viewRange.keys())
+        options['fig_size'] = (options['figSizeW']*(nchannels if options['figSizeWMulN'] else 1), options['figSizeH']*(nchannels if options['figSizeHMulN'] else 1))
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
-            PlotTraces(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors, nullRange=None if not self.isnull else self.nullRange)
+            PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, 
+                       dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
+                       setFont=options['fontName'], fontSize=options['fontSize'])
         elif arrangement == 'vertical':
             PlotTracesVertically(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
         elif arrangement == 'horizontal':
@@ -1634,11 +1652,17 @@ if __name__ == '__main__' and not run_example:
 #    
 #    index = [0,1,2]
     
-    episodes = {'Drug Name': [''], 'Epi': ['S1.E4'], 
+#    episodes = {'Drug Name': [''], 'Epi': ['S1.E4'], 
+#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
+#    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1], 
+#    'Comment': ['DAC0: PulseA -50 PulseB 50'], 
+#    'Dirs': ['D:/Data/Traces/2016/06.June/Data 9 Jun 2016/Neocortex E.09Jun16.S1.E4.dat']}
+#    index = [0]
+    episodes = {'Drug Name': [''], 'Epi': ['S1.E13'], 
     'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
-    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1], 
-    'Comment': ['DAC0: PulseA -50 PulseB 50'], 
-    'Dirs': ['D:/Data/Traces/2016/06.June/Data 9 Jun 2016/Neocortex E.09Jun16.S1.E4.dat']}
+    'Name': 'Neocortex G.07Jun16', 'Drug Time': ['31.7 sec'], 'Sampling Rate': [0.1], 
+    'Comment': ['DAC0: Step -40 (1000 to 5000 ms) PulseA -10'], 
+    'Dirs': ['D:/Data/Traces/2016/06.June/Data 7 Jun 2016/Neocortex G.07Jun16.S1.E13.dat']}
     index = [0]
     
     app = QtGui.QApplication(sys.argv)

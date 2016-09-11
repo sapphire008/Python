@@ -275,7 +275,7 @@ def TurnOffAxis(ax):
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
-def writeEpisodeNote(zData, viewRange, channels, initFunc=None):
+def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
     if initFunc is None:
         initFunc = lambda x: x[0]
 
@@ -287,17 +287,20 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None):
         I = initFunc(spk_window(getattr(zData, 'Current')[ch], ts, viewRange))
         notes.append("Channel %s %.1f mV %d pA"%(ch, V , I ))
         # notes.append("Channel %s %.1f mV %d pA"%(ch, min(getattr(zData, 'Voltage')[ch]), min(getattr(zData, 'Current')[ch])  ))
-    final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
+    if mode.lower() == 'simple' and zData.Protocol.Comment != 'PySynapse Arithmetic Data':
+        final_notes = os.path.basename(os.path.splitext(zData.Protocol.readDataFrom)[0]) + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
+    else: # Full
+        final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes
 # %%
-def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='default', fig_size=None, nullRange=None):
+def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, nullRange=None, annotation='Simple', setFont='default', fontSize=10):
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
     # set_trace()
     # Start the figure
     nchannels = len(viewRange.keys())
-    if not fig_size: # if not specified size, set to (4*nchannels, 4)
-        fig_size = (4, 4*nchannels)
+    if not fig_size: # if not specified size, set to (4, 4*nchannels)
+        fig_size = (4, 3*nchannels)
 
     if not colorfy:
         colorfy=['k']
@@ -312,13 +315,19 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
         
         for c, m in enumerate(viewRange.keys()):
             # Draw plots
-            X = spk_window(zData.Time, ts, viewRange[m][0])
-            Y = spk_window(getattr(zData, m[0])[m[1]], ts, viewRange[m][0])
+            X = zData.Time
+            Y = getattr(zData, m[0])[m[1]]
+            # null the trace
             if nullRange is not None:
                 if isinstance(nullRange, list):
                     Y -= np.mean(spk_window(Y, ts, nullRange))
                 else: # a single number
                     Y -=  Y[time2ind(nullRange, ts)]
+                    
+            # window the plot
+            X = spk_window(X, ts, viewRange[m][0])
+            Y = spk_window(Y, ts, viewRange[m][0])
+            # plot
             ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
             # Draw initial value
             # initY = min(Y)
@@ -334,19 +343,25 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
             if m[1] not in channels:
                 channels.append(m[1])
             
-            # set_trace()
-            ax[c].text(X[0]-50,  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+            #kkks = viewRange[m][0][1]-viewRange[m][0][0]
+            #set_trace()
+            ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
         
-        final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels)
-        # Draw more annotations
-        textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
-
-    box = VPacker(children=textbox, align="left",pad=0, sep=2)
-    annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
-    ax[-1].add_artist(annotationbox)
+        if annotation.lower() != 'none':
+            final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels, mode=annotation)
+            # Draw more annotations
+            textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
+    
+    # Group all the episode annotation text
+    if annotation.lower() != 'none':
+        box = VPacker(children=textbox, align="left",pad=0, sep=2)
+        annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
+        ax[-1].add_artist(annotationbox)
+        scalebar = [annotationbox]
+    else:
+        scalebar = []
 
     # set axis
-    scalebar = [annotationbox]
     for c, vr in enumerate(viewRange.items()):
         l, r = vr
         ax[c].set_xlim(r[0])
@@ -358,9 +373,11 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, setFont='d
         temp = tic.MaxNLocator(3)
         ax[c].yaxis.set_major_locator(temp)
 
-    if (isinstance(setFont, str) and setFont.lower() == 'default') or \
+    if (isinstance(setFont, str) and setFont.lower() in ['default', 'arial', 'helvetica']) or \
                     (isinstance(setFont, bool) and setFont):
-        SetFont(ax, fig, fontsize=10, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
+        SetFont(ax, fig, fontsize=fontSize, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
+    else:
+        SetFont(ax, fig, fontsize=fontSize, fontname=setFont)
 
     # save the figure
     fig.set_size_inches(fig_size)

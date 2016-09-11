@@ -414,7 +414,7 @@ def sortrows(A, col=None):
     return A, I
     
 
-def unique(A, byrow=False, occurrence='first', stable=False):
+def unique(A, byrow=False, occurrence='first', stable=False, returnSort=False):
     """MATLAB's unique. Can apply to both numerical matrices and list of 
     strings. Not for performance, but for better outputs
     Inputs:
@@ -434,12 +434,17 @@ def unique(A, byrow=False, occurrence='first', stable=False):
                 will be a column vector. IA and IC are column vectors. If 
                 there are repeated values in A, then IA returns the index of 
                 the first occurrence of each repeated value.
+        returnSort: also return additional 3 sorting indices
     
     Return: 
         C: list of unique items
         IA: index of ('first', 'last', specified by occurrence parameter)
             occurence, such that C = A[IA]
         IC: index such that A = C[IC]
+        groupsSortA:
+        sortA:
+        indSortA:
+        
     """
     # convert to numpy array for easier manipulation
     A = np.asarray(A, order='F')
@@ -476,6 +481,7 @@ def unique(A, byrow=False, occurrence='first', stable=False):
     # Extract unique elements
     if stable:
         invIndSortA = indSortA
+        invIndSortA = np.squeeze(invIndSortA)
         invIndSortA[invIndSortA] = np.arange(nRows) # Find inverse permutation
         logIndA = groupsSortA[invIndSortA] # Create new logical by indexing into groupsSortA
         C = A[logIndA, :] 
@@ -493,9 +499,10 @@ def unique(A, byrow=False, occurrence='first', stable=False):
     if iscolvec:
         C = C[:, np.newaxis]
         
-    
-    return C, IA, IC, groupsSortA, sortA, indSortA
-    
+    if returnSort:
+        return C, IA, IC, groupsSortA, sortA, indSortA
+    else:
+        return C, IA, IC
 
 def poly2mask(r, c, m, n):
     """m, n: canvas size that contains this polygon mask"""
@@ -538,9 +545,23 @@ def SearchFiles(path, pattern, sortby='Name'):
         
         
 if __name__ == '__main__':
-    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
-    C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=False)
+    # A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
+    A = ['left_eye_center','left_eye_center', 'right_eye_center', 'right_eye_center', 'left_eye_inner_corner',
+         'left_eye_inner_corner', 'left_eye_outer_corner', 'left_eye_outer_corner', 'right_eye_inner_corner',
+         'right_eye_inner_corner','right_eye_outer_corner','right_eye_outer_corner','left_eyebrow_inner_end',
+         'left_eyebrow_inner_end','left_eyebrow_outer_end','left_eyebrow_outer_end','right_eyebrow_inner_end',
+         'right_eyebrow_inner_end','right_eyebrow_outer_end','right_eyebrow_outer_end','nose_tip','nose_tip',
+         'mouth_left_corner','mouth_left_corner','mouth_right_corner','mouth_right_corner','mouth_center_top_lip',
+         'mouth_center_top_lip','mouth_center_bottom_lip','mouth_center_bottom_lip','Image']   
+    C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=True, returnSort=True)
     
+    
+    print(C)
+    print(IA)
+    print(IC)
+    print(groupsSortA)
+    print(sortA)
+    print(indSortA)
     
     
     

@@ -26,6 +26,7 @@ import pandas as pd
 # sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
 from app.Scope import ScopeWindow
+from app.Settings import *
 
 import sip
 sip.setapi('QVariant', 2)
@@ -568,6 +569,12 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         refreshAction.triggered.connect(self.refreshCurrentBranch)
         fileMenu.addAction(refreshAction)
         
+        # File: Settings
+        settingsAction = QtGui.QAction("Settings", self)
+        settingsAction.setStatusTip('Configure settings of PySynapse')
+        settingsAction.triggered.connect(self.openSettingsWindow)
+        fileMenu.addAction(settingsAction)
+        
         # File: Exit
         exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
@@ -608,8 +615,14 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         node = self.treeview.model.getNode(index)
         if node.type == "directory":
             self.treeview.model.refreshNode(index)
+            
+    def openSettingsWindow(self):
+        if not hasattr(self, 'settingsWidget'):
+            self.settingsWidget = Settings()
+        if self.settingsWidget.isclosed:
+            self.settingsWidget.show()
+            self.settingsWidget.isclosed = False
         
-
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         #quit_msg = "Are you sure you want to exit the program?"
