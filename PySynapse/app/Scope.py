@@ -157,6 +157,7 @@ class SideDockPanel(QtGui.QWidget):
         self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
 
     def calculateTraces(self, formula, isNulled, arithReportBox):
+        arithReportBox.setText('') # clear any previous error message first
         if isNulled:
             r = self.friend.nullRange # should have been already calculated before
         else:
@@ -252,7 +253,7 @@ class SideDockPanel(QtGui.QWidget):
 #        print(mmdict)
 #        return
 
-        # parse formula
+        # parse formulac
         if "{" in formula:
             # separate each formula
             formula = formula.replace("{","").replace("}","")
@@ -332,7 +333,7 @@ class SideDockPanel(QtGui.QWidget):
             zData.Protocol.WCtimeStr = ""
             zData.Protocol.readDataFrom = self.friend.episodes['Name'] + " " + f0
             zData.Protocol.numPoints = y_len
-            zData.Protocol.Comment = 'PySynapse Arithmetic Data'
+            zData.Protocol.acquireComment = 'PySynapse Arithmetic Data'
             self.friend.episodes['Data'].append(zData)
             
          # Redraw episodes with new calculations
@@ -1611,16 +1612,20 @@ class ScopeWindow(QtGui.QMainWindow):
         options = readini(self.iniPath)
         # figure out the figure size
         nchannels = len(viewRange.keys())
-        options['fig_size'] = (options['figSizeW']*(nchannels if options['figSizeWMulN'] else 1), options['figSizeH']*(nchannels if options['figSizeHMulN'] else 1))
+        options['fig_size'] = (options['figSizeW'], options['figSizeH']*(nchannels if options['figSizeHMulN'] else 1))
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
             PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, 
                        dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
                        setFont=options['fontName'], fontSize=options['fontSize'])
         elif arrangement == 'vertical':
-            PlotTracesVertically(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
+            PlotTracesVertically(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+                                 dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
+                                 setFont=options['fontName'], fontSize=options['fontSize'])
         elif arrangement == 'horizontal':
-            PlotTracesHorizontally(self.episodes, self.index, viewRange, saveDir=savedir, colorfy=self._usedColors)
+            PlotTracesHorizontally(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+                                 dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
+                                 adjustFigH = options['figSizeWMulN'], annotation=options['annotation'], setFont=options['fontName'], fontSize=options['fontSize'])
         else:
             raise(TypeError('Unrecognized export arrangement'))
 
@@ -1659,15 +1664,23 @@ if __name__ == '__main__' and not run_example:
 #    'Comment': ['DAC0: PulseA -50 PulseB 50'], 
 #    'Dirs': ['D:/Data/Traces/2016/06.June/Data 9 Jun 2016/Neocortex E.09Jun16.S1.E4.dat']}
 #    index = [0]
-    episodes = {'Drug Name': [''], 'Epi': ['S1.E13'], 
-    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
-    'Name': 'Neocortex G.07Jun16', 'Drug Time': ['31.7 sec'], 'Sampling Rate': [0.1], 
-    'Comment': ['DAC0: Step -40 (1000 to 5000 ms) PulseA -10'], 
-    'Dirs': ['D:/Data/Traces/2016/06.June/Data 7 Jun 2016/Neocortex G.07Jun16.S1.E13.dat']}
-    index = [0]
+#    episodes = {'Drug Name': [''], 'Epi': ['S1.E13'], 
+#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
+#    'Name': 'Neocortex G.07Jun16', 'Drug Time': ['31.7 sec'], 'Sampling Rate': [0.1], 
+#    'Comment': ['DAC0: Step -40 (1000 to 5000 ms) PulseA -10'], 
+#    'Dirs': ['D:/Data/Traces/2016/06.June/Data 7 Jun 2016/Neocortex G.07Jun16.S1.E13.dat']}
+#    index = [0]
     
+    episodes = {'Drug Name': [''], 'Epi': ['S1.E33', 'S1.E34', 'S1.E35'], 
+    'Duration': [40000,40000,40000], 'Drug Level': [1,1,1], 'Time': ['25:06','25:54','26:43'], 
+    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1], 
+    'Comment': ['TTL3: SIU train','',''], 
+    'Dirs': ['D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E33.dat',
+             'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E34.dat',
+             'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
+    index = [0,1,2]
     app = QtGui.QApplication(sys.argv)
-    w = ScopeWindow(hideDock=False)
+    w = ScopeWindow(hideDock=False, layout=[['Current','A',0,0]])
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)
     # w.toggleDataCursor(checked=True)

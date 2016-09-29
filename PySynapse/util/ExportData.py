@@ -19,11 +19,10 @@ from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker, 
 import matplotlib.ticker as tic
 
 from pdb import set_trace
-sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
-from util.spk_util import *
-
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+sys.path.append(os.path.join(__location__, '..')) # for debug only
+from util.spk_util import *
 
 # %%
 # Helper functions
@@ -287,20 +286,21 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
         I = initFunc(spk_window(getattr(zData, 'Current')[ch], ts, viewRange))
         notes.append("Channel %s %.1f mV %d pA"%(ch, V , I ))
         # notes.append("Channel %s %.1f mV %d pA"%(ch, min(getattr(zData, 'Voltage')[ch]), min(getattr(zData, 'Current')[ch])  ))
-    if mode.lower() == 'simple' and zData.Protocol.Comment != 'PySynapse Arithmetic Data':
+    if mode.lower() == 'simple' and zData.Protocol.acquireComment != 'PySynapse Arithmetic Data':
         final_notes = os.path.basename(os.path.splitext(zData.Protocol.readDataFrom)[0]) + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     else: # Full
         final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes
 # %%
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, nullRange=None, annotation='Simple', setFont='default', fontSize=10):
+    """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
     # set_trace()
     # Start the figure
     nchannels = len(viewRange.keys())
     if not fig_size: # if not specified size, set to (4, 4*nchannels)
-        fig_size = (4, 3*nchannels)
+        fig_size = (4, 4*nchannels)
 
     if not colorfy:
         colorfy=['k']
@@ -320,19 +320,17 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
             # null the trace
             if nullRange is not None:
                 if isinstance(nullRange, list):
-                    Y -= np.mean(spk_window(Y, ts, nullRange))
+                    Y = Y - np.mean(spk_window(Y, ts, nullRange))
                 else: # a single number
-                    Y -=  Y[time2ind(nullRange, ts)]
+                    Y = Y - Y[time2ind(nullRange, ts)]
                     
             # window the plot
             X = spk_window(X, ts, viewRange[m][0])
             Y = spk_window(Y, ts, viewRange[m][0])
-            # plot
+            # do the plot
             ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
             # Draw initial value
-            # initY = min(Y)
-            initY = Y[0]
-            InitVal = "{0:0.0f}".format(initY)      
+            InitVal = "{0:0.0f}".format(Y[0])      
             if m[0] == 'Voltage':
                 InitVal += 'mV'
             elif m[0] == 'Current':
@@ -389,11 +387,110 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
 
     return(ax)
 
+def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
+                           adjustFigH=True, trimH=(None,None), annotation='Simple', setFont='default', fontSize=10):
+    """Export traces arranged horizontally.
+    Good for an experiments acquired over multiple episodes."""
+    nchannels = len(viewRange.keys())
+    if not colorfy:
+        colorfy=['k']
+    fig, _= plt.subplots(nrows=nchannels, ncols=1, sharex=True)
+    ax = fig.get_axes()
+    # text annotation area
+    textbox = []
+    nullBase = dict()
+    currentTime = 0
+    maxWindow = max(df['Duration'])
+    for n, i in enumerate(index): #iterate over episodes
+        zData = df['Data'][i]
+        ts = zData.Protocol.msPerPoint
+        channels = []
+        for c, m in enumerate(viewRange.keys()): # iterate over channels/streams
+            # Draw plots
+            X = zData.Time + currentTime
+            Y = getattr(zData, m[0])[m[1]]
+            # null the trace
+            if nullRange is not None:
+                if n == 0: # calculate nullBase
+                    if isinstance(nullRange, list):
+                        nullBase[(m[0],m[1])] = np.mean(spk_window(Y, ts, nullRange))
+                    else:
+                        nullBase[(m[0],m[1])] = Y[time2ind(nullRange, ts)]
+                Y = Y - nullBase[(m[0],m[1])]
+            if n == 0 and trimH[0] is not None:
+                X = spk_window(X, ts, (trimH[0], None))
+                Y = spk_window(X, ts, (trimH[0], None))
+            elif n + 1 == len(index) and trimH[1] is not None:
+                X = spk_window(X, ts, (None, trimH[1]))
+                Y = spk_window(X, ts, (None, trimH[1]))
+            # do the plot
+            ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
+            # Draw the initial value, only for the first plot
+            if n == 0:
+                InitVal = "{0:0.0f}".format(Y[0])      
+                if m[0] == 'Voltage':
+                    InitVal += 'mV'
+                elif m[0] == 'Current':
+                    InitVal += 'pA'
+                else: # Stimulus
+                    InitVal = ''
+                
+                ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]), Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+                    
+            if m[1] not in channels:
+                channels.append(m[1])
+            
+        if annotation.lower() != 'none':
+            final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels, mode=annotation)
+            # Draw some annotations
+            textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
+        
+        # Set some spacing for the next episode
+        if n+1 < len(index):
+            if hSpaceType.lower() == 'fixed':
+                currentTime = currentTime + (len(Y)-1)*ts + maxWindow * hFixedSpace / 100.0
+            elif hSpaceType.lower() in ['real time', 'realtime', 'rt']:
+                currentTime = currentTime + (df['Data'][index[n+1]].Protocol.WCtime - zData.Protocol.WCtime)*1000
+                    
+    # Group all the episodes annotation text
+    if annotation.lower() != 'none':
+        box = VPacker(children=textbox, align="left",pad=0, sep=2)
+        annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
+        ax[-1].add_artist(annotationbox)
+        scalebar = [annotationbox]
+    else:
+        scalebar = []
+    
+    # set axis
+    for c, vr in enumerate(viewRange.items()):
+        ax[c].set_ylim(vr[1][1])
+        # Add scalebar
+        scalebar.append(AddTraceScaleBar(xunit='ms', yunit='mV' if vr[0][0]=='Voltage' else 'pA', ax=ax[c]))
+        plt.subplots_adjust(hspace = .001)
+        temp = tic.MaxNLocator(3)
+        ax[c].yaxis.set_major_locator(temp)
 
-def PlotTracesVertically(df, index, viewRange, saveDir, colorfy=False):
-    return
-
-def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False):
+    # Set font
+    if (isinstance(setFont, str) and setFont.lower() in ['default', 'arial', 'helvetica']) or \
+                (isinstance(setFont, bool) and setFont):
+        SetFont(ax, fig, fontsize=fontSize, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
+    else:
+        SetFont(ax, fig, fontsize=fontSize, fontname=setFont)
+        
+            
+    # figure out and set the figure size
+    if adjustFigH:
+        fig_size = (np.ptp(ax[0].get_xlim()) / maxWindow * fig_size[0], fig_size[1])
+        
+    fig.set_size_inches(fig_size)
+    
+    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
+    # Close the figure after save
+    plt.close(fig)
+    return(ax)
+    
+    
+def PlotTracesVertically(df, index, viewRange, saveDir=None, colorfy=False, dpi=300, fig_size=None, nullRange=None, annotation='Simple', setFont='default', fontSize=10):
     return
 
 def data2csv(data):

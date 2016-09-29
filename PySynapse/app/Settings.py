@@ -138,7 +138,8 @@ class Settings(QtGui.QWidget):
         fig_size_W_label = QtGui.QLabel('Width (inches)')
         fig_size_W_text = QtGui.QLineEdit(str(self.options['figSizeW']))
         self.settingDict['figSizeW'] = fig_size_W_text
-        fig_size_W_checkBox = QtGui.QCheckBox(u'\u00D7 # channels / streams')
+        fig_size_W_checkBox = QtGui.QCheckBox('Dynamically Adjust')
+        fig_size_W_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes horizontally')
         fig_size_W_checkBox.setCheckState(2 if self.options['figSizeWMulN'] else 0)
         self.settingDict['figSizeWMulN'] = fig_size_W_checkBox
         
@@ -146,8 +147,27 @@ class Settings(QtGui.QWidget):
         fig_size_H_text = QtGui.QLineEdit(str(self.options['figSizeH']))
         self.settingDict['figSizeH'] = fig_size_H_text
         fig_size_H_checkBox = QtGui.QCheckBox(u'\u00D7 # channels / streams')
+        fig_size_H_checkBox.setToolTip('Expand the figure size by the number of channels / streams')
         fig_size_H_checkBox.setCheckState(2 if self.options['figSizeHMulN'] else 0)
         self.settingDict['figSizeHMulN'] = fig_size_H_checkBox
+        
+        hSpace_label = QtGui.QLabel('Horizontal Space')
+        hSpace_label.setToolTip('Only relevant when exporting series of traces arranged horizontally')
+        hSpace_spinbox = QtGui.QSpinBox()
+        hSpace_spinbox.setValue(self.options['hFixedSpace'])
+        hSpace_spinbox.setSuffix('%')
+        hSpace_spinbox.setRange(0,100)
+        hSpace_spinbox.setFixedWidth(50)
+        hSpace_comboBox = QtGui.QComboBox()
+        hSpace_comboList = ['Fixed', 'Real Time']
+        hSpace_comboBox.addItems(hSpace_comboList)
+        hSpace_comboBox.setCurrentIndex(hSpace_comboList.index(self.options['hSpaceType']))
+        hSpace_comboBox.currentIndexChanged.connect(lambda: self.toggleHFixedSpace(hSpace_comboBox, hSpace_spinbox, 'Real Time'))
+        if hSpace_comboBox.currentText() == 'Real Time':
+            hSpace_text.setEnabled(False)
+        self.settingDict['hSpaceType'] = hSpace_comboBox
+        # self.settingDict['hFixedSpace'] = hSpace_text
+        self.settingDict['hFixedSpace'] = hSpace_spinbox
         
         dpi_label = QtGui.QLabel('DPI')
         dpi_text = QtGui.QLineEdit(str(self.options['dpi']))
@@ -162,9 +182,9 @@ class Settings(QtGui.QWidget):
         
         annotation_label = QtGui.QLabel('Annotation')
         annotation_comboBox = QtGui.QComboBox()
-        comboList = ['Simple', 'Full', 'None']
-        annotation_comboBox.addItems(comboList)
-        annotation_comboBox.setCurrentIndex(comboList.index(self.options['annotation']))
+        ann_comboList = ['Simple', 'Full', 'None']
+        annotation_comboBox.addItems(ann_comboList)
+        annotation_comboBox.setCurrentIndex(ann_comboList.index(self.options['annotation']))
         self.settingDict['annotation'] = annotation_comboBox
         
         saveDir_label = QtGui.QLabel('Path')
@@ -178,16 +198,21 @@ class Settings(QtGui.QWidget):
         widgetFrame.layout().addWidget(fig_size_H_label, 1, 0, 1, 1)
         widgetFrame.layout().addWidget(fig_size_H_text, 1, 1, 1, 1)
         widgetFrame.layout().addWidget(fig_size_H_checkBox, 1, 2, 1, 2)
-        widgetFrame.layout().addWidget(dpi_label, 2, 0, 1, 1)
-        widgetFrame.layout().addWidget(dpi_text, 2, 1, 1, 1)
-        widgetFrame.layout().addWidget(annotation_label, 3, 0, 1, 1)
-        widgetFrame.layout().addWidget(annotation_comboBox, 3, 1, 1, 1)
-        widgetFrame.layout().addWidget(fontName_label, 4, 0, 1, 1)
-        widgetFrame.layout().addWidget(fontName_text, 4, 1, 1, 1)
-        widgetFrame.layout().addWidget(fontSize_label, 4, 2, 1, 1)
-        widgetFrame.layout().addWidget(fontSize_text, 4, 3, 1, 1)
-        widgetFrame.layout().addWidget(saveDir_label, 5, 0, 1, 1)
-        widgetFrame.layout().addWidget(saveDir_text, 5, 1, 1, 3)
+        widgetFrame.layout().addWidget(hSpace_label, 2, 0, 1, 1)
+        widgetFrame.layout().addWidget(hSpace_comboBox, 2, 1, 1, 1)
+        # widgetFrame.layout().addWidget(hSpace_text, 2, 2, 1, 1)
+        # widgetFrame.layout().addWidget(hSpace_perc_label, 2,3,1, 1)
+        widgetFrame.layout().addWidget(hSpace_spinbox, 2,2, 1,1)
+        widgetFrame.layout().addWidget(dpi_label, 3, 0, 1, 1)
+        widgetFrame.layout().addWidget(dpi_text, 3, 1, 1, 1)
+        widgetFrame.layout().addWidget(annotation_label, 4, 0, 1, 1)
+        widgetFrame.layout().addWidget(annotation_comboBox, 4, 1, 1, 1)
+        widgetFrame.layout().addWidget(fontName_label, 5, 0, 1, 1)
+        widgetFrame.layout().addWidget(fontName_text, 5, 1, 1, 1)
+        widgetFrame.layout().addWidget(fontSize_label, 5, 2, 1, 1)
+        widgetFrame.layout().addWidget(fontSize_text, 5, 3, 1, 1)
+        widgetFrame.layout().addWidget(saveDir_label, 6, 0, 1, 1)
+        widgetFrame.layout().addWidget(saveDir_text, 6, 1, 1, 3)
         
         return widgetFrame
         
@@ -199,6 +224,8 @@ class Settings(QtGui.QWidget):
                 val = v.text()
             elif isinstance(v, QtGui.QCheckBox):
                 val = True if v.checkState()>0 else False
+            elif isinstance(v, QtGui.QSpinBox):
+                val = v.value()
             else:
                 raise(TypeError('Unrecognized type of setting item'))
             
@@ -209,6 +236,12 @@ class Settings(QtGui.QWidget):
             
         if closeWidget:
             self.close()
+            
+    def toggleHFixedSpace(self, hSpace_comboBox, hSpace_spinbox, forbidden_text):
+        if hSpace_comboBox.currentText() == forbidden_text:
+            hSpace_spinbox.setEnabled(False)
+        else:
+            hSpace_spinbox.setEnabled(True)
         
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""

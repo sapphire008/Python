@@ -51,6 +51,7 @@ Script structure
   - For now, implemented settings for exporting traces. Planned to extend the new settings function to other aspects of the program
   - Extended some functions in trace export
 * Set icons for each app window
+* Corrected some typos
 
 ## Update Aug 20, 2016
 * Added arithmetic tool to calculate traces (averages, subtractions)
