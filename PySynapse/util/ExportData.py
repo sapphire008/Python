@@ -180,14 +180,6 @@ def SetAxisOrigin(ax, xcenter='origin', ycenter='origin', xspine='bottom', yspin
     ax.spines[xspine].set_capstyle('butt')
     ax.spines[yspine].set_capstyle('butt')
 
-def roundto125(x, r=np.array([1,2,5,10])): # helper static function
-        """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
-        5mV, 10mV, 20mV, etc.
-        5pA, 10pA, 20pA, 50pA, etc."""
-        p = int(np.floor(np.log10(x))) # power of 10
-        y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
-        return(y*(10**p))
-
 def AdjustText(txt, ax=None):
         """Adjust text so that it is not being cutoff"""
         #renderer = self.axs.get_renderer_cache()
@@ -206,6 +198,14 @@ def AdjustText(txt, ax=None):
             ax.set_ybound(ybnd[0], ymax)
         if ymin < ybnd[0]:
             ax.set_ybound(ymin, ybnd[-1])
+            
+def roundto125(x, r=np.array([1,2,5,10])): # helper static function
+        """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
+        5mV, 10mV, 20mV, etc.
+        5pA, 10pA, 20pA, 50pA, etc."""
+        p = int(np.floor(np.log10(x))) # power of 10
+        y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
+        return(y*(10**p))
 
 def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
                          fontsize=None, ax=None, xscale=None, yscale=None, loc=5):
@@ -242,6 +242,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
                 raise(AttributeError('Did not find any line in this axis. Please explicitly specify the linewidth'))
         if 'matplotlib.lines.Line2D' in str(type(linewidth)):
             linewidth = linewidth.get_linewidth()
+        print(linewidth)
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         # Calculate position of the scale bar
@@ -252,11 +253,11 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         # xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
         # Draw the scalebar
         box1 = AuxTransformBox(ax.transData)
-        box1.add_artist(plt.Rectangle((0,0),X, 0, fc="none"))
+        box1.add_artist(plt.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
         box2 = TextArea(xlab, minimumdescent=False, textprops=dict(color=color))
-        boxh = VPacker(children=[box1,box2], align="center", pad=0, sep=2)
+        boxh = VPacker(children=[box1,box2], align="center", pad=0, sep=2) # horizontal bar
         box3 = AuxTransformBox(ax.transData)
-        box3.add_artist(plt.Rectangle((0,0),0,Y, fc="none"))
+        box3.add_artist(plt.Rectangle((0,0),0,Y, fc="none", linewidth=linewidth))
         box4 = TextArea(ylab, minimumdescent=False, textprops=dict(color=color))
         box5 = VPacker(children=[box3, boxh], align="right", pad=0, sep=0)
         box = HPacker(children=[box5,box4], align="center", pad=0, sep=2)
@@ -292,7 +293,9 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
         final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes
 # %%
-def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, nullRange=None, annotation='Simple', setFont='default', fontSize=10):
+def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, 
+               adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple', 
+               setFont='default', fontSize=10, linewidth=1.0, monoStim=False):
     """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
@@ -317,8 +320,8 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
             # Draw plots
             X = zData.Time
             Y = getattr(zData, m[0])[m[1]]
-            # null the trace
-            if nullRange is not None:
+            # null the trace, but ignore arithmetic data since their data were already nulled
+            if nullRange is not None and zData.Protocol.acquireComment != 'PySynapse Arithmetic Data':
                 if isinstance(nullRange, list):
                     Y = Y - np.mean(spk_window(Y, ts, nullRange))
                 else: # a single number
@@ -328,7 +331,10 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
             X = spk_window(X, ts, viewRange[m][0])
             Y = spk_window(Y, ts, viewRange[m][0])
             # do the plot
-            ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
+            if m[0] in ['Voltage', 'Current'] or not monoStim:
+                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+            else:
+                ax[c].plot(X, Y, color='k', lw=linewidth)
             # Draw initial value
             InitVal = "{0:0.0f}".format(Y[0])      
             if m[0] == 'Voltage':
@@ -378,6 +384,9 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
         SetFont(ax, fig, fontsize=fontSize, fontname=setFont)
 
     # save the figure
+    if adjustFigH:
+        fig_size = (fig_size[0], fig_size[1]*nchannels)
+    
     fig.set_size_inches(fig_size)
 
     # plt.subplots_adjust(hspace=-0.8)
@@ -387,10 +396,16 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
 
     return(ax)
 
-def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
-                           adjustFigH=True, trimH=(None,None), annotation='Simple', setFont='default', fontSize=10):
+def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300, 
+                           fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
+                           adjustFigW=True, adjustFigH=True, trimH=(None,None), 
+                           annotation='Simple', setFont='default', fontSize=10, 
+                           linewidth=1.0, monoStim=False):
     """Export traces arranged horizontally.
-    Good for an experiments acquired over multiple episodes."""
+    Good for an experiments acquired over multiple episodes.
+    trimH: (t1, t2) trim off the beginning of first episode by t1 seconds, and the
+        the end of the last episode by t2 seconds
+    """
     nchannels = len(viewRange.keys())
     if not colorfy:
         colorfy=['k']
@@ -424,7 +439,10 @@ def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False, dpi=300
                 X = spk_window(X, ts, (None, trimH[1]))
                 Y = spk_window(X, ts, (None, trimH[1]))
             # do the plot
-            ax[c].plot(X, Y, color=colorfy[n%len(colorfy)])
+            if m[0] in ['Voltage', 'Current'] or not monoStim: # temporary workaround
+                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+            else:
+                ax[c].plot(X, Y, color='k', lw=linewidth)
             # Draw the initial value, only for the first plot
             if n == 0:
                 InitVal = "{0:0.0f}".format(Y[0])      
@@ -476,11 +494,13 @@ def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False, dpi=300
         SetFont(ax, fig, fontsize=fontSize, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
     else:
         SetFont(ax, fig, fontsize=fontSize, fontname=setFont)
-        
             
     # figure out and set the figure size
-    if adjustFigH:
+    if adjustFigW:
         fig_size = (np.ptp(ax[0].get_xlim()) / maxWindow * fig_size[0], fig_size[1])
+    
+    if adjustFigH:
+        fig_size = (fig_size[0], fig_size[1]*nchannels)
         
     fig.set_size_inches(fig_size)
     
@@ -490,8 +510,146 @@ def PlotTracesHorizontally(df, index, viewRange, saveDir, colorfy=False, dpi=300
     return(ax)
     
     
-def PlotTracesVertically(df, index, viewRange, saveDir=None, colorfy=False, dpi=300, fig_size=None, nullRange=None, annotation='Simple', setFont='default', fontSize=10):
+def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300, 
+                      fig_size=None, adjustFigH=True, adjustFigW=True, nullRange=None, 
+                      annotation='Simple', setFont='default',gridSpec='Vertical', 
+                      scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False):
+    "Export Multiple episodes arranged in a grid; default vertically""" 
+    if not colorfy:
+        colorfy = ['k']
+        
+    nchannels = len(viewRange.keys())
+    nepisodes = len(index)
+    if isinstance(gridSpec, str):
+        nrows, ncols = {
+        'ver': (nchannels*nepisodes, 1),
+        'hor': (1, nchannels*nepisodes),
+        'cha': (nchannels, nepisodes),
+        'epi': (nepisodes, nchannels)
+        }.get(gridSpec[:3].lower(), (None, None))
+    
+        if nrows is None:
+            raise(ValueError('Unrecognized gridSpec: {}'.format(gridSpec)))
+    else:
+        raise(TypeError('Unrecognized type of argument: "gridSpec"'))
+        
+    fig, _ = plt.subplots(nrows=nrows, ncols=ncols, sharex=True)
+    ax = fig.get_axes()
+            
+    # text annotation area
+    textbox = []
+    viewRange_dict = {}
+    row, col = 0,0 # keep track of axis used
+    first_last_mat = [[],[]]
+    for n, i in enumerate(index):
+        zData = df['Data'][i]
+        ts = zData.Protocol.msPerPoint
+        channels = []
+        
+        for c, m in enumerate(viewRange.keys()):
+            # Draw plots
+            X = zData.Time
+            Y = getattr(zData, m[0])[m[1]]
+            # null the trace
+            if nullRange is not None:
+                if isinstance(nullRange, list):
+                    Y = Y - np.mean(spk_window(Y, ts, nullRange))
+                else: # a single number
+                    Y = Y - Y[time2ind(nullRange, ts)]
+            # window the plot
+            X = spk_window(X, ts, viewRange[m][0])
+            Y = spk_window(Y, ts, viewRange[m][0])
+            # do the plot
+            ind = np.ravel_multi_index((row,col), (nrows, ncols), order='C')
+            if n == 0:
+                first_last_mat[0].append(ind)
+            elif n == len(index)-1:
+                first_last_mat[-1].append(ind)
+            
+            if m[0] in ['Voltage', 'Current'] or not monoStim:
+                ax[ind].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+            else:
+                ax[ind].plot(X, Y, color='k', lw=linewidth)
+            # View range
+            viewRange_dict[(row,col)] = list(m)+list(viewRange[m])
+            # Draw initial value
+            InitVal = "{0:0.0f}".format(Y[0])      
+            if m[0] == 'Voltage':
+                InitVal += 'mV'
+            elif m[0] == 'Current':
+                InitVal += 'pA'
+            else: # Stimulus
+                InitVal = ''
+            
+            ax[ind].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+
+            if m[1] not in channels:
+                channels.append(m[1])
+            
+            # update axis
+            row, col = {
+                'ver': (row+1, col),
+                'hor': (row, col+1),
+                'cha': (row+1 if c<nrows-1 else 0, col+1 if c==nrows-1 else col),
+                'epi': (row+1 if c==ncols-1 else row, col+1 if c<ncols-1 else 0)
+                }.get(gridSpec[:3].lower())
+            
+        if annotation.lower() != 'none':
+            final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels, mode=annotation)
+            # Draw more annotations
+            textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
+            
+        # Group all the episode annotation text
+    if annotation.lower() != 'none':
+        box = VPacker(children=textbox, align="left",pad=0, sep=2)
+        annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
+        ax[-1].add_artist(annotationbox)
+        scalebar = [annotationbox]
+    else:
+        scalebar = []
+    
+    
+    # set axis
+    for c, vr in enumerate(viewRange_dict.items()):
+        l, r = vr
+        ind = np.ravel_multi_index(l, (nrows, ncols), order='C')
+        ax[ind].set_xlim(r[2])
+        ax[ind].set_ylim(r[3])
+        # Add scalebar
+        if scalebarAt.lower()=='all' or (scalebarAt.lower()=='first' and ind in first_last_mat[0]) or (scalebarAt.lower()=='last' and ind in first_last_mat[-1]):
+            scalebar.append(AddTraceScaleBar(xunit='ms', yunit='mV' if r[0]=='Voltage' else 'pA', ax=ax[ind]))
+        else: # including 'none'
+            TurnOffAxis(ax=ax[ind])
+            
+        plt.subplots_adjust(hspace = .001)
+        # temp = 510 + c
+        temp = tic.MaxNLocator(3)
+        ax[ind].yaxis.set_major_locator(temp)
+                        
+    if (isinstance(setFont, str) and setFont.lower() in ['default', 'arial', 'helvetica']) or \
+                    (isinstance(setFont, bool) and setFont):
+        SetFont(ax, fig, fontsize=fontSize, fontname=os.path.join(__location__,'../resources/Helvetica.ttf'))
+    else:
+        SetFont(ax, fig, fontsize=fontSize, fontname=setFont)
+
+    # save the figure
+    if adjustFigW:
+        fig_size = (fig_size[0]*ncols, fig_size[1])
+    if adjustFigH:
+        fig_size = (fig_size[0], fig_size[1]*nrows)
+    fig.set_size_inches(fig_size)
+    
+    # plt.subplots_adjust(hspace=-0.8)
+    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
+    # Close the figure after save
+    plt.close(fig)
+
+    return(ax)
+    
+def embedAnnotation(ax, annotation):
+    """Add additional annotation on the exported traces"""
     return
+    
 
 def data2csv(data):
     return
@@ -504,9 +662,20 @@ def embedMetaData(ax):
 
 if __name__ == '__main__':
     sys.path.append("D:/Edward/Documents/Assignments/Scripts/Python/PySynapse")
-
-    data = np.load('R:/tmp.npz')
-    df, index, viewRange, saveDir, colorfy = data['df'].tolist(), data['index'].tolist(), data['viewRange'][0],\
-                                                data['saveDir'].tolist(), data['colorfy'].tolist()
-    # plot the figure
-    ax= PlotTraces(df=df, index=index, viewRange=viewRange, saveDir='R:/tmp.eps', colorfy=colorfy, setFont=True)
+#
+#    data = np.load('R:/tmp.npz')
+#    df, index, viewRange, saveDir, colorfy = data['df'].tolist(), data['index'].tolist(), data['viewRange'][0],\
+#                                                data['saveDir'].tolist(), data['colorfy'].tolist()
+#    # plot the figure
+#    ax= PlotTraces(df=df, index=index, viewRange=viewRange, saveDir='R:/tmp.eps', colorfy=colorfy, setFont=True)
+    nrows, ncols = 5,2
+    row, col  = 0, 0
+    for n in np.arange(0,2):
+        for c in np.arange(0, 5):
+            print((row, col))
+            row, col = {
+            'ver': (row+1, col),
+            'hor': (row, col+1),
+            'cha': (row+1 if c<nrows-1 else 0, col+1 if c==nrows-1 else col),
+            'epi': (row+1 if c==ncols-1 else row, col+1 if c<ncols-1 else 0)
+            }.get('cha')

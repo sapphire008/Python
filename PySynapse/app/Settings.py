@@ -138,21 +138,22 @@ class Settings(QtGui.QWidget):
         fig_size_W_label = QtGui.QLabel('Width (inches)')
         fig_size_W_text = QtGui.QLineEdit(str(self.options['figSizeW']))
         self.settingDict['figSizeW'] = fig_size_W_text
-        fig_size_W_checkBox = QtGui.QCheckBox('Dynamically Adjust')
-        fig_size_W_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes horizontally')
+        fig_size_W_checkBox = QtGui.QCheckBox('Dynamically Adjust Width')
+        fig_size_W_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes')
         fig_size_W_checkBox.setCheckState(2 if self.options['figSizeWMulN'] else 0)
         self.settingDict['figSizeWMulN'] = fig_size_W_checkBox
         
         fig_size_H_label = QtGui.QLabel('Height (inches)')
         fig_size_H_text = QtGui.QLineEdit(str(self.options['figSizeH']))
         self.settingDict['figSizeH'] = fig_size_H_text
-        fig_size_H_checkBox = QtGui.QCheckBox(u'\u00D7 # channels / streams')
-        fig_size_H_checkBox.setToolTip('Expand the figure size by the number of channels / streams')
+        fig_size_H_checkBox = QtGui.QCheckBox('Dynamically Adjust Height')
+        fig_size_H_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes')
         fig_size_H_checkBox.setCheckState(2 if self.options['figSizeHMulN'] else 0)
         self.settingDict['figSizeHMulN'] = fig_size_H_checkBox
         
+        # %% Concatenated
         hSpace_label = QtGui.QLabel('Horizontal Space')
-        hSpace_label.setToolTip('Only relevant when exporting series of traces arranged horizontally')
+        hSpace_label.setToolTip('Only relevant when concatenating series of traces')
         hSpace_spinbox = QtGui.QSpinBox()
         hSpace_spinbox.setValue(self.options['hFixedSpace'])
         hSpace_spinbox.setSuffix('%')
@@ -169,9 +170,44 @@ class Settings(QtGui.QWidget):
         # self.settingDict['hFixedSpace'] = hSpace_text
         self.settingDict['hFixedSpace'] = hSpace_spinbox
         
+        concat_groupBox = QtGui.QGroupBox('Concatenated')
+        concat_groupBox.setLayout(QtGui.QGridLayout())
+        concat_groupBox.layout().addWidget(hSpace_label, 0, 0, 1,1)
+        concat_groupBox.layout().addWidget(hSpace_comboBox, 0, 1, 1,1)
+        concat_groupBox.layout().addWidget(hSpace_spinbox, 0, 3, 1,1)
+        
+        # %% Gridspec options
+        gridSpec_label = QtGui.QLabel('Arrangement')
+        gridSpec_label.setToolTip('Only relevant when exporting series of traces in a grid layout')
+        gridSpec_comboBox = QtGui.QComboBox()
+        gridSpec_comboList = ['Vertically', 'Horizontally', 'Channels x Episodes', 'Episodes x Channels']
+        gridSpec_comboBox.addItems(gridSpec_comboList)
+        gridSpec_comboBox.setCurrentIndex(gridSpec_comboList.index(self.options['gridSpec']))
+        self.settingDict['gridSpec'] = gridSpec_comboBox
+        
+        scalebarAt_label = QtGui.QLabel('Scalebar Location')
+        scalebarAt_label.setToolTip('Only relevant when exporting series of traces in a grid layout')
+        scalebarAt_comboBox = QtGui.QComboBox()
+        scalebarAt_comboList = ['All', 'First','Last','None']
+        scalebarAt_comboBox.addItems(scalebarAt_comboList)
+        scalebarAt_comboBox.setCurrentIndex(scalebarAt_comboList.index(self.options['scalebarAt']))
+        self.settingDict['scalebarAt'] = scalebarAt_comboBox
+        
+        gridSpec_groupBox = QtGui.QGroupBox('Grid')
+        gridSpec_groupBox.setLayout(QtGui.QGridLayout())
+        gridSpec_groupBox.layout().addWidget(gridSpec_label, 0, 0, 1,1)
+        gridSpec_groupBox.layout().addWidget(gridSpec_comboBox, 0, 1, 1, 1)
+        gridSpec_groupBox.layout().addWidget(scalebarAt_label, 1, 0, 1,1)
+        gridSpec_groupBox.layout().addWidget(scalebarAt_comboBox, 1,1, 1, 1)
+        
+        # %% output
         dpi_label = QtGui.QLabel('DPI')
         dpi_text = QtGui.QLineEdit(str(self.options['dpi']))
         self.settingDict['dpi'] = dpi_text
+
+        linewidth_label = QtGui.QLabel('Linewidth')
+        linewidth_text = QtGui.QLineEdit(str(self.options['linewidth']))
+        self.settingDict['linewidth'] = linewidth_text
         
         fontName_label = QtGui.QLabel('Font Name')
         fontName_text = QtGui.QLineEdit(self.options['fontName'])
@@ -186,33 +222,44 @@ class Settings(QtGui.QWidget):
         annotation_comboBox.addItems(ann_comboList)
         annotation_comboBox.setCurrentIndex(ann_comboList.index(self.options['annotation']))
         self.settingDict['annotation'] = annotation_comboBox
+
+        monostim_checkbox = QtGui.QCheckBox('Force monochrome stim')
+        monostim_checkbox.setToolTip('If checked, stimulus channel will not be color coded even when other channels are color coded')
+        monostim_checkbox.setCheckState(2 if self.options['monoStim'] else 0)
+        self.settingDict['monoStim'] = monostim_checkbox
         
         saveDir_label = QtGui.QLabel('Path')
         saveDir_text = QtGui.QLineEdit(self.options['saveDir'])
         self.settingDict['saveDir'] = saveDir_text
+        
+        output_groupBox = QtGui.QGroupBox('Output')
+        output_groupBox.setLayout(QtGui.QGridLayout())
+
+        output_groupBox.layout().addWidget(annotation_label, 0, 0, 1, 1)
+        output_groupBox.layout().addWidget(annotation_comboBox, 0, 1, 1, 1)
+        output_groupBox.layout().addWidget(monostim_checkbox, 0, 2, 1, 2)
+        output_groupBox.layout().addWidget(dpi_label, 1, 0, 1, 1)
+        output_groupBox.layout().addWidget(dpi_text, 1, 1, 1, 1)
+        output_groupBox.layout().addWidget(linewidth_label, 1, 2, 1, 1)
+        output_groupBox.layout().addWidget(linewidth_text, 1, 3, 1, 1)
+        output_groupBox.layout().addWidget(fontName_label, 2, 0, 1, 1)
+        output_groupBox.layout().addWidget(fontName_text, 2, 1, 1, 1)
+        output_groupBox.layout().addWidget(fontSize_label, 2, 2, 1, 1)
+        output_groupBox.layout().addWidget(fontSize_text, 2, 3, 1, 1)
+        output_groupBox.layout().addWidget(saveDir_label, 3, 0, 1, 1)
+        output_groupBox.layout().addWidget(saveDir_text, 3, 1, 1, 3)
             
-        # Organize widgets
+        # %% Organize widgets
         widgetFrame.layout().addWidget(fig_size_W_label, 0, 0, 1, 1)
         widgetFrame.layout().addWidget(fig_size_W_text, 0, 1, 1, 1)
         widgetFrame.layout().addWidget(fig_size_W_checkBox, 0, 2, 1, 2)
         widgetFrame.layout().addWidget(fig_size_H_label, 1, 0, 1, 1)
         widgetFrame.layout().addWidget(fig_size_H_text, 1, 1, 1, 1)
         widgetFrame.layout().addWidget(fig_size_H_checkBox, 1, 2, 1, 2)
-        widgetFrame.layout().addWidget(hSpace_label, 2, 0, 1, 1)
-        widgetFrame.layout().addWidget(hSpace_comboBox, 2, 1, 1, 1)
-        # widgetFrame.layout().addWidget(hSpace_text, 2, 2, 1, 1)
-        # widgetFrame.layout().addWidget(hSpace_perc_label, 2,3,1, 1)
-        widgetFrame.layout().addWidget(hSpace_spinbox, 2,2, 1,1)
-        widgetFrame.layout().addWidget(dpi_label, 3, 0, 1, 1)
-        widgetFrame.layout().addWidget(dpi_text, 3, 1, 1, 1)
-        widgetFrame.layout().addWidget(annotation_label, 4, 0, 1, 1)
-        widgetFrame.layout().addWidget(annotation_comboBox, 4, 1, 1, 1)
-        widgetFrame.layout().addWidget(fontName_label, 5, 0, 1, 1)
-        widgetFrame.layout().addWidget(fontName_text, 5, 1, 1, 1)
-        widgetFrame.layout().addWidget(fontSize_label, 5, 2, 1, 1)
-        widgetFrame.layout().addWidget(fontSize_text, 5, 3, 1, 1)
-        widgetFrame.layout().addWidget(saveDir_label, 6, 0, 1, 1)
-        widgetFrame.layout().addWidget(saveDir_text, 6, 1, 1, 3)
+        
+        widgetFrame.layout().addWidget(concat_groupBox, 2, 0, 1, 3)
+        widgetFrame.layout().addWidget(gridSpec_groupBox, 3, 0, 2, 3)
+        widgetFrame.layout().addWidget(output_groupBox, 5,0, 4, 4)
         
         return widgetFrame
         

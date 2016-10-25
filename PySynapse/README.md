@@ -46,6 +46,10 @@ Script structure
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - ~~Average trace display~~
 
+## Update Sep 29, 2016
+* Added functionality to export traces arranged horizontally; good for experiments acquired over several episodes and to be viewed as a whole --> will also add horizontal arrangement for pyqtgraph Scope window as well in the future.
+* Added setting options specific to horizontal plot exports --> but need to group them better in the future.
+
 ## Update Sep 10, 2016
 * Added settings window. Default settings are saved under ./resouces/config.ini and interfaced by GUI under the main synapse window: File/Settings.
   - For now, implemented settings for exporting traces. Planned to extend the new settings function to other aspects of the program

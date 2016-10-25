@@ -6,3 +6,6 @@ __pycache__/
 
 # archived files
 archive/
+
+# format file
+.idea

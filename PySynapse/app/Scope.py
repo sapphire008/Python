@@ -42,7 +42,7 @@ from util.ExportData import *
 from util.MATLAB import *
 from util.spk_util import *
 from app.AccordionWidget import AccordionWidget
-from app.Settings import readini
+from app.Settings import *
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -74,6 +74,7 @@ class SideDockPanel(QtGui.QWidget):
         self.parent = parent
         self.friend = friend
         self.detectedEvents = []
+        self.annotationArtists = []
         self.setupUi()
 
     def setupUi(self):
@@ -83,6 +84,7 @@ class SideDockPanel(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
+        # self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
@@ -163,6 +165,22 @@ class SideDockPanel(QtGui.QWidget):
         else:
             r = None
             
+        def parseTilda(f):
+            """Turn "S1.E2~4" into
+            ["S1.E2","+","S1.E3","+","S1.E4"]"""
+            
+            if "~" not in f:
+                return f
+                
+            # Assuming the S#.E# structure
+            ep_ranges = re.findall('S(\d+)\.E(\d+)~(\d+)', f)
+            for m, ep in enumerate(ep_ranges):
+                epsl = ["S{}.E{:d}".format(ep[0], i) for i in np.arange(int(ep[1]), int(ep[2])+1, 1)]
+                epsl = "("+"+".join(epsl)+")"
+                f = re.sub('S(\d+)\.E(\d+)~(\d+)', epsl, f, count=1)
+            
+            return f
+                
         def parseSimpleFormula(f):
             """Simple linear basic four operations
             e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8" -->
@@ -265,14 +283,18 @@ class SideDockPanel(QtGui.QWidget):
         for f0 in formula:
             if ":" in f0: # has range. Assume each formula hsa only 1 range
                 f, rng = f0.split(":")
+                f = parseTilda(f)
                 rng = str2num(rng)
             else:
-                f = f0
+                f = parseTilda(f0)
                 rng = None
             # if has parenthesis
             y = dict()
             try:
                 if "(" in f:
+                    # to be safe, remove any duplicate parentheses
+                    f = re.sub("(\()+", "(", f)
+                    f = re.sub("(\))+", ")", f)
                     for s, c, _, _ in self.friend.layout:
                         # separate into a list of simple ones
                         fSimpleList = re.findall('\(([^()]*)\)', f)
@@ -296,15 +318,15 @@ class SideDockPanel(QtGui.QWidget):
             except Exception as err:
                 arithReportBox.setText("{}".format(err))
                 return
-                    
-            y_len = len(y[s,c]) # length of time series
-                
+
             # Subset of the time series if range specified
             ts = self.friend.episodes['Sampling Rate'][0]
             if rng is not None:
                 for s, c, _, _ in self.friend.layout:
                     y[(s,c)] = spk_window(y[(s,c)], ts, rng)
-                
+                    
+            y_len = len(y[s,c]) # length of time series
+            
             # Append the data to friend's episodes object
             self.friend.episodes['Duration'].append(ind2time(y_len-1,ts)[0])
             self.friend.episodes['Drug Time'].append('00:00')
@@ -327,7 +349,7 @@ class SideDockPanel(QtGui.QWidget):
                 for s in stream_all:
                     if s not in stream_list:
                         setattr(zData, s, {c: np.zeros(y_len)})
-                    
+
             zData.Time = np.arange(y_len) * ts
             zData.Protocol.msPerPoint = ts
             zData.Protocol.WCtimeStr = ""
@@ -347,6 +369,46 @@ class SideDockPanel(QtGui.QWidget):
         # Turn back isnull
         self.friend.isnull = isNulled
     
+    # ----------- Annotation widget ------------------------------------------
+    def annotationWidget(self):
+        """Adding annotation items on the graph"""
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("AnnotationWidgetFrame"))
+        widgetFrame.layout().setSpacing(0)
+        
+        return widgetFrame
+        
+        avail_obj = ['box', # [x1, y1, x2, y2, linewidth, linestyle, color]
+                     'line',  # [x1, y1, x2, y2, linewidth, linestyle, color]
+                     'circle', # [center_x, center_y, a, b, rotation, linewidth, linestyle, color]
+                     'arrow',  # [x, y, x_arrow, y_arrow, linewidth, linestyle, color]
+                     'symbol' # ['symbol', x, y, markersize, color]
+                     ]
+#        addButton = QtGui.QPushButton("Add") # Add a channel
+#        addButton.clicked.connect(lambda: self.addAnnotationRow(avail_obj=avail_obj))
+#        removeButton = QtGui.QPushButton("Remove") # Remove a channel
+#        removeButton.clicked.connect(self.removeAnnotationRow)
+#        # Add the buttons
+#        widgetFrame.layout().addWidget(addButton, 1, 0)
+#        widgetFrame.layout().addWidget(removeButton, 1, 1)
+#        # Add the exisiting channels and streams to the table
+#        widgetFrame.layout().addWidget(self.annotation_table, 2, 0, self.annotation_table.rowCount(), 2)
+        
+        
+    def addAnnotationRow(self, avail_obj=None):
+        return
+        
+    def removeAnnotationRow(self):
+        row = self.annotation_table.rowCount()-1
+        if row < 1:
+            return
+        self.annotation_table.removeRow(row)
+        self.removeArtists(artists=[self.annotationArtists[-1]])
+    
+    def removeArtists(artists):
+        return
+
 
     # ------- Layout control -------------------------------------------------
     def layoutWidget(self):
@@ -838,10 +900,11 @@ class SideDockPanel(QtGui.QWidget):
 
 # %%
 class ScopeWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None, maxepisodes=10, layout=None, hideDock=True):
+    def __init__(self, parent=None, partner=None, maxepisodes=30, layout=None, hideDock=True):
         super(ScopeWindow, self).__init__(parent)
         self.episodes = None
         self.index = []
+        self.partner = partner
         # Initialization setting file
         self.iniPath = os.path.join(__location__,'../resources/config.ini')
         # set a limit on how many episodes to cache
@@ -951,15 +1014,21 @@ class ScopeWindow(QtGui.QMainWindow):
         exportWithScaleBarAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='overlap'))
         exportMenu.addAction(exportWithScaleBarAction)
 
-        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export vertical arrangement', self)
+        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export grid arrangement', self)
         exportVerticalAction.setStatusTip('Export the selected episodes in a vertical arrangement')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='vertical'))
         exportMenu.addAction(exportVerticalAction)
 
-        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export horizontal arrangement', self)
-        exportVerticalAction.setStatusTip('Export the selected episodes in horizontal arrangement. Good for concatenated episodes')
-        exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='horizontal'))
+        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export concatenated arrangement', self)
+        exportVerticalAction.setStatusTip('Export the selected episodes in arrangement concatenated over time.')
+        exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='concatenate'))
         exportMenu.addAction(exportVerticalAction)
+        
+        # File: Settings
+        settingsAction = QtGui.QAction("Settings", self)
+        settingsAction.setStatusTip('Configure settings of PySynapse')
+        settingsAction.triggered.connect(self.openSettingsWindow)
+        fileMenu.addAction(settingsAction)
 
         # View Menu
         viewMenu = self.menubar.addMenu('&View')
@@ -1000,7 +1069,17 @@ class ScopeWindow(QtGui.QMainWindow):
     # ------------- Helper functions ----------------------------------------
     def printme(self, msg='doing stuff'): # for debugging
         print(msg)
-
+    
+    def openSettingsWindow(self):
+        if self.partner is not None and hasattr(self.partner, 'settingsWidget'):
+                self.settingsWidget = self.partner.settingWidget
+        else:
+                self.settingsWidget = Settings()
+            
+        if self.settingsWidget.isclosed:
+            self.settingsWidget.show()
+            self.settingsWidget.isclosed = False
+            
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         self.isclosed = True
@@ -1039,7 +1118,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self._usedColors = []
             self._loaded_array = []
             self.index = []
-
+        
         index_insert = list(set(index) - set(self.index))
         index_remove = list(set(self.index) - set(index))
 
@@ -1313,7 +1392,8 @@ class ScopeWindow(QtGui.QMainWindow):
                 p.setYRange(yRange[0], yRange[1], padding=0)
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
-                self.viewMode = viewMode
+                if n == len(self.layout)-1: # update only after iterating through
+                    self.viewMode = viewMode
             elif self.viewMode == 'auto':
                 p.autoRange()
                 # Update current viewRange
@@ -1612,23 +1692,24 @@ class ScopeWindow(QtGui.QMainWindow):
         options = readini(self.iniPath)
         # figure out the figure size
         nchannels = len(viewRange.keys())
-        options['fig_size'] = (options['figSizeW'], options['figSizeH']*(nchannels if options['figSizeHMulN'] else 1))
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
             PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, 
-                       dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
-                       setFont=options['fontName'], fontSize=options['fontSize'])
-        elif arrangement == 'vertical':
-            PlotTracesVertically(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
-                                 dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
-                                 setFont=options['fontName'], fontSize=options['fontSize'])
-        elif arrangement == 'horizontal':
-            PlotTracesHorizontally(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
-                                 dpi=options['dpi'], fig_size=options['fig_size'], nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
-                                 adjustFigH = options['figSizeWMulN'], annotation=options['annotation'], setFont=options['fontName'], fontSize=options['fontSize'])
+                       fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
+                       dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
+                       setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'])
+        elif arrangement == 'concatenate':
+            PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+                                 dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
+                                 adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'], 
+                                 setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'])
+        elif arrangement in ['vertical', 'horizontal', 'channels x episodes', 'episodes x channels']:
+            PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+                                 dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
+                                 nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'], 
+                                 scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'])
         else:
-            raise(TypeError('Unrecognized export arrangement'))
-
+            raise(ValueError('Unrecognized arragement:{}'.format(arragement)))
 
 run_example = False
 
@@ -1680,7 +1761,7 @@ if __name__ == '__main__' and not run_example:
              'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
     index = [0,1,2]
     app = QtGui.QApplication(sys.argv)
-    w = ScopeWindow(hideDock=False, layout=[['Current','A',0,0]])
+    w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Current', 'A', 1, 0]])
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)
     # w.toggleDataCursor(checked=True)

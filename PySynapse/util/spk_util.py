@@ -10,6 +10,8 @@ import sys
 import numpy as np
 import scipy.signal as sg
 import scipy.stats as st
+from scipy.interpolate import interp1d
+
 # from pdb import set_trace
 try:
     from MATLAB import *
@@ -401,6 +403,34 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
 
 def detectPSP_deconvolution():
     return
+    
+def detrending(Vs, ts, mode='linear'):
+    """Detrend the data. Useful for calculating mean independent noise.
+    mode: 
+        'mean': simply remove mean
+        'linear' (Deafult),'nearest', 'zero', 'slinear', 'quadratic', 'cubic': using interp1d
+        'polyN': fit a polynomial for Nth degree. e.g. 'poly3' fits a cubic curve
+    Do not mistake 'linear' mode as removing a global linear trend. For removing global linear trend,
+    use 'poly1'
+    
+    Note that after detrending the mean would be zero. To keep the mean of the
+    trace, remove mean before detrending, then add mean back.
+    """
+    if mode=='mean':
+        return Vs - np.mean(Vs)
+    else:
+        x = np.arange(0, len(Vs)*ts, ts)
+        if mode in ['linear','nearest', 'zero', 'slinear', 'quadratic', 'cubic']:
+            p = interp1d(x, Vs, kind=mode)
+        elif mode[:4]=='poly':
+            deg = str2num(mode[4:])
+            p = np.poly1d(np.polyfit(x,  Vs, deg))
+        
+        y_hat = p(x)
+        
+        return Vs - y_hat
+            
+    
 
 
 if __name__ == '__main__':

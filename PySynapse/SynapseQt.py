@@ -492,7 +492,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Set up basic layout of the main window
         MainWindow.setObjectName(_fromUtf8("Synpase TreeView"))
         MainWindow.resize(1000, 500)
-        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.ico'))
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.centralwidget)
@@ -625,6 +624,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
+        return
         #quit_msg = "Are you sure you want to exit the program?"
         #reply = QtGui.QMessageBox.question(self, 'Message', quit_msg,
         #                                   QtGui.QMessageBox.Yes,
@@ -633,15 +633,16 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         #    event.accept()
         #else:
         #    event.ignore()
-        # Consider if close the Scope window when closing Synapse main window
-        # if hasattr(self, 'sw') and not self.sw.isclosed:
-        #     self.sw.close()
-        #     delattr(self, 'sw')
-            
+        # Consider if close children windows when closing Synapse main window
+        # children = ['settingsWidget', 'sw']
+        # for c in children:
+        #     if hasattr(self, c):
+        #         getattr(self, c).close()
+  1          
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
-        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.ico'))
+        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.png'))
 
     # ---------------- Data browser behaviors ---------------------------------
     def setDataBrowserTreeView(self, startpath=None):
@@ -714,7 +715,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Call scope window
         if not hasattr(self, 'sw'): # Start up a new window
             # self.sw = ScopeWindow(parent=self)
-            self.sw = ScopeWindow() # new window
+            self.sw = ScopeWindow(partner=self) # new window
         if self.sw.isclosed:
             self.sw.show()
             self.sw.isclosed = False

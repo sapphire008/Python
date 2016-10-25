@@ -110,13 +110,16 @@ def str2num(lit):
     """MATLAB behavior of str2num.
     str2num('1') --> 1
     str2num('[5,3,2]') --> [5,3,2]
-    Cannot handle matrix yet.
+    str2num('[5,3,2;2,3,1]') --> [[5,3,2],[3,2,1]]
     """
+    # Separate the string by semicolon ";"
+    lit = lit.split(";")
     # Identify all numbers
-    lit = re.findall(r"[-+]?\d*\.\d+|\d+", lit)
+    lit = [re.findall(r"[-+]?\d*\.\d+|\d+", l) for l in lit]
     # Convert to a list of numbers
-    lit = [str2numeric(a) for a in lit]
-    lit = lit[0] if len(lit)==1 else lit
+    lit = [[str2numeric(a) for a in l] for l in lit]
+    lit = lit[0] if len(lit)==1 else lit # squeeze for vectors
+    lit = lit[0] if len(lit)==1 else lit # squeeze again for singleton
     return(lit)
 
 def rms(x):
@@ -542,6 +545,20 @@ def SearchFiles(path, pattern, sortby='Name'):
         P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
         
     return P, N
+    
+def regexprep(STRING, EXPRESSION, REPLACE, N=None):
+    """Function similar to MATLAB's regexprep, which allows replacement
+    substitution of Nth occrrrence of character, which Python's re package
+    lacks built-in. Note N's index start at 0 to be consistent with Python. An
+    advantage of this design allows the user to specify negative index."""
+    if N is None: # simply wrap the re.sub function
+        return re.sub(EXPRESSION, REPLACE, STRING)
+    else:
+        indices = []
+        for m in re.finditer(EXPRESSION, STRING):
+            indices.append((m.start(), m.end(), m.group(0))) # start, end, whole match
+        STRING = STRING[0:indices[N][0]] + REPLACE + STRING[(indices[N][1]+1):]
+        return STRING
         
         
 if __name__ == '__main__':
