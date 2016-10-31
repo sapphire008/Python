@@ -638,7 +638,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # for c in children:
         #     if hasattr(self, c):
         #         getattr(self, c).close()
-  1          
+          
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))

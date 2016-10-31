@@ -700,7 +700,7 @@ class SideDockPanel(QtGui.QWidget):
         detectReportBox.setWordWrap(True)
         # Even type selection
         eventTypeComboBox = QtGui.QComboBox()
-        eventTypeComboBox.addItems(['Action Potential', 'Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
+        eventTypeComboBox.addItems(['Action Potential', 'Cell Attached Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
         # Asking to draw on the plot
         drawCheckBox = QtGui.QCheckBox("Mark Events")
         drawCheckBox.stateChanged.connect(self.clearEvents)
@@ -744,9 +744,11 @@ class SideDockPanel(QtGui.QWidget):
         """return a table for settings of each even detection"""
         if event == 'Action Potential':
             minHeightLabel = QtGui.QLabel("Min Height")
+            minHeightLabel.setToolTip("Minimum amplitude of the AP")
             minHeightTextEdit = QtGui.QLineEdit("-10")
             minHeightUnitLabel = QtGui.QLabel("mV")
             minDistLabel = QtGui.QLabel("Min Dist")
+            minDistLabel.setToolTip("Minimum distance between detected APs")
             minDistTextEdit = QtGui.QLineEdit("1")
             minDistUnitLabel = QtGui.QLabel("ms")
             self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit,
@@ -754,7 +756,7 @@ class SideDockPanel(QtGui.QWidget):
                             (4,1): minDistTextEdit, (4,2): minDistUnitLabel}
         elif event in ['EPSP', 'IPSP', 'EPSC','IPSC']:
             ampLabel = QtGui.QLabel("Amplitude")
-            ampLabel.setToolTip("Minimum Amplitude of the event")
+            ampLabel.setToolTip("Minimum amplitude of the event")
             ampTextEdit =  QtGui.QLineEdit("0.5")
             ampUnitLabel = QtGui.QLabel("mV")
             riseTimeLabel = QtGui.QLabel("Rise Time")
@@ -787,8 +789,32 @@ class SideDockPanel(QtGui.QWidget):
                                    }
 
 
-        elif event == 'Spike':
-            self.EDsettingTable = {}
+        elif event == 'Cell Attached Spike':
+            minHeightLabel = QtGui.QLabel("Min Height")
+            minHeightLabel.setToolTip("Minimum amplitude of the spike")
+            minHeightTextEdit = QtGui.QLineEdit("30")
+            minHeightUnitLabel = QtGui.QLabel("pA")
+            
+            maxHeightLabel = QtGui.QLabel("Min Height")
+            maxHeightLabel.setToolTip("Minimum amplitude of the spike")
+            maxHeightTextEdit = QtGui.QLineEdit("300")
+            maxHeightUnitLabel = QtGui.QLabel("pA")
+            
+            minDistLabel = QtGui.QLabel("Min Dist")
+            minDistLabel.setToolTip("Minimum distance between detected spikes")
+            minDistTextEdit = QtGui.QLineEdit("10")
+            minDistUnitLabel = QtGui.QLabel("ms")
+            
+            basefiltLabel = QtGui.QLabel("Filter Window")
+            basefiltLabel.setToolTip("median filter preprocessing window")
+            basefiltTextEdit = QtGui.QLineEdit("20")
+            basefiltUnitLabel = QtGui.QLabel("ms")
+            
+            self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit, (3,2): minHeightUnitLabel, 
+                                   (4,0): maxHeightLabel, (4,1): maxHeightTextEdit, (4,2): maxHeightUnitLabel,
+                                   (5,0):minDistLabel, (5,1): minDistTextEdit, (5,2): minDistUnitLabel,
+                                   (6,0):basefiltLabel, (6,1): basefiltTextEdit, (6,2): basefiltUnitLabel
+                                   }
         else:
             raise(ValueError('Unrecognized event type %s'%(event)))
 
@@ -805,10 +831,14 @@ class SideDockPanel(QtGui.QWidget):
             criterion = self.EDsettingTable[(6,1)].text()
             thresh = float(self.EDsettingTable[7,1].text())
             step = float(self.EDsettingTable[(8,1)].text())
-
             self.detectPSPs(detectReportBox, drawEvents, event, riseTime, decayTime, amp, step, criterion, thresh)
-        elif event == 'Spike':
-            return
+        elif event == 'Cell Attached Spike':
+            msh = float(self.EDsettingTable[(3,1)].text())
+            maxsh = float(self.EDsettingTable[(4,1)].text())
+            msd = float(self.EDsettingTable[(5,1)].text())
+            basefilt = float(self.EDsettingTable[(6,1)].text())
+            self.detectCellAttachedSpikes(detectReportBox, drawEvents, msh, msd, basefilt, maxsh)
+            
 
     def clearEvents(self, checked, eventTypes=None, which_layout=None):
         """Wraps removeEvent. Clear all event types if not specified event
@@ -886,6 +916,34 @@ class SideDockPanel(QtGui.QWidget):
                 if selectedWindow[0] is not None:
                     event_time += selectedWindow[0]
                 self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
+
+        detectReportBox.setText(final_label_text[:-1])
+        
+    def detectCellAttachedSpikes(self, detectReportBox, drawEvent=False, msh=30, msd=10, basefilt=20, maxsh=300):
+        if not self.friend.index or len(self.friend.index)>1:
+            detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
+            
+        zData = self.friend.episodes['Data'][self.friend.index[-1]]
+        ts = zData.Protocol.msPerPoint
+        if self.friend.viewRegionOn:
+            selectedWindow = self.friend.selectedRange
+        else:
+            selectedWindow = [None, None]
+        final_label_text = ""
+        for c, Is in zData.Current.items():
+            Is = spk_window(Is, ts, selectedWindow, t0=0)
+            num_spikes, spike_time, spike_heights = detectSpikes_cell_attached(Is, ts, msh=msh, msd=msd, \
+                                                                               basefilt=basefilt, maxsh=maxsh, removebase=False)
+            final_label_text = final_label_text + c + " : \n"
+            final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
+            final_label_text = final_label_text + "  mean ISI: "
+            final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
+            final_label_text += "\n"
+            # Draw event markers
+            if drawEvent:
+                if selectedWindow[0] is not None:
+                    spike_time += selectedWindow[0]
+                self.friend.drawEvent(spike_time, which_layout = ['Current', c], info=[self.detectedEvents[-1]])
 
         detectReportBox.setText(final_label_text[:-1])
 
@@ -1071,10 +1129,12 @@ class ScopeWindow(QtGui.QMainWindow):
         print(msg)
     
     def openSettingsWindow(self):
-        if self.partner is not None and hasattr(self.partner, 'settingsWidget'):
-                self.settingsWidget = self.partner.settingWidget
+        if self.partner is not None:
+            if not hasattr(self.partner, 'settingsWidget'):
+                self.partner.settingsWidget = Settings()
+            self.settingsWidget = self.partner.settingsWidget
         else:
-                self.settingsWidget = Settings()
+            self.settingsWidget = Settings()
             
         if self.settingsWidget.isclosed:
             self.settingsWidget.show()
@@ -1310,13 +1370,15 @@ class ScopeWindow(QtGui.QMainWindow):
         for n, i in enumerate(self.index):
             zData = self.episodes['Data'][i]
             self.drawEpisode(zData, info=(self.episodes['Name'], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
-
+        
+        # TODO: The new plot will likely change the view
+            
         # Set the proper view range
         self.setDataViewRange('keep')
         # Redraw the artists
         self.reissueArtists()
         # Force the new subplot to start with default view range
-        self.setDataViewRange(viewMode='default')
+        # self.setDataViewRange(viewMode='default')
 
     def removeSubplot(self, layout, exact_match=False):
         """Remove a data stream from the display"""
@@ -1373,11 +1435,14 @@ class ScopeWindow(QtGui.QMainWindow):
         # self.graphicsView.setForegroundBrush
         # change color / format of all objects
 
-    def setDataViewRange(self, viewMode, xRange=None, yRange=None):
+    def setDataViewRange(self, viewMode='default', xRange=None, yRange=None):
         # print('view range %s'%self.viewMode)
         self.viewMode = viewMode
         if not self.viewRange.keys():
             self.viewMode = 'default'
+                
+        default_yRange_dict = {'Voltage':(-100, 40), 'Current': (-500, 500),
+                          'Stimulus':(-500, 500)}
 
         # Loop through all the subplots
         for n, l in enumerate(self.layout):
@@ -1387,8 +1452,7 @@ class ScopeWindow(QtGui.QMainWindow):
             if self.viewMode == 'default':
                 # Make everything visible first
                 p.autoRange()
-                yRange = {'Voltage':(-100, 40), 'Current': (-500, 500),
-                          'Stimulus':(-500, 500)}.get(l[0])
+                yRange = default_yRange_dict.get(l[0])
                 p.setYRange(yRange[0], yRange[1], padding=0)
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
@@ -1759,7 +1823,7 @@ if __name__ == '__main__' and not run_example:
     'Dirs': ['D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E33.dat',
              'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E34.dat',
              'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
-    index = [0,1,2]
+    index = [0]
     app = QtGui.QApplication(sys.argv)
     w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Current', 'A', 1, 0]])
     w.updateEpisodes(episodes=episodes, index=index)

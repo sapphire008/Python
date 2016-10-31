@@ -128,7 +128,6 @@ def rms(x):
 
 def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False):
-
     """Detect peaks in data based on their amplitude and other features.
     Parameters
     ----------
@@ -164,7 +163,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     See this IPython Notebook [1]_.
     References
     ----------
-    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
+    .. [1] http://nbviewer.jupyter.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
     Examples
     --------
     >>> from findpeaks import findpeaks
@@ -244,7 +243,7 @@ def findpeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         ind = np.sort(ind[~idel])
 
     pks = np.array([x[p] for p in ind])
-    
+
     return(ind, pks)
 
 def nextpow2(n):
@@ -267,14 +266,14 @@ def isempty(m):
             return all([not x for x in m])
     else:
         return True if m else False
-    
+
 def isnumber(obj):
     """Determine if the object is a single number"""
     attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
     return all(hasattr(obj, attr) for attr in attrs)
 
 def isnumeric(obj):
-    """Check if an object is numeric, or that elements in a list of objects 
+    """Check if an object is numeric, or that elements in a list of objects
     are numeric"""
     # Allow application to iterables
     f_vec = np.frompyfunc(isnumber, 1, 1)
@@ -282,7 +281,7 @@ def isnumeric(obj):
     if isinstance(tf, np.ndarray):
         tf = tf.astype(dtype=bool)
     return tf
-    
+
 def isstrnum(obj):
     """Check if a string can be converted into numeric"""
     try:
@@ -290,19 +289,19 @@ def isstrnum(obj):
         return True
     except:
         return False
-    
+
 def isrow(v):
     v = np.asarray(v)
     return True if len(v.shape)==1 else False
-    
+
 def iscol(v):
     v = np.asarray(v)
     return True if len(v.shape)==2 and v.shape[1] == 1 else False
-    
+
 def isvector(v):
     v = np.asarray(v)
     return True if len(v.shape) == 1 or v.shape[0] == 1 or v.shape[1] == 1 else False
-    
+
 def ismatrix(v):
     v = np.asarray(v)
     shape = v.shape
@@ -312,7 +311,7 @@ def ismatrix(v):
         return True if sum([s>1 for s in shape])>=2 else False
     else:
         return False
-        
+
 def listintersect(*args):
     """Find common elements in lists"""
     args = [x for x in args if x is not None] # get rid of None
@@ -386,9 +385,9 @@ def sort_nicely( l ):
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     l.sort( key=alphanum_key )
-    return l     
-    
-    
+    return l
+
+
 def sortrows(A, col=None):
     A = np.asarray(A)
     if not ismatrix(A):
@@ -396,11 +395,11 @@ def sortrows(A, col=None):
             return np.sort(A), np.argsort(A)
         else:
             return np.sort(A, axis=0), np.argsort(A, axis=0)
-            
+
     # Sort the whole row
     if not col:
         col = list(range(A.shape[1]))
-    
+
     nrows = A.shape[0]
     I = np.arange(nrows)[:, np.newaxis]
     A = np.concatenate((A, I), axis=1)
@@ -413,33 +412,33 @@ def sortrows(A, col=None):
     # I = I[:, np.newaxis]
     I = np.asarray(I)
     A = A[:, :-1]
-    
+
     return A, I
-    
+
 
 def unique(A, byrow=False, occurrence='first', stable=False, returnSort=False):
-    """MATLAB's unique. Can apply to both numerical matrices and list of 
+    """MATLAB's unique. Can apply to both numerical matrices and list of
     strings. Not for performance, but for better outputs
     Inputs:
         A: list, list of list, numpy nadarray
         byrow: [True,False]. If True, the matrix A will be converted into
                 a list, column wise. If False, returns the unique rows of A.
-        occurence: ['first', 'last']. Specify which index is returned in IA in 
-                    the case of repeated values (or rows) in A. The default 
-                    value is OCCURENCE = 'first', which returns the index of 
-                    the first occurrence of each repeated value (or row) in A, 
-                    while OCCURRENCE = 'last' returns the index of the last 
+        occurence: ['first', 'last']. Specify which index is returned in IA in
+                    the case of repeated values (or rows) in A. The default
+                    value is OCCURENCE = 'first', which returns the index of
+                    the first occurrence of each repeated value (or row) in A,
+                    while OCCURRENCE = 'last' returns the index of the last
                     occurrence of each repeated value (or row) in A.
-        stable: [True, False]. Whether or not sort the result C. If True, 
-                returns the values of C in the same order that they appear in 
-                A; if False, returns the values of C in sorted order. If A is 
+        stable: [True, False]. Whether or not sort the result C. If True,
+                returns the values of C in the same order that they appear in
+                A; if False, returns the values of C in sorted order. If A is
                 a row vector, then C will be a row vector as well, otherwise C
-                will be a column vector. IA and IC are column vectors. If 
-                there are repeated values in A, then IA returns the index of 
+                will be a column vector. IA and IC are column vectors. If
+                there are repeated values in A, then IA returns the index of
                 the first occurrence of each repeated value.
         returnSort: also return additional 3 sorting indices
-    
-    Return: 
+
+    Return:
         C: list of unique items
         IA: index of ('first', 'last', specified by occurrence parameter)
             occurence, such that C = A[IA]
@@ -447,61 +446,61 @@ def unique(A, byrow=False, occurrence='first', stable=False, returnSort=False):
         groupsSortA:
         sortA:
         indSortA:
-        
+
     """
     # convert to numpy array for easier manipulation
     A = np.asarray(A, order='F')
-    
+
         # Return if there is only 1 item
     if A.size < 2:
         return A
-    
+
     iscolvec = iscol(A) # take note the shape of input
-    
+
     if byrow and not ismatrix(A):
         # call the function itself without sorting by rows
         return unique(A, byrow=False, occurrence=occurrence, stable=stable)
-    
+
     if not byrow:
         # if not by row, convert to column vector
         A = A.flatten(order='F')[:, np.newaxis]
         nRows = A.size
     else:
         nRows, _ = A.shape
-        
+
     # Sort the input
     sortA, indSortA = sortrows(A, col=None)
 
     # groupsSortA indicates the location of the non-matching entires
     groupsSortA = sortA[:-1, :] != sortA[1:, :]
     groupsSortA = groupsSortA.any(axis=1) # row vector
-        
+
     if occurrence == 'last':
         groupsSortA = np.append(groupsSortA, True) # Final element is always a member of unique list.
     else: # occurrence == 'first' or stalbe==True
         groupsSortA = np.insert(groupsSortA, 0, True) # Final element is always a member of unique list.
-        
+
     # Extract unique elements
     if stable:
         invIndSortA = indSortA
         invIndSortA = np.squeeze(invIndSortA)
         invIndSortA[invIndSortA] = np.arange(nRows) # Find inverse permutation
         logIndA = groupsSortA[invIndSortA] # Create new logical by indexing into groupsSortA
-        C = A[logIndA, :] 
+        C = A[logIndA, :]
         IA = np.where(logIndA)[0] # Find the indices of the unsorted logical
     else:
         C = sortA[groupsSortA, :]
         IA = indSortA[groupsSortA] # Find the indices of the sorted logical
-    
+
     # Find IC
     IC = np.zeros(nRows, dtype=np.int64)
     for n, a in enumerate(A):
         IC[n] = int(np.where((C==a).all(axis=1))[0])
-        
+
     # If A is column vector, return C as column vector
     if iscolvec:
         C = C[:, np.newaxis]
-        
+
     if returnSort:
         return C, IA, IC, groupsSortA, sortA, indSortA
     else:
@@ -518,7 +517,7 @@ def poly2mask(r, c, m, n):
 def midpoint(v):
     """find the midpoints of a vector"""
     return v[:-1] + np.diff(v)/2.0
-    
+
 
 def SearchFiles(path, pattern, sortby='Name'):
     """sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
@@ -533,7 +532,7 @@ def SearchFiles(path, pattern, sortby='Name'):
         M[n] = os.path.getmtime(p)
         C[n] = os.path.getctime(p)
         B[n] = os.path.getsize(p)
-    
+
     # Sort
     if sortby == 'Name':
         pass
@@ -543,9 +542,9 @@ def SearchFiles(path, pattern, sortby='Name'):
         P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(C, P, N))])
     elif sortby == 'Size':
         P, N = zip(*[(x, y) for (z, x, y) in sorted(zip(M, P, N))])
-        
+
     return P, N
-    
+
 def regexprep(STRING, EXPRESSION, REPLACE, N=None):
     """Function similar to MATLAB's regexprep, which allows replacement
     substitution of Nth occrrrence of character, which Python's re package
@@ -559,8 +558,29 @@ def regexprep(STRING, EXPRESSION, REPLACE, N=None):
             indices.append((m.start(), m.end(), m.group(0))) # start, end, whole match
         STRING = STRING[0:indices[N][0]] + REPLACE + STRING[(indices[N][1]+1):]
         return STRING
-        
-        
+
+
+from bisect import bisect_left, insort
+def medfilt1(x, N):
+    """scipy.signal.medfilt is simply too slow on large kernel size or large
+    data. This is an alternative. Not necessarily the same as MATLAB's
+    implementation, but definitely faster than scipy's implementation.
+    x: data
+    N: order, or width of moving median
+    """
+    l = list(x[0].repeat(N))
+    #l.sort()  # not needed because all values are the same here
+    mididx = (N - 1) // 2
+    result = np.empty_like(x)
+    for idx, new_elem in enumerate(x):
+        old_elem = x[max(0, idx - N)]
+        del l[bisect_left(l, old_elem)]
+        insort(l, new_elem)
+        result[idx] = l[mididx]
+    
+    return result
+
+
 if __name__ == '__main__':
     # A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
     A = ['left_eye_center','left_eye_center', 'right_eye_center', 'right_eye_center', 'left_eye_inner_corner',
@@ -569,33 +589,13 @@ if __name__ == '__main__':
          'left_eyebrow_inner_end','left_eyebrow_outer_end','left_eyebrow_outer_end','right_eyebrow_inner_end',
          'right_eyebrow_inner_end','right_eyebrow_outer_end','right_eyebrow_outer_end','nose_tip','nose_tip',
          'mouth_left_corner','mouth_left_corner','mouth_right_corner','mouth_right_corner','mouth_center_top_lip',
-         'mouth_center_top_lip','mouth_center_bottom_lip','mouth_center_bottom_lip','Image']   
+         'mouth_center_top_lip','mouth_center_bottom_lip','mouth_center_bottom_lip','Image']
     C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=True, returnSort=True)
-    
-    
+
+
     print(C)
     print(IA)
     print(IC)
     print(groupsSortA)
     print(sortA)
     print(indSortA)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

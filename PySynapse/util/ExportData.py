@@ -227,7 +227,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         X = np.ptp(ax.get_xlim()) if xscale is None else xscale
         Y = np.ptp(ax.get_ylim()) if yscale is None else yscale
         # calculate scale bar unit length
-        X, Y = roundto125(X/5), roundto125(Y/5)
+        X, Y = roundto125(X/5), roundto125(Y/(5 if Y<1200 else 10))
         # Parse scale bar labels
         xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
         # Get color of the scalebar
@@ -242,7 +242,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
                 raise(AttributeError('Did not find any line in this axis. Please explicitly specify the linewidth'))
         if 'matplotlib.lines.Line2D' in str(type(linewidth)):
             linewidth = linewidth.get_linewidth()
-        print(linewidth)
+        # print(linewidth)
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         # Calculate position of the scale bar

@@ -7,6 +7,7 @@ Some routines for electrophysiology data analyses
 @author: Edward
 """
 import sys
+import os
 import numpy as np
 import scipy.signal as sg
 import scipy.stats as st
@@ -21,8 +22,8 @@ except:
     except:
         sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/Spikes/')
         from MATLAB import *
-    
-        
+
+
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector
     ind = time2ind(t, ts, t0)
@@ -318,15 +319,15 @@ def stionary_rect_kernel(ts, window=500.):
     t = time2ind(window, ts)
     w = np.concatenate((np.zeros(10), np.ones(t), np.zeros(10)))
     return(w)
-    
+
 
 def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, mph=0.5, mpd=1, step=1, criterion='se', thresh=3):
     """Intracellular post synaptic potential event detection based on
     Jonas et al, 1993: Quantal components of unitary EPSCs at the mossy fibre synapse on CA3 pyramidal cells of rat hippocampus.
     Clements and Bekkers, 1997: Detection of spontaneous synaptic events with an optimally scaled template.
     Cited by Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
-    Inputs:    
-        * Vs: voltage or current time series  
+    Inputs:
+        * Vs: voltage or current time series
         * ts: sampling rate [ms]
         * event: event type
         * w: window of the template [ms]
@@ -342,7 +343,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
             This value depends on the criterion selected.
             'se': which is the default setting. Recommend 3 [Default]
             'corr': Recommend 0.95 (significance level of the correlation)
-            
+
     """
     step = step/ts
     t_vect = np.arange(0,w+ts,ts)
@@ -350,9 +351,9 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
         g = (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
         g = g / np.max(g) # normalize the peak
         return g
-        
+
     p = p_t(t_vect, tau_RISE, tau_DECAY)
-    
+
     # Do some preprocessing first
     r_mean = np.mean(Vs)
     r = Vs - r_mean
@@ -363,7 +364,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
     chi_sq = np.zeros((np.arange(0, len(Vs), step).size,4)) # store fitting results
     A = np.vstack([p, np.ones(h)]).T
     for n, k in enumerate(np.arange(0, len(Vs), step, dtype=int)): # has total l steps
-        chi_sq[n,0] = int(k) # record index        
+        chi_sq[n,0] = int(k) # record index
         r_t = r[int(k):int(k+h)]
         q = np.linalg.lstsq(A, r_t)
         m, c = q[0] # m=scale, c=offset
@@ -372,7 +373,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
             chi_sq[n,3] = float(q[1]) # sum squared residual
         elif criterion == 'corr':
             chi_sq[n,3] = np.corrcoef(r_t, m*p+c)[0,1]
-    
+
     if criterion=='se':
         DetectionCriterion = chi_sq[:,1] / (np.sqrt(chi_sq[:,3]/(h-1)))
         if event in ['IPSP', 'EPSC']:
@@ -381,38 +382,38 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
         DetectionCriterion = chi_sq[:,3]
         DetectionCriterion = DetectionCriterion / np.sqrt((1-DetectionCriterion**2) /(h-2)) # t value
         DetectionCriterion = 1-st.t.sf(np.abs(DetectionCriterion), h-1)
-    
+
     # Run through general peak detection on the detection criterion trace
     ind, _ = findpeaks(DetectionCriterion, mph=thresh, mpd=mpd/ts)
-          
+
     pks = chi_sq[ind,1]
     ind = chi_sq[ind,0]
     # Filter out the detected events that is less than the minimum peak height requirement
-    if event in ['EPSP', 'IPSC']:    
+    if event in ['EPSP', 'IPSC']:
         valid_ind = pks>abs(mph)
     else:
         valid_ind = pks<-1*abs(mph)
-    
+
     pks = pks[valid_ind]
     ind = ind[valid_ind]
     event_time = ind2time(ind, ts)
-    
-        
+
+
     return event_time, pks, DetectionCriterion, chi_sq
-            
+
 
 def detectPSP_deconvolution():
     return
-    
+
 def detrending(Vs, ts, mode='linear'):
     """Detrend the data. Useful for calculating mean independent noise.
-    mode: 
+    mode:
         'mean': simply remove mean
         'linear' (Deafult),'nearest', 'zero', 'slinear', 'quadratic', 'cubic': using interp1d
         'polyN': fit a polynomial for Nth degree. e.g. 'poly3' fits a cubic curve
     Do not mistake 'linear' mode as removing a global linear trend. For removing global linear trend,
     use 'poly1'
-    
+
     Note that after detrending the mean would be zero. To keep the mean of the
     trace, remove mean before detrending, then add mean back.
     """
@@ -425,12 +426,45 @@ def detrending(Vs, ts, mode='linear'):
         elif mode[:4]=='poly':
             deg = str2num(mode[4:])
             p = np.poly1d(np.polyfit(x,  Vs, deg))
-        
+
         y_hat = p(x)
-        
+
         return Vs - y_hat
-            
-    
+
+def detectSpikes_cell_attached(Is, ts, msh=30, msd=10, basefilt=20, maxsh=300,
+                               removebase=False, **kwargs):
+    """Detect cell attached extracellular spikes
+    Is: current time series
+    ts: sampling rate (ms)
+    msh: min spike height (Default 30pA)
+    msd: min spike distance (Default 10ms)
+    basefilt: baseline medfilt filter order in ms (Default 20)
+    maxsh: maximum spike height. Helpful to remove stimulation artifacts.
+            (Default 300)
+    removebase: remove baseline when returning height. This will result
+            absolute height of spike relative to the baseline. If set to false,
+            returning the value of the spike, before filtering. (Default False)
+    **kwargs: additional arguments for "findpeaks"
+    """
+    # Make sure medfilt kernel size is odd
+    # Median filter out the spikes to get baseline
+    Base = medfilt1(Is, int(basefilt/ts/2)*2+1) # Use custom medfilt1
+    msd = msd / ts
+    Is = Is - Base
+    # Invert Is because of voltage clamp mode, resulting inward current being
+    # negative.
+    [LOCS, PKS] = findpeaks(-Is, mph=msh, mpd=msd, **kwargs)
+    num_spikes = len(PKS)
+    spike_time = ind2time(LOCS, ts)
+    # Remove peaks exceeding max height
+    ind = np.where(PKS<maxsh)
+    LOCS = LOCS[ind]
+    PKS = PKS[ind]
+    if removebase:
+        spike_heights = PKS
+    else:
+        spike_heights = -PKS + Base[LOCS]
+    return num_spikes, spike_time, spike_heights
 
 
 if __name__ == '__main__':
@@ -444,20 +478,30 @@ if __name__ == '__main__':
 #    from matplotlib import pyplot as plt
 #    plt.plot(R)
     from ImportData import *
-    zData = NeuroData('D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E35.dat', old=True)
-    Vs = zData.Voltage['A']
-    ts = zData.Protocol.msPerPoint
-
-    
-    ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
-    
-    print(pks[0])
-    print(pks[1])
-    print(pks[2])
-    print(pks[3])
-    
     from matplotlib import pyplot as plt
-    plt.plot(Vs)
-    plt.plot(ind, -65*np.ones_like(ind), 'ro')
-    plt.figure()
-    plt.plot(DetectionCriterion)
+
+#    zData = NeuroData('D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E35.dat', old=True)
+#    Vs = zData.Voltage['A']
+#    ts = zData.Protocol.msPerPoint
+#
+#    ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
+#
+#    print(pks[0])
+#    print(pks[1])
+#    print(pks[2])
+#    print(pks[3])
+#
+#    plt.plot(Vs)
+#    plt.plot(ind, -65*np.ones_like(ind), 'ro')
+#    plt.figure()
+#    plt.plot(DetectionCriterion)
+    zData = load_trace('NeocortexCA H.14Dec15.S1.E15')
+    Is = zData.Current['A']
+    ts = zData.Protocol.msPerPoint
+    print('calculating')
+    num_spikes, spike_time, spike_heights = detectSpikes_cell_attached(Is, 1, basefilt=201)
+    print('done calculating')
+    plt.plot(Is)
+    plt.plot(spike_time, spike_heights, 'ro')
+    ax = plt.gca()
+    ax.set_xlim([50000, 100000])
