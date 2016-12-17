@@ -274,7 +274,8 @@ def isnumber(obj):
 
 def isnumeric(obj):
     """Check if an object is numeric, or that elements in a list of objects
-    are numeric"""
+    are numeric. Set all=True to return a signle boolean if all elements of the list
+    is numeric"""
     # Allow application to iterables
     f_vec = np.frompyfunc(isnumber, 1, 1)
     tf = f_vec(obj)

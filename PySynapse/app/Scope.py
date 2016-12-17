@@ -167,7 +167,8 @@ class SideDockPanel(QtGui.QWidget):
             
         def parseTilda(f):
             """Turn "S1.E2~4" into
-            ["S1.E2","+","S1.E3","+","S1.E4"]"""
+            "(S1.E2+S1.E3+S1.E4)"
+            """
             
             if "~" not in f:
                 return f
@@ -183,8 +184,9 @@ class SideDockPanel(QtGui.QWidget):
                 
         def parseSimpleFormula(f):
             """Simple linear basic four operations
-            e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8" -->
+            e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8 +5" -->
             D = [S1.E1, S1.E2, S1.E3, S1.E4], K = [1, 1, -0.5, 0.375]
+            C = 5 (constant term)
             """
             # separate the formula first
             groups = [s.replace(" ","") for s in filter(None, re.split(r"(\+|-)", f))]
@@ -254,6 +256,17 @@ class SideDockPanel(QtGui.QWidget):
                     y = kwargs[d] # assume everything is processed
 
                 # final assembly
+                # taking care of uneven Y length
+                try:
+                    if len(Y)==1:
+                        y_len = len(y)
+                    else:
+                        y_len = min([len(Y), len(y)])
+                    Y = Y[0:y_len]
+                    y = y[0:y_len]  
+                except: # object not iterable, like int
+                    pass                    
+
                 Y += y * k
 
             return Y
@@ -282,6 +295,7 @@ class SideDockPanel(QtGui.QWidget):
         # parse each formula
         for f0 in formula:
             if ":" in f0: # has range. Assume each formula hsa only 1 range
+                set_trace()
                 f, rng = f0.split(":")
                 f = parseTilda(f)
                 rng = str2num(rng)
@@ -467,6 +481,26 @@ class SideDockPanel(QtGui.QWidget):
             self.friend.addSubplot(layout=[current_stream, current_channel, row, 0])
         scomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
         ccomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
+        # self.layout_comboBox = {'stream':scomb, 'channel':ccomb}
+    
+    def updateLayoutComboBox(self):
+        all_layouts = self.friend.getAvailableStreams(warning=False)
+        all_streams = sorted(set([l[0] for l in all_layouts]))
+        all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
+        all_channels = sorted(set([l[1] for l in all_layouts]))
+        for r in range(self.layout_table.rowCount()):
+            current_stream = self.layout_table.cellWidget(r, 0).currentText()
+            self.layout_table.cellWidget(r, 0).clear() # clear all streams
+            self.layout_table.cellWidget(r, 0).addItems(all_streams) # add back all streams
+            if current_stream in all_streams: # Set original stream back
+                self.layout_table.cellWidget(r,0).setCurrentIndex(all_streams.index(current_stream))
+            
+            current_channel = self.layout_table.cellWidget(r, 1).currentText()
+            self.layout_table.cellWidget(r, 1).clear() # clear all channels
+            self.layout_table.cellWidget(r, 1).addItems(all_channels)
+            if current_channel in all_channels:
+                self.layout_table.cellWidget(r, 1).setCurrentIndex(all_channels.index(current_channel))
+
 
     def removeLayoutRow(self):
         row = self.layout_table.rowCount()-1
@@ -1219,6 +1253,11 @@ class ScopeWindow(QtGui.QMainWindow):
             # Replace the banner widget with real widget
             layoutWidget = self.dockPanel.layoutWidget()
             self.dockPanel.replaceWidget(widget=layoutWidget, index=1)
+        
+        if not bool_old_episode:
+            self.dockPanel.updateLayoutComboBox()
+            
+        # print(self.layout)
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
@@ -1397,6 +1436,10 @@ class ScopeWindow(QtGui.QMainWindow):
 
     def updateStream(self, old_layout, new_layout):
         """Replace one stream with another stream"""
+        if '' in new_layout:
+            return
+        if old_layout == new_layout:
+            return
         self.removeSubplot(old_layout, exact_match=False)
         self.addSubplot(new_layout, check_duplicates=False)
 
@@ -1498,7 +1541,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self.toggleDataCursor(checked=False)
             self.toggleDataCursor(checked=True)
 
-    def toggleRegionSelection(self, checked, plotitem=None, rng=None, rememberRange=True, cmd=None):
+    def toggleRegionSelection(self, checked, plotitem=None, rng=None, rememberRange=False, cmd=None):
         """Add linear view region. Region selection for data analysis
         rememberRange: when toggling, if set to True, when checked again, the
                        region was set to the region before the user unchecked
@@ -1527,6 +1570,8 @@ class ScopeWindow(QtGui.QMainWindow):
 
         elif (not self.viewRegionOn and checked) or cmd == 'add': # add
             # Update current data view range
+            print(rng)
+            rng = None
             if rng is None:
                 self.getDataViewRange()
                 xRange = np.array(list(self.viewRange.values())[0][0])
@@ -1761,17 +1806,20 @@ class ScopeWindow(QtGui.QMainWindow):
             PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, 
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
                        dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
-                       setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'])
+                       setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
+                       stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement == 'concatenate':
             PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
                                  adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'], 
-                                 setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'])
+                                 setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
+                                 stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement in ['vertical', 'horizontal', 'channels x episodes', 'episodes x channels']:
             PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
                                  nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'], 
-                                 scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'])
+                                 scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'],
+                                 stimReflectCurrent=options['stimReflectCurrent'])
         else:
             raise(ValueError('Unrecognized arragement:{}'.format(arragement)))
 

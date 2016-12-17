@@ -227,6 +227,12 @@ class Settings(QtGui.QWidget):
         monostim_checkbox.setToolTip('If checked, stimulus channel will not be color coded even when other channels are color coded')
         monostim_checkbox.setCheckState(2 if self.options['monoStim'] else 0)
         self.settingDict['monoStim'] = monostim_checkbox
+
+        SRC_label = QtGui.QLabel('Stim=Current') # stim reflecting current
+        SRC_checkbox = QtGui.QCheckBox()
+        SRC_checkbox.setToolTip('If checked, stimulus will be shifted to baseline current level')
+        SRC_checkbox.setCheckState(2 if self.options['stimReflectCurrent'] else 0)
+        self.settingDict['stimReflectCurrent'] = SRC_checkbox
         
         saveDir_label = QtGui.QLabel('Path')
         saveDir_text = QtGui.QLineEdit(self.options['saveDir'])
@@ -246,8 +252,10 @@ class Settings(QtGui.QWidget):
         output_groupBox.layout().addWidget(fontName_text, 2, 1, 1, 1)
         output_groupBox.layout().addWidget(fontSize_label, 2, 2, 1, 1)
         output_groupBox.layout().addWidget(fontSize_text, 2, 3, 1, 1)
-        output_groupBox.layout().addWidget(saveDir_label, 3, 0, 1, 1)
-        output_groupBox.layout().addWidget(saveDir_text, 3, 1, 1, 3)
+        output_groupBox.layout().addWidget(SRC_label, 3, 0, 1, 1)
+        output_groupBox.layout().addWidget(SRC_checkbox, 3, 1, 1, 1)
+        output_groupBox.layout().addWidget(saveDir_label, 4, 0, 1, 1)
+        output_groupBox.layout().addWidget(saveDir_text, 4, 1, 1, 3)
             
         # %% Organize widgets
         widgetFrame.layout().addWidget(fig_size_W_label, 0, 0, 1, 1)

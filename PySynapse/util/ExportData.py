@@ -13,6 +13,7 @@ import os
 import numpy as np
 import matplotlib
 matplotlib.use("PS")
+matplotlib.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker, AuxTransformBox
@@ -23,6 +24,7 @@ from pdb import set_trace
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 sys.path.append(os.path.join(__location__, '..')) # for debug only
 from util.spk_util import *
+from util.svg2eps_ai import svg2eps_ai
 
 # %%
 # Helper functions
@@ -208,7 +210,8 @@ def roundto125(x, r=np.array([1,2,5,10])): # helper static function
         return(y*(10**p))
 
 def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
-                         fontsize=None, ax=None, xscale=None, yscale=None, loc=5):
+                         fontsize=None, ax=None, xscale=None, yscale=None,
+                         loc=5, bbox_to_anchor=None):
         """Add scale bar on trace. Specifically designed for voltage /
         current / stimulus vs. time traces.
         xscale, yscale: add the trace bar to the specified window of x and y.
@@ -222,6 +225,8 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
             elif unitstr.lower()[0] == 'p':
                 return(str(x)+unitstr if x<1000 else str(int(x/1000))+
                     unitstr.replace('p','n'))
+            else: # no prefix
+                return(str(x)+unitstr)
 
         ax.set_axis_off() # turn off axis
         X = np.ptp(ax.get_xlim()) if xscale is None else xscale
@@ -245,23 +250,12 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         # print(linewidth)
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
-        # Calculate position of the scale bar
-        # xi = np.max(ax.get_xlim()) + X/2.0
-        # yi = np.mean(ax.get_ylim())
-        # calculate position of text
-        # xtext1, ytext1 = xi+X/2.0, yi-Y/10.0 # horizontal
-        # xtext2, ytext2 = xi+X+X/10.0, yi+Y/2.0 # vertical
-        # Draw the scalebar
-        box1 = AuxTransformBox(ax.transData)
-        box1.add_artist(plt.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
-        box2 = TextArea(xlab, minimumdescent=False, textprops=dict(color=color))
-        boxh = VPacker(children=[box1,box2], align="center", pad=0, sep=2) # horizontal bar
-        box3 = AuxTransformBox(ax.transData)
-        box3.add_artist(plt.Rectangle((0,0),0,Y, fc="none", linewidth=linewidth))
-        box4 = TextArea(ylab, minimumdescent=False, textprops=dict(color=color))
-        box5 = VPacker(children=[box3, boxh], align="right", pad=0, sep=0)
-        box = HPacker(children=[box5,box4], align="center", pad=0, sep=2)
-        anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=box, frameon=False)
+        scalebarBox = AuxTransformBox(ax.transData)
+        scalebarBox.add_artist(plt.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
+        scalebarBox.add_artist(plt.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth))
+        scalebarBox.add_artist(plt.text(X/2, -Y/20, xlab, va='top', ha='center',color='k'))
+        scalebarBox.add_artist(plt.text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
+        anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=scalebarBox, frameon=False, bbox_to_anchor=bbox_to_anchor)
         ax.add_artist(anchored_box)
         return(anchored_box)
 
@@ -295,12 +289,13 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
 # %%
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, 
                adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple', 
-               setFont='default', fontSize=10, linewidth=1.0, monoStim=False):
+               setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
     # set_trace()
     # Start the figure
+    # viewRange= {(channel, stream):[[xmin,xmax],[ymin),ymax]]}
     nchannels = len(viewRange.keys())
     if not fig_size: # if not specified size, set to (4, 4*nchannels)
         fig_size = (4, 4*nchannels)
@@ -330,6 +325,12 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
             # window the plot
             X = spk_window(X, ts, viewRange[m][0])
             Y = spk_window(Y, ts, viewRange[m][0])
+            # Stim channel reflects current channel
+            if stimReflectCurrent and m[0]=='Stimulus':
+                CurBase = spk_window(zData.Current[m[1]], ts, viewRange[m][0]) # use view range of stimulus on current
+                CurBase = np.mean(spk_window(CurBase, ts, [0,50]))
+                Y = Y + CurBase
+                
             # do the plot
             if m[0] in ['Voltage', 'Current'] or not monoStim:
                 ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
@@ -341,8 +342,11 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
                 InitVal += 'mV'
             elif m[0] == 'Current':
                 InitVal += 'pA'
-            else: # Stimulus
-                InitVal = ''
+            elif m[0] == 'Stimulus':
+                if stimReflectCurrent:
+                    InitVal += 'pA'
+                else:
+                    InitVal = ''
                 
             if m[1] not in channels:
                 channels.append(m[1])
@@ -390,17 +394,21 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
     fig.set_size_inches(fig_size)
 
     # plt.subplots_adjust(hspace=-0.8)
-    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
+    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi, transparent=True)
     # Close the figure after save
     plt.close(fig)
-
+    # Convert from svg to eps
+    if '.svg' in saveDir:
+        svg2eps_ai(source_file=saveDir, target_file=saveDir.replace('.svg', '.eps'))
+        
+        
     return(ax)
 
 def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300, 
                            fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
                            adjustFigW=True, adjustFigH=True, trimH=(None,None), 
                            annotation='Simple', setFont='default', fontSize=10, 
-                           linewidth=1.0, monoStim=False):
+                           linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export traces arranged horizontally.
     Good for an experiments acquired over multiple episodes.
     trimH: (t1, t2) trim off the beginning of first episode by t1 seconds, and the
@@ -438,6 +446,12 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300
             elif n + 1 == len(index) and trimH[1] is not None:
                 X = spk_window(X, ts, (None, trimH[1]))
                 Y = spk_window(X, ts, (None, trimH[1]))
+            
+            # Stim channel reflects current channel
+            if stimReflectCurrent and m[0]=='Stimulus':
+                CurBase = spk_window(zData.Current[m[1]], ts, viewRange[m][0]) # use view range of stimulus on current
+                CurBase = np.mean(spk_window(CurBase, ts, [0,50]))
+                Y = Y + CurBase
             # do the plot
             if m[0] in ['Voltage', 'Current'] or not monoStim: # temporary workaround
                 ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
@@ -450,8 +464,11 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300
                     InitVal += 'mV'
                 elif m[0] == 'Current':
                     InitVal += 'pA'
-                else: # Stimulus
-                    InitVal = ''
+                elif m[0] == 'Stimulus':
+                    if stimReflectCurrent:
+                        InitVal += 'pA'
+                    else:
+                        InitVal = ''
                 
                 ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]), Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
                     
@@ -507,13 +524,18 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300
     fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
     # Close the figure after save
     plt.close(fig)
+    # Convert svg file to eps
+    if '.svg' in saveDir:
+        svg2eps_ai(source_file=saveDir, target_file=saveDir.replace('.svg', '.eps'))
+    
     return(ax)
     
     
 def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300, 
                       fig_size=None, adjustFigH=True, adjustFigW=True, nullRange=None, 
                       annotation='Simple', setFont='default',gridSpec='Vertical', 
-                      scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False):
+                      scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False,
+                      stimReflectCurrent=True):
     "Export Multiple episodes arranged in a grid; default vertically""" 
     if not colorfy:
         colorfy = ['k']
@@ -559,6 +581,11 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300
             # window the plot
             X = spk_window(X, ts, viewRange[m][0])
             Y = spk_window(Y, ts, viewRange[m][0])
+            # Stim channel reflects current channel
+            if stimReflectCurrent and m[0]=='Stimulus':
+                CurBase = spk_window(zData.Current[m[1]], ts, viewRange[m][0]) # use view range of stimulus on current
+                CurBase = np.mean(spk_window(CurBase, ts, [0,50]))
+                Y = Y + CurBase
             # do the plot
             ind = np.ravel_multi_index((row,col), (nrows, ncols), order='C')
             if n == 0:
@@ -578,8 +605,11 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300
                 InitVal += 'mV'
             elif m[0] == 'Current':
                 InitVal += 'pA'
-            else: # Stimulus
-                InitVal = ''
+            elif m[0] == 'Stimulus':
+                if stimReflectCurrent:
+                    InitVal += 'pA'
+                else:
+                    InitVal = ''
             
             ax[ind].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
 
@@ -640,9 +670,11 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300
     fig.set_size_inches(fig_size)
     
     # plt.subplots_adjust(hspace=-0.8)
-    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi)
+    fig.savefig(saveDir, bbox_inches='tight', bbox_extra_artists=tuple(scalebar), dpi=dpi, transparent=True)
     # Close the figure after save
     plt.close(fig)
+    if '.svg' in saveDir:
+        svg2eps_ai(source_file=saveDir, target_file=saveDir.replace('.svg', '.eps'))
 
     return(ax)
     
