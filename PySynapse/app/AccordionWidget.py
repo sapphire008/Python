@@ -15,7 +15,6 @@ of the need for a pixmap and used QPolygon instead.
 
 from: http://pastebin.com/mZ04q16h
 """
-
 from PyQt4.QtCore import Qt, QRect, QMimeData, pyqtSignal, pyqtProperty, QEvent, QPoint
 from PyQt4.QtGui import QDrag, QPixmap, QScrollArea, QGroupBox, QVBoxLayout, QPainter, QPalette, QPen
 from PyQt4.QtGui import QWidget, QCursor, QApplication, QColor, QPolygon, QBrush
@@ -445,7 +444,7 @@ class AccordionWidget(QScrollArea):
         self.widget().layout().setSpacing(spaceInt)
 
 
-    def addItem( self, title, widget, collapsed=False, index=None ):
+    def addItem(self, title: object, widget: object, collapsed: object = False, index: object = None) -> object:
         self.setUpdatesEnabled(False)
         item = self._itemClass(self, title, widget)
         item.setRolloutStyle(self.rolloutStyle())
@@ -518,7 +517,13 @@ class AccordionWidget(QScrollArea):
             if layout.itemAt(index).widget().widget() == widget:
                 return index
         return -1
-
+    
+    def indexOfTitle(self, title):
+        layout = self.widget().layout()
+        for index in range(layout.count()):
+            if layout.itemAt(index).widget().title()==title:
+                return index
+        return -1
 
     def isBoxedMode( self ):
         return self._rolloutStyle == AccordionWidget.Boxed

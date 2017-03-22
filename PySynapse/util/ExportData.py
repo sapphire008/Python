@@ -259,6 +259,28 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         ax.add_artist(anchored_box)
         return(anchored_box)
 
+def AddAnnotationObjects(ann_dict_list, ax):
+    """Draw the same annotation objects displayed on the graphics window 
+    when exporting to matplotlib figures
+        * ann_dict_list: a list of dictionaries, each element specifies the 
+                         properties of an annotation object
+    """
+    return
+    for c, ann_dict in enumerate(ann_dict_list):
+        if ann_dict['type'] == 'box':
+            pass
+        elif ann_dict['type'] == 'line':
+            pass
+        elif ann_dict['type'] == 'circle':
+            pass
+        elif ann_dict['type'] == 'arrow':
+            pass
+        elif ann_dict['type'] == 'symbol':
+            pass
+        else:
+            pass
+        
+        
 @AdjustAxs()
 def TurnOffAxis(ax):
     """Turn off all axis"""

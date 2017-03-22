@@ -12,7 +12,7 @@ import zipfile
 import six
 import re
 from pdb import set_trace
-
+from collections import OrderedDict
 # import matplotlib.pyplot as plt
 
 def readVBString(fid):
@@ -113,7 +113,11 @@ class NeuroData(object):
                 ttlDataStr += self.generateTTLdesc(chanCounter, self.Protocol.ttlData[-1])
                 chanCounter += 1
             #print(fid.tell())
-
+            
+            self.Protocol.ttlDict = []
+            for index, ttlData in enumerate(self.Protocol.ttlData):
+                self.Protocol.ttlDict.append(self.parseTTLArray_old(ttlData))
+                
             # read in DAC information
             self.Protocol.dacData = []
             self.Protocol.dacName = []
@@ -125,6 +129,7 @@ class NeuroData(object):
                 self.Protocol.dacName.append(readVBString(fid))
                 dacDataStr += self.generateDACdesc(chanCounter, self.Protocol.dacData[-1])
                 chanCounter += 1
+            
 
             # Stimulus description
             self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip()).strip()
@@ -152,6 +157,7 @@ class NeuroData(object):
             self.Protocol.ampDesc = []
             for index in range(self.Protocol.numChannels):
                 self.Protocol.ampDesc.append(readVBString(fid))
+            
 
             # Get Channel info
             channelDict = {'VoltADC1':'VoltA','VoltADC3':'VoltB',
@@ -198,6 +204,12 @@ class NeuroData(object):
         # close file
         fid.close()
 
+    def TTL2Stim_old(self, TTLarray):
+        TTL = self.parseTTLArray_old(TTLarray)
+        TTL_trace = np.arange(0, duration+ts, ts)
+        return TTL_trace
+        
+        
     @staticmethod
     def epiTime(inTime):
         """Convert seconds into HH:MM:SS"""
@@ -265,6 +277,31 @@ class NeuroData(object):
         else:
             retStr = ""
         return retStr.strip()
+    
+    @staticmethod
+    def parseTTLArray_old(TTLarray):
+        """Convert TTL specifications into a trace"""
+        TTL = OrderedDict()
+        TTL['is_on'] = TTLarray[0]
+        TTL['use_AWF'] = TTLarray[1]
+        TTL['Step_is_on'] = TTLarray[2]
+        TTL['Step_Latency'] = TTLarray[3]
+        TTL['Step_Duration'] = TTLarray[4]
+        TTL['SIU_Single_Shocks_is_on'] = TTLarray[5]
+        TTL['SIU_A'] = TTLarray[6]
+        TTL['SIU_B'] = TTLarray[7]
+        TTL['SIU_C'] = TTLarray[8]
+        TTL['SIU_D'] = TTLarray[9]
+        TTL['SIU_Train_is_on'] = TTLarray[10]
+        TTL['SIU_Train_of_Bursts_is_on'] = TTLarray[11]
+        TTL['SIU_Train_Start'] = TTLarray[12]
+        TTL['SIU_Train_Interval'] = TTLarray[13] # stimulate every x ms
+        TTL['SIU_Train_Number'] = TTLarray[14]
+        TTL['SIU_Train_Burst_Interval'] = TTLarray[15]
+        TTL['SIU_Train_Burst_Number'] = TTLarray[16]
+        return TTL
+
+        
 
 def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
     """Wrapper function to load NeuroData, assuming the data structure we have
@@ -664,15 +701,15 @@ class ROIData(list):
 
 
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
     # dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
 #    figdata.Neuro2Trace(data, channels=['A','B','C','D'], streams=['Volt','Cur','Stim'])
     # data = FigureData(dataFile='D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E40.dat',old=True, channels=['A'], streams=['Volt','Cur','Stim'])
-    # zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
+    zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
     # mData = ImageData(dataFile = 'D:/Data/2photon/2015/03.March/Image 10 Mar 2015/Neocortex D/Neocortex D 01/Neocortex D 01.512x512y1F.m21.img', old=True)
     # plt.imshow(mData.img[:,:,0])
     # zData = load_trace('Neocortex F.15Jun15.S1.E10')
-    roifile = 'C:/Users/Edward/Desktop/Slice B CCh Double.512x200y75F.m1.img.roi'
-    R = ROIData(roifile)
+    #roifile = 'C:/Users/Edward/Desktop/Slice B CCh Double.512x200y75F.m1.img.roi'
+    #R = ROIData(roifile)

@@ -81,11 +81,24 @@ def svg2eps_ai(source_file, target_file, \
     f.write(jsx_file_str)
     f.close()
     
+    # Remove previous target file if already existed
+    if os.path.isfile(target_file):
+        os.remove(target_file)
+    
     # subprocess.check_call([illustrator_path, '-run', tmp_f])
     cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
     pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     # print(pro.stdout)
-    time.sleep(10.0)
+    # continuously check if new files are updated
+    time.sleep(5.0)
+    sleep_iter = 5.0
+    max_sleep_iter = 40
+    while not os.path.isfile(target_file):
+        time.sleep(1.0)
+        sleep_iter = sleep_iter + 1.0
+        if sleep_iter > max_sleep_iter:
+            break
+            
     # pro.terminate()
     #os.kill(os.getpid(), signal.SIGTERM)  # Send the signal to all the process groups
     pro.kill()

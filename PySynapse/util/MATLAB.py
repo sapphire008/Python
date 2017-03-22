@@ -13,6 +13,8 @@ import re
 import glob
 import os
 import operator
+import pandas as pd
+from collections import OrderedDict
 from pdb import set_trace
 
 def getfield(struct, *args): # layered /serial indexing
@@ -380,6 +382,10 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
 
     return(longest)
 
+def cell2array(C):
+    """Helpful when reading MATLAB .mat files containing cellarray"""
+    return np.array([c[0][0] for c in C])
+
 
 def sort_nicely( l ):
     """ Sort the given list of strings in the way that humans expect."""
@@ -387,7 +393,6 @@ def sort_nicely( l ):
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     l.sort( key=alphanum_key )
     return l
-
 
 def sortrows(A, col=None):
     A = np.asarray(A)
@@ -416,96 +421,20 @@ def sortrows(A, col=None):
 
     return A, I
 
-
-def unique(A, byrow=False, occurrence='first', stable=False, returnSort=False):
-    """MATLAB's unique. Can apply to both numerical matrices and list of
-    strings. Not for performance, but for better outputs
-    Inputs:
-        A: list, list of list, numpy nadarray
-        byrow: [True,False]. If True, the matrix A will be converted into
-                a list, column wise. If False, returns the unique rows of A.
-        occurence: ['first', 'last']. Specify which index is returned in IA in
-                    the case of repeated values (or rows) in A. The default
-                    value is OCCURENCE = 'first', which returns the index of
-                    the first occurrence of each repeated value (or row) in A,
-                    while OCCURRENCE = 'last' returns the index of the last
-                    occurrence of each repeated value (or row) in A.
-        stable: [True, False]. Whether or not sort the result C. If True,
-                returns the values of C in the same order that they appear in
-                A; if False, returns the values of C in sorted order. If A is
-                a row vector, then C will be a row vector as well, otherwise C
-                will be a column vector. IA and IC are column vectors. If
-                there are repeated values in A, then IA returns the index of
-                the first occurrence of each repeated value.
-        returnSort: also return additional 3 sorting indices
-
-    Return:
-        C: list of unique items
-        IA: index of ('first', 'last', specified by occurrence parameter)
-            occurence, such that C = A[IA]
-        IC: index such that A = C[IC]
-        groupsSortA:
-        sortA:
-        indSortA:
-
-    """
-    # convert to numpy array for easier manipulation
-    A = np.asarray(A, order='F')
-
-        # Return if there is only 1 item
-    if A.size < 2:
-        return A
-
-    iscolvec = iscol(A) # take note the shape of input
-
-    if byrow and not ismatrix(A):
-        # call the function itself without sorting by rows
-        return unique(A, byrow=False, occurrence=occurrence, stable=stable)
-
-    if not byrow:
-        # if not by row, convert to column vector
-        A = A.flatten(order='F')[:, np.newaxis]
-        nRows = A.size
-    else:
-        nRows, _ = A.shape
-
-    # Sort the input
-    sortA, indSortA = sortrows(A, col=None)
-
-    # groupsSortA indicates the location of the non-matching entires
-    groupsSortA = sortA[:-1, :] != sortA[1:, :]
-    groupsSortA = groupsSortA.any(axis=1) # row vector
-
-    if occurrence == 'last':
-        groupsSortA = np.append(groupsSortA, True) # Final element is always a member of unique list.
-    else: # occurrence == 'first' or stalbe==True
-        groupsSortA = np.insert(groupsSortA, 0, True) # Final element is always a member of unique list.
-
-    # Extract unique elements
-    if stable:
-        invIndSortA = indSortA
-        invIndSortA = np.squeeze(invIndSortA)
-        invIndSortA[invIndSortA] = np.arange(nRows) # Find inverse permutation
-        logIndA = groupsSortA[invIndSortA] # Create new logical by indexing into groupsSortA
-        C = A[logIndA, :]
-        IA = np.where(logIndA)[0] # Find the indices of the unsorted logical
-    else:
-        C = sortA[groupsSortA, :]
-        IA = indSortA[groupsSortA] # Find the indices of the sorted logical
-
-    # Find IC
-    IC = np.zeros(nRows, dtype=np.int64)
-    for n, a in enumerate(A):
-        IC[n] = int(np.where((C==a).all(axis=1))[0])
-
-    # If A is column vector, return C as column vector
-    if iscolvec:
-        C = C[:, np.newaxis]
-
-    if returnSort:
-        return C, IA, IC, groupsSortA, sortA, indSortA
-    else:
-        return C, IA, IC
+def uniquerows(data, prec=5, sort=True):
+    # d_r = np.fix(data * 10 ** prec) / 10 ** prec + 0.0
+    if isinstance(data, (list, tuple)) or (isinstance(data, np.ndarray) and isrow(data)):
+        data = np.asarray(data)[:, np.newaxis] # convert to a column vector
+    b = np.ascontiguousarray(data).view(np.dtype((np.void, data.dtype.itemsize * data.shape[1])))
+    _, ia = np.unique(b, return_index=True)
+    _, ic = np.unique(b, return_inverse=True)
+    c = np.unique(b).view(data.dtype).reshape(-1, data.shape[1])
+    if not sort:
+        ia, sorted_ia_index = sortrows(ia)
+        c = c[sorted_ia_index,:]
+        for n, k in enumerate(ic): # reindex
+            ic[n] = int(np.where(sorted_ia_index == k)[0])
+    return c, ia, ic
 
 def poly2mask(r, c, m, n):
     """m, n: canvas size that contains this polygon mask"""
@@ -580,23 +509,10 @@ def medfilt1(x, N):
         result[idx] = l[mididx]
     
     return result
-
+    
 
 if __name__ == '__main__':
-    # A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
-    A = ['left_eye_center','left_eye_center', 'right_eye_center', 'right_eye_center', 'left_eye_inner_corner',
-         'left_eye_inner_corner', 'left_eye_outer_corner', 'left_eye_outer_corner', 'right_eye_inner_corner',
-         'right_eye_inner_corner','right_eye_outer_corner','right_eye_outer_corner','left_eyebrow_inner_end',
-         'left_eyebrow_inner_end','left_eyebrow_outer_end','left_eyebrow_outer_end','right_eyebrow_inner_end',
-         'right_eyebrow_inner_end','right_eyebrow_outer_end','right_eyebrow_outer_end','nose_tip','nose_tip',
-         'mouth_left_corner','mouth_left_corner','mouth_right_corner','mouth_right_corner','mouth_center_top_lip',
-         'mouth_center_top_lip','mouth_center_bottom_lip','mouth_center_bottom_lip','Image']
-    C, IA, IC, groupsSortA, sortA, indSortA = unique(A, byrow=True, occurrence='last', stable=True, returnSort=True)
-
-
-    print(C)
-    print(IA)
-    print(IC)
-    print(groupsSortA)
-    print(sortA)
-    print(indSortA)
+#    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
+#   A = ['a','b','a','c','a','b','c']
+#    C, IA, IC = uniquerows(A)
+    C = CellArray((2,3))

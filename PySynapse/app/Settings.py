@@ -34,7 +34,8 @@ try:
 except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
-        
+
+# <editor-fold desc="Global Settings">
 # ------------ Read and write the settings file ----------------------------------
 def readini(iniPath):
     """Read the saved config.ini for previous settings"""
@@ -302,6 +303,7 @@ class Settings(QtGui.QWidget):
         """Override default behavior when closing the main window"""
         self.isclosed = True
         
+# </editor-fold>
 
 
 if __name__ == '__main__':

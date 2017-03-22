@@ -8,7 +8,8 @@ Form implementation generated from reading ui file 'Scope.ui'
 
 WARNING! All changes made in this file will be lost!
 
-Scope window
+Scope window.
+Not separating Scope and Toolbox widgets since they require each other's contents
 
 @author: Edward
 """
@@ -40,9 +41,9 @@ from util.spk_util import *
 from util.ImportData import NeuroData
 from util.ExportData import *
 from util.MATLAB import *
-from util.spk_util import *
 from app.AccordionWidget import AccordionWidget
 from app.Settings import *
+from app.Annotations import *
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -68,7 +69,7 @@ class SideDockPanel(QtGui.QWidget):
     _sizehint = None
     # used for replace formula variables, total allow 52 replacements, from a-zA-Z
     _newvarsList = [chr(i) for i in 65+np.arange(26)]+[chr(i) for i in 97+np.arange(26)]
-    
+
     def __init__(self, parent=None, friend=None):
         super(SideDockPanel, self).__init__(parent)
         self.parent = parent
@@ -84,7 +85,7 @@ class SideDockPanel(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
-        # self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=True)
+        self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
@@ -93,6 +94,7 @@ class SideDockPanel(QtGui.QWidget):
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
         self.verticalLayout.addWidget(self.accWidget)
 
+    # <editor-fold desc="Trace arithmetic tools">
     # --------- Trace arithmetic tools ---------------------------------------
     def arithmeticWidget(self):
         """Setting widget for trace manipulation"""
@@ -164,24 +166,24 @@ class SideDockPanel(QtGui.QWidget):
             r = self.friend.nullRange # should have been already calculated before
         else:
             r = None
-            
+
         def parseTilda(f):
             """Turn "S1.E2~4" into
             "(S1.E2+S1.E3+S1.E4)"
             """
-            
+
             if "~" not in f:
                 return f
-                
+
             # Assuming the S#.E# structure
             ep_ranges = re.findall('S(\d+)\.E(\d+)~(\d+)', f)
             for m, ep in enumerate(ep_ranges):
                 epsl = ["S{}.E{:d}".format(ep[0], i) for i in np.arange(int(ep[1]), int(ep[2])+1, 1)]
                 epsl = "("+"+".join(epsl)+")"
                 f = re.sub('S(\d+)\.E(\d+)~(\d+)', epsl, f, count=1)
-            
+
             return f
-                
+
         def parseSimpleFormula(f):
             """Simple linear basic four operations
             e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8 +5" -->
@@ -200,7 +202,7 @@ class SideDockPanel(QtGui.QWidget):
                     k = 1
                 elif groups[n-1] == '-':
                     k = -1
-                    
+
                 if g == "-" or g == "+":
                     continue
                 elif isstrnum(g): # constants
@@ -263,26 +265,16 @@ class SideDockPanel(QtGui.QWidget):
                     else:
                         y_len = min([len(Y), len(y)])
                     Y = Y[0:y_len]
-                    y = y[0:y_len]  
+                    y = y[0:y_len]
                 except: # object not iterable, like int
-                    pass                    
+                    pass
 
                 Y += y * k
 
             return Y
-            
+
         def callback(match):
             return next(callback.v)
-        
-#        mmdict = {}
-#        for kk, vv in self.friend.episodes.items():
-#            if kk == 'Name':
-#                mmdict[kk] = vv
-#                continue
-#            mmdict[kk] = list(np.array(vv)[np.array(self.friend.index)])
-#            
-#        print(mmdict)
-#        return
 
         # parse formulac
         if "{" in formula:
@@ -291,7 +283,7 @@ class SideDockPanel(QtGui.QWidget):
             formula = formula.split(";")
         else:
             formula = [formula]
-        
+
         # parse each formula
         for f0 in formula:
             if ":" in f0: # has range. Assume each formula hsa only 1 range
@@ -314,7 +306,7 @@ class SideDockPanel(QtGui.QWidget):
                         fSimpleList = re.findall('\(([^()]*)\)', f)
                         # for each simple ones, do calculation
                         YList = [simpleMath(fSimple, s, c) for fSimple in fSimpleList]
-        
+
                         newvars = self._newvarsList[:len(fSimpleList)] # ['A','B','C',...]
                         callback.v = iter(newvars)
                         # new formula: replace all parentheses with a new variable
@@ -323,7 +315,7 @@ class SideDockPanel(QtGui.QWidget):
                         nfdict = {}
                         for nn, v in enumerate(newvars):
                             nfdict[v] = YList[nn]
-                        # use the new variable, together with episode names that was not 
+                        # use the new variable, together with episode names that was not
                         # in the parentheses to calculate the final Y
                         y[(s,c)] = simpleMath(nf, s, c, **nfdict)
                 else:
@@ -338,9 +330,9 @@ class SideDockPanel(QtGui.QWidget):
             if rng is not None:
                 for s, c, _, _ in self.friend.layout:
                     y[(s,c)] = spk_window(y[(s,c)], ts, rng)
-                    
+
             y_len = len(y[s,c]) # length of time series
-            
+
             # Append the data to friend's episodes object
             self.friend.episodes['Duration'].append(ind2time(y_len-1,ts)[0])
             self.friend.episodes['Drug Time'].append('00:00')
@@ -355,7 +347,7 @@ class SideDockPanel(QtGui.QWidget):
             zData = NeuroData()
             for s, c, _, _ in self.friend.layout:
                 setattr(zData, s, {c: y[s,c]})
-            
+
             # fill in missing data
             stream_list,_,_,_ = zip(*self.friend.layout)
             stream_all = ['Voltage', 'Current', 'Stimulus']
@@ -371,7 +363,7 @@ class SideDockPanel(QtGui.QWidget):
             zData.Protocol.numPoints = y_len
             zData.Protocol.acquireComment = 'PySynapse Arithmetic Data'
             self.friend.episodes['Data'].append(zData)
-            
+
          # Redraw episodes with new calculations
         episodes = self.friend.episodes # keep the current episode
         index = list(range(len(episodes['Epi'])-len(formula), len(episodes['Epi']))) # keep the current index. Make a copy
@@ -382,7 +374,10 @@ class SideDockPanel(QtGui.QWidget):
         self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
         # Turn back isnull
         self.friend.isnull = isNulled
-    
+
+    # </editor-fold>
+
+    # <editor-fold desc="Annotation widget">
     # ----------- Annotation widget ------------------------------------------
     def annotationWidget(self):
         """Adding annotation items on the graph"""
@@ -390,40 +385,83 @@ class SideDockPanel(QtGui.QWidget):
         widgetFrame.setLayout(QtGui.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("AnnotationWidgetFrame"))
         widgetFrame.layout().setSpacing(0)
-        
+        self.setAnnotationTable()
+        addButton = QtGui.QPushButton("Add") # Add an annotation object
+        addButton.clicked.connect(self.addAnnotationRow)
+        removeButton = QtGui.QPushButton("Remove") # Remove an annotation object
+        removeButton.clicked.connect(self.removeAnnotationRow)
+        editButton = QtGui.QPushButton("Edit") # Edit an annotation object
+        editButton.clicked.connect(self.editAnnotationArtist)
+        # Add the buttons
+        widgetFrame.layout().addWidget(addButton, 1, 0)
+        widgetFrame.layout().addWidget(removeButton, 1, 1)
+        widgetFrame.layout().addWidget(editButton, 1, 2)
+        # Add the exisiting annotations to the table
+        widgetFrame.layout().addWidget(self.annotation_table, 2, 0, 1, 3)
+
         return widgetFrame
-        
-        avail_obj = ['box', # [x1, y1, x2, y2, linewidth, linestyle, color]
-                     'line',  # [x1, y1, x2, y2, linewidth, linestyle, color]
-                     'circle', # [center_x, center_y, a, b, rotation, linewidth, linestyle, color]
-                     'arrow',  # [x, y, x_arrow, y_arrow, linewidth, linestyle, color]
-                     'symbol' # ['symbol', x, y, markersize, color]
-                     ]
-#        addButton = QtGui.QPushButton("Add") # Add a channel
-#        addButton.clicked.connect(lambda: self.addAnnotationRow(avail_obj=avail_obj))
-#        removeButton = QtGui.QPushButton("Remove") # Remove a channel
-#        removeButton.clicked.connect(self.removeAnnotationRow)
-#        # Add the buttons
-#        widgetFrame.layout().addWidget(addButton, 1, 0)
-#        widgetFrame.layout().addWidget(removeButton, 1, 1)
-#        # Add the exisiting channels and streams to the table
-#        widgetFrame.layout().addWidget(self.annotation_table, 2, 0, self.annotation_table.rowCount(), 2)
-        
-        
-    def addAnnotationRow(self, avail_obj=None):
-        return
-        
+
+    def setAnnotationTable(self):
+        # (Re)initialize the annotation table
+        self.annotation_table = QtGui.QTableWidget(0, 3)
+        self.annotation_table.verticalHeader().setVisible(False)
+        self.annotation_table.horizontalHeader().setVisible(False)
+        self.annotation_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        # Add all annotation artists
+        for aa in self.annotationArtists:
+            self.addAnnotationRow(aa)
+
+    def addAnnotationRow(self):
+        """Add annotation into teh table"""
+        # Pop up the annotation settings window to get the properties of the annotation settings
+        annotationSettings = AnnotationSetting()
+        # annotationSettings.show()
+        if annotationSettings.exec_(): # Need to wait annotationSettings has been completed
+            if annotationSettings.artists.keys(): # if properties are properly specified, draw the artist
+                return
+                # Add to the table
+                ann_table_item = QtGui.QTableWidgetItem(annotationSettings.type)
+                #ann_table_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable) # can be checked | can be selected
+                #ann_table_item.setCheckState(QtCore.Qt.Checked) # newly added items are always checked
+                row = self.layout_table.rowCount()
+                print(row)
+                print(annotationSettings.artists)
+                # self.annotation_table.insertRow(row)
+                #set_trace()
+                self.annotation_table.setItem(0, 0, ann_table_item)
+                # Draw the artist
+                artistProperty = annotationSettings.artists
+                artistProperty['type'] = annotationSettings.type
+                self.drawAnnotationArtist(artist=artistProperty)
+
     def removeAnnotationRow(self):
-        row = self.annotation_table.rowCount()-1
+        row = self.annotation_table.currentRow()
+        if not row: # if no currently selected row, remove the last row / annotation item
+            row = self.annotation_table.rowCount()-1
         if row < 1:
             return
         self.annotation_table.removeRow(row)
-        self.removeArtists(artists=[self.annotationArtists[-1]])
-    
-    def removeArtists(artists):
+        self.eraseAnnotationArtist(artist=[self.annotationArtists[row]])
+
+    def drawAnnotationArtist(self, artist=None):
+        print('draw annotation artist')
+        #print(artist)
         return
 
+    def eraseAnnotationArtist(self, artist=None):
+        print('erased an artist')
+        return
 
+    def clearAnnotationArtists(self):
+        return
+
+    def editAnnotationArtist(self):
+        # Redraw a modified artist
+        return
+
+    # </editor-fold>
+
+    # <editor-fold desc="Layout control">
     # ------- Layout control -------------------------------------------------
     def layoutWidget(self):
         """Setting layout of the graphicsview of the scope"""
@@ -455,7 +493,8 @@ class SideDockPanel(QtGui.QWidget):
         return widgetFrame
 
     def setLayoutTable(self, all_streams, all_channels):
-        self.layout_table = QtGui.QTableWidget(0, 2) # (re)initialize
+        # (Re)initialize the layout table
+        self.layout_table = QtGui.QTableWidget(0, 2)
         self.layout_table.verticalHeader().setVisible(False)
         self.layout_table.horizontalHeader().setVisible(False)
         self.layout_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
@@ -482,7 +521,7 @@ class SideDockPanel(QtGui.QWidget):
         scomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
         ccomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
         # self.layout_comboBox = {'stream':scomb, 'channel':ccomb}
-    
+
     def updateLayoutComboBox(self):
         all_layouts = self.friend.getAvailableStreams(warning=False)
         all_streams = sorted(set([l[0] for l in all_layouts]))
@@ -490,14 +529,21 @@ class SideDockPanel(QtGui.QWidget):
         all_channels = sorted(set([l[1] for l in all_layouts]))
         for r in range(self.layout_table.rowCount()):
             current_stream = self.layout_table.cellWidget(r, 0).currentText()
+            # IMPORTANT: Need to block the signal from this combobox, otherwise, whatever function connected to this
+            # combobox will be called, which we want to avoid
+            self.layout_table.cellWidget(r, 0).blockSignals(True)
             self.layout_table.cellWidget(r, 0).clear() # clear all streams
             self.layout_table.cellWidget(r, 0).addItems(all_streams) # add back all streams
+            self.layout_table.cellWidget(r, 0).blockSignals(False)
             if current_stream in all_streams: # Set original stream back
                 self.layout_table.cellWidget(r,0).setCurrentIndex(all_streams.index(current_stream))
-            
+
             current_channel = self.layout_table.cellWidget(r, 1).currentText()
+            self.layout_table.cellWidget(r, 1).blockSignals(True)
             self.layout_table.cellWidget(r, 1).clear() # clear all channels
             self.layout_table.cellWidget(r, 1).addItems(all_channels)
+            self.layout_table.cellWidget(r, 1).blockSignals(False)
+
             if current_channel in all_channels:
                 self.layout_table.cellWidget(r, 1).setCurrentIndex(all_channels.index(current_channel))
 
@@ -517,7 +563,10 @@ class SideDockPanel(QtGui.QWidget):
         labelarea = QtGui.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
-        
+
+    # </editor-fold>
+
+    # <editor-fold desc="Curve fitting tools">
     # -------- Curve fitting tools -------------------------------------------
     def curvefitWidget(self):
         """This returns the initialized curve fitting widget
@@ -538,22 +587,22 @@ class SideDockPanel(QtGui.QWidget):
         cfReportBox = QtGui.QLabel("Curve Fit Results")
         cfReportBox.setStyleSheet("background-color: white")
         cfReportBox.setWordWrap(True)
-        
+
         # Arrange the widget
         widgetFrame.layout().addWidget(fitButton, 0, 0, 1,3)
         widgetFrame.layout().addWidget(curveTypeComboBox, 1, 0, 1, 3)
-        
+
         # Settings of curve fitting
         self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText())
-        
+
         # Refresh setting section when cf type changed
         curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText()))
-        
+
         # Summary box behavior
         fitButton.clicked.connect(lambda : self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
 
         return widgetFrame
-        
+
     def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
         # Remove everthing at and below the setting rows: rigid setting
         nrows = widgetFrame.layout().rowCount()
@@ -574,12 +623,12 @@ class SideDockPanel(QtGui.QWidget):
         # Report box
         widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
         return
-        
+
     def getCFSettingTable(self, curve):
         if curve == 'Exponential':
             eqLabel = QtGui.QLabel("Equation:")
             eqComboBox = QtGui.QComboBox()
-            eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)']) 
+            eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)'])
             self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
         elif curve == 'Power':
             eqLabel = QtGui.QLabel("Equation")
@@ -590,7 +639,7 @@ class SideDockPanel(QtGui.QWidget):
             degLabel = QtGui.QLabel("Degree:")
             degText = QtGui.QLineEdit("1")
             self.CFsettingTable = {(3,0):degLabel, (3,1): degText}
-                        
+
     def curveFit(self, curve, cfReportBox):#, centerAndScale):
         # get view
         currentView = [0, 0]
@@ -600,25 +649,25 @@ class SideDockPanel(QtGui.QWidget):
         for k, a in enumerate(p.listDataItems()):
             if 'fit' in a.name():
                 count_fit = count_fit + 1
- 
+
         if len(p.listDataItems())-count_fit > 1:
             cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
             return
-        
+
         # Get the plotted data
-        d = p.listDataItems()[0]        
-                    
+        d = p.listDataItems()[0]
+
         if self.friend.viewRegionOn: # fit between region selection
             xdata, ydata = spk_window(d.xData, d._ts, self.friend.selectedRange), spk_window(d.yData, d._ts, self.friend.selectedRange)
         else: # fit within the current view
             xdata, ydata = spk_window(d.xData, d._ts, p.viewRange()[0]), spk_window(d.yData, d._ts, p.viewRange()[0])
-            
+
         # remove baseline: -= and += can be tricky. Use carefully
         xoffset = xdata[0]
         xdata = xdata - xoffset
         yoffset = min(ydata)
         ydata = ydata - yoffset
-            
+
         f0 = None
         if curve == 'Exponential':
             eqText = self.CFsettingTable[(3,1)].currentText()
@@ -671,19 +720,19 @@ class SideDockPanel(QtGui.QWidget):
                         eqText.append("...")
                     eqText.append(ptext[-1] + "*" + "x^{:d}".format(len(ptext)-1))
                     break
-                
+
             eqText = "+".join(eqText)
-        
+
         if f0 is None: # shouldn't go here. For debug only
             raise(ValueError('Unrecognized curve equation %s: %s'%(curve, eqText)))
-        
+
         # Fit the curve
         try:
             popt, pcov = curve_fit(f0, xdata, ydata, p0=p0, method='trf')
         except Exception as err:
             cfReportBox.setText("{}".format(err))
             return
-            
+
         # Generate fitted data
         yfit = f0(xdata, *popt)
         # Do some calculations on the fitting before reporting
@@ -713,10 +762,13 @@ class SideDockPanel(QtGui.QWidget):
                 tau1, tau2 = -1.0/popt[1], -1.0/popt[3]
                 final_text += "\ttau1: " + "{:.4g} ms".format(tau1) + "\n"
                 final_text += "\ttau2: " + "{:.4g} ms".format(tau2) + "\n"
-        
+
         final_text += "\nGoodness of fit:\n\tSSE: {:.4g}\n\tR-squared: {:.4g}\n\tAdjusted R-squared: {:.4g}\n\tRMSE: {:.4g}".format(SSE, R_sq, R_sq_adj, RMSE)
         cfReportBox.setText(final_text)
 
+    # </editor-fold>
+
+    # <editor-fold desc="Analysis tools">
     # ------- Analysis tools -------------------------------------------------
     def eventDetectionWidget(self):
         """This returns the initialized event detection widget"""
@@ -828,23 +880,23 @@ class SideDockPanel(QtGui.QWidget):
             minHeightLabel.setToolTip("Minimum amplitude of the spike")
             minHeightTextEdit = QtGui.QLineEdit("30")
             minHeightUnitLabel = QtGui.QLabel("pA")
-            
+
             maxHeightLabel = QtGui.QLabel("Min Height")
             maxHeightLabel.setToolTip("Minimum amplitude of the spike")
             maxHeightTextEdit = QtGui.QLineEdit("300")
             maxHeightUnitLabel = QtGui.QLabel("pA")
-            
+
             minDistLabel = QtGui.QLabel("Min Dist")
             minDistLabel.setToolTip("Minimum distance between detected spikes")
             minDistTextEdit = QtGui.QLineEdit("10")
             minDistUnitLabel = QtGui.QLabel("ms")
-            
+
             basefiltLabel = QtGui.QLabel("Filter Window")
             basefiltLabel.setToolTip("median filter preprocessing window")
             basefiltTextEdit = QtGui.QLineEdit("20")
             basefiltUnitLabel = QtGui.QLabel("ms")
-            
-            self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit, (3,2): minHeightUnitLabel, 
+
+            self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit, (3,2): minHeightUnitLabel,
                                    (4,0): maxHeightLabel, (4,1): maxHeightTextEdit, (4,2): maxHeightUnitLabel,
                                    (5,0):minDistLabel, (5,1): minDistTextEdit, (5,2): minDistUnitLabel,
                                    (6,0):basefiltLabel, (6,1): basefiltTextEdit, (6,2): basefiltUnitLabel
@@ -872,7 +924,7 @@ class SideDockPanel(QtGui.QWidget):
             msd = float(self.EDsettingTable[(5,1)].text())
             basefilt = float(self.EDsettingTable[(6,1)].text())
             self.detectCellAttachedSpikes(detectReportBox, drawEvents, msh, msd, basefilt, maxsh)
-            
+
 
     def clearEvents(self, checked, eventTypes=None, which_layout=None):
         """Wraps removeEvent. Clear all event types if not specified event
@@ -952,11 +1004,11 @@ class SideDockPanel(QtGui.QWidget):
                 self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
 
         detectReportBox.setText(final_label_text[:-1])
-        
+
     def detectCellAttachedSpikes(self, detectReportBox, drawEvent=False, msh=30, msd=10, basefilt=20, maxsh=300):
         if not self.friend.index or len(self.friend.index)>1:
             detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
-            
+
         zData = self.friend.episodes['Data'][self.friend.index[-1]]
         ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
@@ -981,7 +1033,11 @@ class SideDockPanel(QtGui.QWidget):
 
         detectReportBox.setText(final_label_text[:-1])
 
-    # ------- Other utilities ------------------------------------------------
+    # </editor-fold>
+
+
+    # <editor-fold desc="Other utilities">
+    #------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
         self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed, index=index)
@@ -989,6 +1045,8 @@ class SideDockPanel(QtGui.QWidget):
     def sizeHint(self):
         """Helps with initial dock window size"""
         return QtCore.QSize(self.friend.frameGeometry().width()/4.95, 20)
+
+    # </editor-fold>
 
 # %%
 class ScopeWindow(QtGui.QMainWindow):
@@ -1115,7 +1173,7 @@ class ScopeWindow(QtGui.QMainWindow):
         exportVerticalAction.setStatusTip('Export the selected episodes in arrangement concatenated over time.')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='concatenate'))
         exportMenu.addAction(exportVerticalAction)
-        
+
         # File: Settings
         settingsAction = QtGui.QAction("Settings", self)
         settingsAction.setStatusTip('Configure settings of PySynapse')
@@ -1161,7 +1219,7 @@ class ScopeWindow(QtGui.QMainWindow):
     # ------------- Helper functions ----------------------------------------
     def printme(self, msg='doing stuff'): # for debugging
         print(msg)
-    
+
     def openSettingsWindow(self):
         if self.partner is not None:
             if not hasattr(self.partner, 'settingsWidget'):
@@ -1169,11 +1227,11 @@ class ScopeWindow(QtGui.QMainWindow):
             self.settingsWidget = self.partner.settingsWidget
         else:
             self.settingsWidget = Settings()
-            
+
         if self.settingsWidget.isclosed:
             self.settingsWidget.show()
             self.settingsWidget.isclosed = False
-            
+
     def closeEvent(self, event):
         """Override default behavior when closing the main window"""
         self.isclosed = True
@@ -1186,7 +1244,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self.nullBaseline = np.mean(spk_window(Y, ts, nullRange))
         else: # a single number
             self.nullBaseline = Y[time2ind(nullRange, ts)][0]
-            
+
         return self.nullBaseline
 
     def retranslateUi(self, MainWindow):
@@ -1201,18 +1259,19 @@ class ScopeWindow(QtGui.QMainWindow):
         updateLayout:
         """
         if not isinstance(episodes, dict) or not isinstance(self.episodes, dict):
-            bool_old_episode = False
+            bool_old_episode = False # upon startup
         else:
             bool_old_episode = self.episodes['Name'] == episodes['Name']
 
         # reset the grpahicsview if user not keeping traces from older dataset
         if not self.keepOther and not bool_old_episode:
             self.getDataViewRange() # Get the data range before clearing
-            self.graphicsView.clear()
+            self.graphicsView.clear() # TODO: This changes the data view range from previous cell
             self._usedColors = []
             self._loaded_array = []
             self.index = []
-        
+            print('reset view')
+
         index_insert = list(set(index) - set(self.index))
         index_remove = list(set(self.index) - set(index))
 
@@ -1228,6 +1287,10 @@ class ScopeWindow(QtGui.QMainWindow):
         self.index += index_insert
         for a in index_remove:
             self.index.remove(a)
+            
+        # Remove episodes
+        for j in index_remove:
+            self.removeEpisode(info=(self.episodes['Name'], self.episodes['Epi'][j]))
 
         # Insert new episodes
         for i in index_insert:
@@ -1237,10 +1300,6 @@ class ScopeWindow(QtGui.QMainWindow):
             # Draw the episode
             self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i], i))
 
-        # Remove episodes
-        for j in index_remove:
-            self.removeEpisode(info=(self.episodes['Name'], self.episodes['Epi'][j]))
-
         # print(self.index)
         if not bool_old_episode:
             self.reissueArtists() # artists have been cleared. Add it back
@@ -1249,14 +1308,15 @@ class ScopeWindow(QtGui.QMainWindow):
             self.setDataViewRange(viewMode='keep')
 
         # Update the companion, Toolbox: Layout
-        if self.dockPanel.accWidget.widgetAt(1).objectName() == 'Banner':
+        layout_index = self.dockPanel.accWidget.indexOfTitle('Channels')
+        if self.dockPanel.accWidget.widgetAt(layout_index).objectName() == 'Banner':
             # Replace the banner widget with real widget
             layoutWidget = self.dockPanel.layoutWidget()
-            self.dockPanel.replaceWidget(widget=layoutWidget, index=1)
-        
+            self.dockPanel.replaceWidget(widget=layoutWidget, index=layout_index)
+
         if not bool_old_episode:
             self.dockPanel.updateLayoutComboBox()
-            
+
         # print(self.layout)
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
@@ -1303,16 +1363,15 @@ class ScopeWindow(QtGui.QMainWindow):
             p1 = self.graphicsView.getItem(row=l[2], col=l[3])
             pname = info[0]+'.'+info[1]+'.'+l[0]+'.'+l[1]
 
-            remove_index = []
             for k, a in enumerate(p1.listDataItems()):
                 if a.name() == pname: # matching
                     p1.removeItem(a)
-                    remove_index.append(k)
-
-        # recover the colors
-        if remove_index and self.colorfy:
-            for r in remove_index:
-                del self._usedColors[r]
+                    if self.colorfy:
+                        current_pen = a.opts['pen']
+                        if isinstance(current_pen, str):
+                            self._usedColors.remove(current_pen)
+                        else: # Assume it is PyQt4.QtGui.QPen object
+                            self._usedColors.remove(current_pen.color().name())
 
     def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom'):
         p = None
@@ -1409,9 +1468,9 @@ class ScopeWindow(QtGui.QMainWindow):
         for n, i in enumerate(self.index):
             zData = self.episodes['Data'][i]
             self.drawEpisode(zData, info=(self.episodes['Name'], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
-        
+
         # TODO: The new plot will likely change the view
-            
+
         # Set the proper view range
         self.setDataViewRange('keep')
         # Redraw the artists
@@ -1463,7 +1522,8 @@ class ScopeWindow(QtGui.QMainWindow):
                     pen = colors[k%len(colors)]
                     if pen not in self._usedColors:
                         self._usedColors.append(pen)
-                pen = pg.mkPen(pen)
+                #a._pen = pen
+                #pen = pg.mkPen(pen)
                 a.setPen(pen)
 
     def toggleKeepPrev(self, checked):
@@ -1483,7 +1543,7 @@ class ScopeWindow(QtGui.QMainWindow):
         self.viewMode = viewMode
         if not self.viewRange.keys():
             self.viewMode = 'default'
-                
+
         default_yRange_dict = {'Voltage':(-100, 40), 'Current': (-500, 500),
                           'Stimulus':(-500, 500)}
 
@@ -1491,12 +1551,17 @@ class ScopeWindow(QtGui.QMainWindow):
         for n, l in enumerate(self.layout):
             # get viewbox
             p = self.graphicsView.getItem(row=l[2], col=l[3])
+            if l[2]>0 or l[3]>0:
+                p.setXLink(self.graphicsView.getItem(row=0, col=0))
             #print(a.tickValues())
             if self.viewMode == 'default':
-                # Make everything visible first
+                # Make everything visible first, may help pervent failure 
+                # if the subsequent range calculation fails
                 p.autoRange()
                 yRange = default_yRange_dict.get(l[0])
                 p.setYRange(yRange[0], yRange[1], padding=0)
+                maxX = max([max(s.xData) for s in p.dataItems])
+                p.setXRange(0, maxX, padding=0)
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
                 if n == len(self.layout)-1: # update only after iterating through
@@ -1508,8 +1573,7 @@ class ScopeWindow(QtGui.QMainWindow):
             elif self.viewMode == 'keep':
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
-                # no chnage in viewRange
-                return
+                # no chnage in viewRange, but still link the views
             elif self.viewMode == 'reset':
                 if p.viewRange() != self.viewRange[l[0], l[1]]:
                     X, Y = self.viewRange[l[0], l[1]]
@@ -1750,7 +1814,7 @@ class ScopeWindow(QtGui.QMainWindow):
                     y = float(getattr(zData, l[0])[l[1]][ind])
                     if self.isnull: # remove baseline
                         y = y - self.nullBaseline # should have been calculated already
-                    
+
                     y = '{:0.1f}'.format(y)
             except:
                 return None
@@ -1796,14 +1860,14 @@ class ScopeWindow(QtGui.QMainWindow):
             channelstr = " ".join(channelstr)
             self.episodes['Notes'][i] = notestr.format(self.episodes['Dirs'][i], channelstr,
                                                        self.episodes['Data'][i].Protocol.WCtimeStr)
-        
+
         # Get the options before saving the figure
         options = readini(self.iniPath)
         # figure out the figure size
         nchannels = len(viewRange.keys())
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
-            PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, 
+            PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
                        dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
                        setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
@@ -1811,19 +1875,20 @@ class ScopeWindow(QtGui.QMainWindow):
         elif arrangement == 'concatenate':
             PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
-                                 adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'], 
+                                 adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'],
                                  setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                                  stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement in ['vertical', 'horizontal', 'channels x episodes', 'episodes x channels']:
             PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
-                                 nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'], 
+                                 nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'],
                                  scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                                  stimReflectCurrent=options['stimReflectCurrent'])
         else:
             raise(ValueError('Unrecognized arragement:{}'.format(arragement)))
 
 run_example = False
+
 
 if __name__ == '__main__' and not run_example:
 #    episodes = {'Duration': [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 90000, 90000, 90000, 50000, 50000],
@@ -1842,32 +1907,32 @@ if __name__ == '__main__' and not run_example:
 #    episodes = {'Duration': [50000], 'Name': 'Neocortex B.13Oct15', 'Drug Time': ['10:29'], 'Drug Level': [3], 'Comment':[''],
 #                'Dirs':['D:/Data/Traces/2015/10.October/Data 13 Oct 2015/Neocortex B.13Oct15.S1.E24.dat'],'Time':['1:04:31'], 'Epi':['S1.E24'], 'Sampling Rate': [0.1]}
 #    index = [0]
-    
-#    episodes = {'Drug Name': ['', '', ''], 'Epi': ['S1.E3', 'S1.E7', 'S1.E13'], 
-#    'Duration': [4000, 4000, 4000], 'Drug Level': [0, 0, 0], 'Time': ['31.7 sec', '2:03', '2:54'], 
-#    'Name': 'Neocortex I.03Aug16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1, 0.1, 0.1], 
-#    'Comment': ['DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75'], 
+
+#    episodes = {'Drug Name': ['', '', ''], 'Epi': ['S1.E3', 'S1.E7', 'S1.E13'],
+#    'Duration': [4000, 4000, 4000], 'Drug Level': [0, 0, 0], 'Time': ['31.7 sec', '2:03', '2:54'],
+#    'Name': 'Neocortex I.03Aug16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1, 0.1, 0.1],
+#    'Comment': ['DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75', 'DAC0: PulseA -50 PulseB 75'],
 #    'Dirs': ['D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E3.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E7.dat', 'D:/Data/Traces/2016/08.August/Data 3 Aug 2016/Neocortex I.03Aug16.S1.E13.dat']}
-#    
+#
 #    index = [0,1,2]
-    
-#    episodes = {'Drug Name': [''], 'Epi': ['S1.E4'], 
-#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
-#    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1], 
-#    'Comment': ['DAC0: PulseA -50 PulseB 50'], 
+
+#    episodes = {'Drug Name': [''], 'Epi': ['S1.E4'],
+#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'],
+#    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['31.7 sec', '2:03', '2:54'], 'Sampling Rate': [0.1],
+#    'Comment': ['DAC0: PulseA -50 PulseB 50'],
 #    'Dirs': ['D:/Data/Traces/2016/06.June/Data 9 Jun 2016/Neocortex E.09Jun16.S1.E4.dat']}
 #    index = [0]
-#    episodes = {'Drug Name': [''], 'Epi': ['S1.E13'], 
-#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'], 
-#    'Name': 'Neocortex G.07Jun16', 'Drug Time': ['31.7 sec'], 'Sampling Rate': [0.1], 
-#    'Comment': ['DAC0: Step -40 (1000 to 5000 ms) PulseA -10'], 
+#    episodes = {'Drug Name': [''], 'Epi': ['S1.E13'],
+#    'Duration': [10000], 'Drug Level': [0], 'Time': ['31.7 sec'],
+#    'Name': 'Neocortex G.07Jun16', 'Drug Time': ['31.7 sec'], 'Sampling Rate': [0.1],
+#    'Comment': ['DAC0: Step -40 (1000 to 5000 ms) PulseA -10'],
 #    'Dirs': ['D:/Data/Traces/2016/06.June/Data 7 Jun 2016/Neocortex G.07Jun16.S1.E13.dat']}
 #    index = [0]
-    
-    episodes = {'Drug Name': [''], 'Epi': ['S1.E33', 'S1.E34', 'S1.E35'], 
-    'Duration': [40000,40000,40000], 'Drug Level': [1,1,1], 'Time': ['25:06','25:54','26:43'], 
-    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1], 
-    'Comment': ['TTL3: SIU train','',''], 
+
+    episodes = {'Drug Name': [''], 'Epi': ['S1.E33', 'S1.E34', 'S1.E35'],
+    'Duration': [40000,40000,40000], 'Drug Level': [1,1,1], 'Time': ['25:06','25:54','26:43'],
+    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1],
+    'Comment': ['TTL3: SIU train','',''],
     'Dirs': ['D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E33.dat',
              'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E34.dat',
              'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
