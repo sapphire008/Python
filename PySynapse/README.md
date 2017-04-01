@@ -6,17 +6,20 @@ Script structure
   - `app/Scope.py`: window for trace display
   - `app/AccordionWidget.py`: a class for designing side dock panel toolbox
   - `app/Mirage.py`: window for image display
+  - `app/Annotation.py`: additional GUI interface for creating annotation objects
 
 * `util`: utility functions
   - `util/ImportData`: data reading utilities
+  - `util/ExportData`: export figures
   - `util/Database`: database function (To be implemented)
 
-* `resources`: assets, icons, fonts, etc
+* `resources`: icons, fonts, etc.
 
 **Planned features of Scope window**
 * ~~Curve fitting~~
-* Extracellular spike detection
+* ~~Extracellular spike detection~~
 * ~~Trace subtraction, average, ... arithmetic manipulation~~
+* Annotation for on display and figure export
 
 **Planned features of Mirage window**
 * Display a stack as movie
@@ -46,7 +49,12 @@ Script structure
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - ~~Average trace display~~
 
-## Update OCt 31, 2016
+## Update Apr 1, 2017
+* Started on annotation widget.
+    - Able to add and delete the annotation items now.
+    - Still need to implement the actual drawing on PyQtGraph window and export utilities in matplotlib
+
+## Update Oct 31, 2016
 * Added detection of cell attached spikes
 
 ## Update Sep 29, 2016
