@@ -75,7 +75,7 @@ class SideDockPanel(QtGui.QWidget):
         self.parent = parent
         self.friend = friend
         self.detectedEvents = []
-        self.annotationArtists = []
+        self.annotationArtists = [] # list of IDs
         self.setupUi()
 
     def setupUi(self):
@@ -402,46 +402,110 @@ class SideDockPanel(QtGui.QWidget):
         return widgetFrame
 
     def setAnnotationTable(self):
-        # (Re)initialize the annotation table
-        self.annotation_table = QtGui.QTableWidget(0, 3)
+        """"(Re)initialize the annotation table"""
+        self.annotation_table = QtGui.QTableWidget(0, 2)
         self.annotation_table.verticalHeader().setVisible(False)
-        self.annotation_table.horizontalHeader().setVisible(False)
+        # self.annotation_table.horizontalHeader().setVisible(False)
+        self.annotation_table.setHorizontalHeaderLabels(['Artist', 'Notes'])
         self.annotation_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
-        # Add all annotation artists
-        for aa in self.annotationArtists:
-            self.addAnnotationRow(aa)
+        self.annotation_table.horizontalHeader().highlightSections()
+        self.annotation_table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        # Change style sheet a little for Windows 10
+        if sys.getwindowsversion().major == 10: # fix the problem that in Windows 10, bottom border of header is not displayed
+            self.annotation_table.setStyleSheet("""
+                QHeaderView::section{
+                border-top:0px solid #D8D8D8;
+                border-left:0px solid #D8D8D8;
+                border-right:1px solid #D8D8D8;
+                border-bottom: 1px solid #D8D8D8;
+                background-color:white;
+                padding:4px;
+                font: bold 10px;}
+                QTableCornerButton::section{
+                border-top:0px solid #D8D8D8;
+                border-left:0px solid #D8D8D8;
+                border-right:1px solid #D8D8D8;
+                border-bottom: 1px solid #D8D8D8;
+                background-color:white;}""")
+        else:
+            self.annotation_table.setStyleSheet("""QHeaderView::section{font: bold 10px;}""")
+
+        self.annotation_table.itemChanged.connect(self.onArtistChecked)
 
     def addAnnotationRow(self):
         """Add annotation into teh table"""
         # Pop up the annotation settings window to get the properties of the annotation settings
-        annotationSettings = AnnotationSetting()
+        annSet = AnnotationSetting()
         # annotationSettings.show()
-        if annotationSettings.exec_(): # Need to wait annotationSettings has been completed
-            if annotationSettings.artists.keys(): # if properties are properly specified, draw the artist
-                return
+        def append_num_to_repeated_str(l, s, recycle=False):
+            # rep = sum(1 if s in a else 0 for a in l) # count
+            rep = [a for a in l if s in a] # gather
+            nums = [int(r[len(s):]) for r in rep]
+
+            # Extract the numbers appended
+            if not recycle:
+                if isinstance(nums, list) and not nums:
+                    nums = [0]
+                s = s + str(max(nums)+1)
+            else: # smallest avaiable number starting from 1
+                if isinstance(nums, list) and not nums:
+                    s = s + '1'
+                else:
+                    s = s + str(min(list(set(range(1, max(nums)+1)) - set(nums))))
+
+            l = l + [s]
+
+            return l, s
+
+        if annSet.exec_(): # Need to wait annotationSettings has been completed
+            if annSet.artists.keys(): # if properties are properly specified, draw the artist
+                # Set Artist table item
+                self.annotationArtists, artist_name = append_num_to_repeated_str(self.annotationArtists, annSet.type)
+                AT_item = QtGui.QTableWidgetItem(artist_name)
+                AT_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable) # can be checked | can be selected
+                AT_item.setCheckState(QtCore.Qt.Checked) # newly added items are always checked
                 # Add to the table
-                ann_table_item = QtGui.QTableWidgetItem(annotationSettings.type)
-                #ann_table_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable) # can be checked | can be selected
-                #ann_table_item.setCheckState(QtCore.Qt.Checked) # newly added items are always checked
-                row = self.layout_table.rowCount()
-                print(row)
-                print(annotationSettings.artists)
-                # self.annotation_table.insertRow(row)
-                #set_trace()
-                self.annotation_table.setItem(0, 0, ann_table_item)
+                row = self.annotation_table.rowCount()
+                self.annotation_table.blockSignals(True)
+                self.annotation_table.insertRow(row)
+                self.annotation_table.setItem(row, 0, AT_item)
+                self.annotation_table.blockSignals(False)
+                # Get artist property
+                artistProperty = annSet.artists
+                artistProperty['type'] = annSet.type
+                artistProperty['position'] = row
+                artistProperty['name'] = artist_name
+                AT_item._artistProp = artistProperty
                 # Draw the artist
-                artistProperty = annotationSettings.artists
-                artistProperty['type'] = annotationSettings.type
                 self.drawAnnotationArtist(artist=artistProperty)
 
     def removeAnnotationRow(self):
-        row = self.annotation_table.currentRow()
-        if not row: # if no currently selected row, remove the last row / annotation item
-            row = self.annotation_table.rowCount()-1
-        if row < 1:
+        numRows = self.annotation_table.rowCount()
+        if numRows < 1:
             return
+        row = self.annotation_table.currentRow()
+        # print(row)
+        if row is None or row < 0: # if no currently selected row, remove the last row / annotation item
+            row = numRows - 1
+
+        item = self.annotation_table.item(row, 0)
+        # print(self.annotationArtists)
+        # print('removing: %s'%item._artistProp['name'])
+        self.annotationArtists.remove(item._artistProp['name']) # something would be wrong if there is no artist of this name to remove
+        # print(self.annotationArtists)
+        self.eraseAnnotationArtist(artist=item._artistProp)
         self.annotation_table.removeRow(row)
-        self.eraseAnnotationArtist(artist=[self.annotationArtists[row]])
+
+    def onArtistChecked(self, item=None):
+        """Respond if click state was changed for pre-existing artists"""
+        if item.column() > 0:
+            # print('editing comments')
+            return
+
+        if item.checkState() == 0: # remove the artist if it is present
+            self.eraseAnnotationArtist(artist=item._artistProp)
+        else: # assume checkstate > 0, likely 2, redraw the artist
+            self.drawAnnotationArtist(artist=item._artistProp)
 
     def drawAnnotationArtist(self, artist=None):
         print('draw annotation artist')

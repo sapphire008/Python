@@ -32,8 +32,6 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-
-
 class AnnotationSetting(QtGui.QDialog):
     def __init__(self, parent=None):
         super(AnnotationSetting, self).__init__(parent)
@@ -87,13 +85,13 @@ class AnnotationSetting(QtGui.QDialog):
 
         # Settings for a box
         x0_label = QtGui.QLabel('X0')
-        x0_text = QtGui.QLineEdit('') # default empty
+        x0_text = QtGui.QLineEdit('0')
         y0_label = QtGui.QLabel('Y0')
-        y0_text = QtGui.QLineEdit('')
+        y0_text = QtGui.QLineEdit('0')
         w_label = QtGui.QLabel('Width')
-        w_text = QtGui.QLineEdit('')
+        w_text = QtGui.QLineEdit('10')
         h_label = QtGui.QLabel('Height')
-        h_text = QtGui.QLineEdit('')
+        h_text = QtGui.QLineEdit('10')
         line_checkbox = QtGui.QCheckBox('Line')
         line_checkbox.setCheckState(2)
         lw_label = QtGui.QLabel('Line Width')

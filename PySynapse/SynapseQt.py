@@ -480,12 +480,13 @@ class TableviewDelegate(QtGui.QItemDelegate):
 
 # %%
 class Synapse_MainWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None, startpath=None):
+    def __init__(self, parent=None, startpath=None, hideScopeToolbox=True):
         super(Synapse_MainWindow, self).__init__(parent)
         # Set up the GUI window
         self.setupUi(self)
         # Set the treeview model for directory
         self.setDataBrowserTreeView(startpath=startpath)
+        self.hideScopeToolbox = hideScopeToolbox
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -536,7 +537,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.horizontalHeader().setStretchLastSection(True)
         # self.tableview.setShowGrid(False)
         self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")
-
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
 
@@ -715,7 +715,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Call scope window
         if not hasattr(self, 'sw'): # Start up a new window
             # self.sw = ScopeWindow(parent=self)
-            self.sw = ScopeWindow(partner=self) # new window
+            self.sw = ScopeWindow(partner=self, hideDock=self.hideScopeToolbox) # new window
         if self.sw.isclosed:
             self.sw.show()
             self.sw.isclosed = False
@@ -727,7 +727,7 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     # w = Synapse_MainWindow()
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/')
-    w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/08.August/Data 3 Aug 2016')
+    w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/08.August/Data 3 Aug 2016', hideScopeToolbox=False)
     w.show()
     # Connect upon closin
     # app.aboutToQuit.connect(restartpyshell)
