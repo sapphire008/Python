@@ -523,6 +523,7 @@ class SideDockPanel(QtGui.QWidget):
         # self.layout_comboBox = {'stream':scomb, 'channel':ccomb}
 
     def updateLayoutComboBox(self):
+        """Called when changing a different dataset"""
         all_layouts = self.friend.getAvailableStreams(warning=False)
         all_streams = sorted(set([l[0] for l in all_layouts]))
         all_streams = [s for s in ['Voltage', 'Current','Stimulus'] if s in all_streams]
@@ -546,7 +547,6 @@ class SideDockPanel(QtGui.QWidget):
 
             if current_channel in all_channels:
                 self.layout_table.cellWidget(r, 1).setCurrentIndex(all_channels.index(current_channel))
-
 
     def removeLayoutRow(self):
         row = self.layout_table.rowCount()-1
@@ -1321,15 +1321,17 @@ class ScopeWindow(QtGui.QMainWindow):
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
         """Draw plot from 1 zData"""
-        # Set up pen color
-        if self.colorfy:
-            availableColors = list(colors)
-            for c in self._usedColors:
-                availableColors.remove(c)
-            pen = availableColors[0]
-            self._usedColors.append(pen)
-        elif pen is None:
-            pen = self.theme['pen']
+        # Set up pen color if not already specified.
+        # Specified pen will not go to _usedColors list
+        if pen is None: # go on automatic mode
+            if self.colorfy:
+                availableColors = list(colors)
+                for c in self._usedColors:
+                    availableColors.remove(c)
+                pen = availableColors[0]
+                self._usedColors.append(pen)
+            else: # monocolor
+                pen = self.theme['pen']
 
         layout = self.layout if not layout else layout
         # Loop through all the subplots
@@ -1358,20 +1360,23 @@ class ScopeWindow(QtGui.QMainWindow):
         if not info:
             return
 
-        for l in self.layout:
+        for j, l in enumerate(self.layout):
             # get viewbox
             p1 = self.graphicsView.getItem(row=l[2], col=l[3])
             pname = info[0]+'.'+info[1]+'.'+l[0]+'.'+l[1]
 
             for k, a in enumerate(p1.listDataItems()):
                 if a.name() == pname: # matching
-                    p1.removeItem(a)
-                    if self.colorfy:
+                    # Remove color first from _usedColor list
+                    if self.colorfy and j==0:
                         current_pen = a.opts['pen']
                         if isinstance(current_pen, str):
                             self._usedColors.remove(current_pen)
-                        else: # Assume it is PyQt4.QtGui.QPen object
+                        else: # Assume it is PyQt4.QtGui.QPen
                             self._usedColors.remove(current_pen.color().name())
+                    # Remove the actual trace
+                    p1.removeItem(a)
+
 
     def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom'):
         p = None
@@ -1499,6 +1504,7 @@ class ScopeWindow(QtGui.QMainWindow):
             return
         if old_layout == new_layout:
             return
+
         self.removeSubplot(old_layout, exact_match=False)
         self.addSubplot(new_layout, check_duplicates=False)
 
