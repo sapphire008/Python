@@ -107,9 +107,11 @@ class Settings(QtGui.QWidget):
         # Set up the GUI
         self.setLayout(QtGui.QVBoxLayout())
         self.tabWidget = QtGui.QTabWidget()
-        
+
+        # Adding tabs
         self.tabWidget.addTab(self.exportTraceTabUI(),"Export")        
-        
+        self.tabWidget.addTab(self.viewTabUI(), 'View')
+
         # buttons for saving the settings and exiting the settings window
         OK_button = QtGui.QPushButton('OK')
         OK_button.setDefault(True)
@@ -130,12 +132,13 @@ class Settings(QtGui.QWidget):
     #--------------- Set up the GUI ----------------------------------------------
     def exportTraceTabUI(self):
         widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setLayout(QtGui.QVBoxLayout())
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("ExportTraceWidgetFrame"))
-                
+
+        # %% Size
         fig_size_W_label = QtGui.QLabel('Width (inches)')
         fig_size_W_text = QtGui.QLineEdit(str(self.options['figSizeW']))
         self.settingDict['figSizeW'] = fig_size_W_text
@@ -151,7 +154,17 @@ class Settings(QtGui.QWidget):
         fig_size_H_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes')
         fig_size_H_checkBox.setCheckState(2 if self.options['figSizeHMulN'] else 0)
         self.settingDict['figSizeHMulN'] = fig_size_H_checkBox
-        
+
+
+        size_groupBox = QtGui.QGroupBox("Size")
+        size_groupBox.setLayout(QtGui.QGridLayout())
+        size_groupBox.layout().addWidget(fig_size_W_label, 0, 0, 1, 1)
+        size_groupBox.layout().addWidget(fig_size_W_text, 0, 1, 1, 1)
+        size_groupBox.layout().addWidget(fig_size_W_checkBox, 0, 2, 1, 2)
+        size_groupBox.layout().addWidget(fig_size_H_label, 1, 0, 1, 1)
+        size_groupBox.layout().addWidget(fig_size_H_text, 1, 1, 1, 1)
+        size_groupBox.layout().addWidget(fig_size_H_checkBox, 1, 2, 1, 2)
+
         # %% Concatenated
         hSpace_label = QtGui.QLabel('Horizontal Space')
         hSpace_label.setToolTip('Only relevant when concatenating series of traces')
@@ -259,19 +272,67 @@ class Settings(QtGui.QWidget):
         output_groupBox.layout().addWidget(saveDir_text, 4, 1, 1, 3)
             
         # %% Organize widgets
-        widgetFrame.layout().addWidget(fig_size_W_label, 0, 0, 1, 1)
-        widgetFrame.layout().addWidget(fig_size_W_text, 0, 1, 1, 1)
-        widgetFrame.layout().addWidget(fig_size_W_checkBox, 0, 2, 1, 2)
-        widgetFrame.layout().addWidget(fig_size_H_label, 1, 0, 1, 1)
-        widgetFrame.layout().addWidget(fig_size_H_text, 1, 1, 1, 1)
-        widgetFrame.layout().addWidget(fig_size_H_checkBox, 1, 2, 1, 2)
-        
-        widgetFrame.layout().addWidget(concat_groupBox, 2, 0, 1, 3)
-        widgetFrame.layout().addWidget(gridSpec_groupBox, 3, 0, 2, 3)
-        widgetFrame.layout().addWidget(output_groupBox, 5,0, 4, 4)
+
+        widgetFrame.layout().addWidget(size_groupBox)
+        widgetFrame.layout().addWidget(concat_groupBox)
+        widgetFrame.layout().addWidget(gridSpec_groupBox)
+        widgetFrame.layout().addWidget(output_groupBox)
+        widgetFrame.layout().addStretch(10)
         
         return widgetFrame
-        
+
+    def viewTabUI(self):
+        widgetFrame = QtGui.QFrame()
+        widgetFrame.setLayout(QtGui.QVBoxLayout())
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        widgetFrame.setSizePolicy(sizePolicy)
+        widgetFrame.setObjectName(_fromUtf8("ViewWidgetFrame"))
+
+        # Default View Range
+        stream_label = QtGui.QLabel("Stream")
+        min_label = QtGui.QLabel("Min")
+        max_label = QtGui.QLabel("Max")
+        volt_label = QtGui.QLabel("Voltage")
+        volt_min_text = QtGui.QLineEdit(str(self.options['voltRangeMin']))
+        volt_max_text = QtGui.QLineEdit(str(self.options['voltRangeMax']))
+        cur_label = QtGui.QLabel("Current")
+        cur_min_text = QtGui.QLineEdit(str(self.options['curRangeMin']))
+        cur_max_text = QtGui.QLineEdit(str(self.options['curRangeMax']))
+        stim_label = QtGui.QLabel("Stimulus")
+        stim_min_text = QtGui.QLineEdit(str(self.options['stimRangeMin']))
+        stim_max_text = QtGui.QLineEdit(str(self.options['stimRangeMax']))
+
+        # Put objects into setting dictionary
+        self.settingDict['voltRangeMin'] = volt_min_text
+        self.settingDict['voltRangeMax'] = volt_max_text
+        self.settingDict['curRangeMin'] = cur_min_text
+        self.settingDict['curRangeMax'] = cur_max_text
+        self.settingDict['stimRangeMin'] = stim_min_text
+        self.settingDict['stimRangeMax'] = stim_max_text
+
+        # Add to the groupbox
+        view_groupBox = QtGui.QGroupBox('Default Range')
+        view_groupBox.setLayout(QtGui.QGridLayout())
+        view_groupBox.layout().addWidget(stream_label, 0, 0, 1, 1)
+        view_groupBox.layout().addWidget(min_label, 0, 1, 1, 1)
+        view_groupBox.layout().addWidget(max_label, 0, 2, 1, 1)
+        view_groupBox.layout().addWidget(volt_label, 1, 0, 1, 1)
+        view_groupBox.layout().addWidget(volt_min_text, 1, 1, 1, 1)
+        view_groupBox.layout().addWidget(volt_max_text, 1, 2, 1, 1)
+        view_groupBox.layout().addWidget(cur_label, 2, 0, 1, 1)
+        view_groupBox.layout().addWidget(cur_min_text, 2, 1, 1, 1)
+        view_groupBox.layout().addWidget(cur_max_text, 2, 2, 1, 1)
+        view_groupBox.layout().addWidget(stim_label, 3, 0, 1, 1)
+        view_groupBox.layout().addWidget(stim_min_text, 3, 1, 1, 1)
+        view_groupBox.layout().addWidget(stim_max_text, 3, 2, 1, 1)
+
+        # Oragnize the widget
+        widgetFrame.layout().addWidget(view_groupBox)
+        widgetFrame.layout().addStretch(10)
+
+        return widgetFrame
+
     def updateSettings(self, closeWidget=False):
         for k, v in self.settingDict.items():
             if isinstance(v, QtGui.QComboBox):

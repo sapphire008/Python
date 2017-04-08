@@ -68,6 +68,8 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
             itemDict={'title':[ax.title], 'xlab':[ax.xaxis.label],
                     'ylab':[ax.yaxis.label], 'xtick':ax.get_xticklabels(),
                     'ytick':ax.get_yticklabels(),
+                    'xminortick': ax.get_xminorticklabels(),
+                    'yminortick': ax.get_yminorticklabels(),
                     'texts':ax.texts if isinstance(ax.texts,(np.ndarray,list))
                                          else [ax.texts],
                     'legend': [] if not ax.legend_
@@ -111,8 +113,9 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
             # set font for each object
             for n, item in enumerate(itemList):
                 if isinstance(fontsize, dict):
-                    fontprop.set_size(fontsize[keyList[n]])
-                elif n <1: # set the properties only once
+                    if keyList[n] in fontsize.keys():
+                        fontprop.set_size(fontsize[keyList[n]])
+                elif n < 1: # set the properties only once
                     fontprop.set_size(fontsize)
                 item.set_fontproperties(fontprop) # change font for all items
 
@@ -384,7 +387,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
     
     # Group all the episode annotation text
     if annotation.lower() != 'none':
-        box = VPacker(children=textbox, align="left",pad=0, sep=2)
+        box = VPacker(children=textbox, align="left", pad=0, sep=2)
         annotationbox = AnchoredOffsetbox(loc=3, child=box, frameon=False, bbox_to_anchor=[1, 1.1])
         ax[-1].add_artist(annotationbox)
         scalebar = [annotationbox]
@@ -699,10 +702,6 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300
         svg2eps_ai(source_file=saveDir, target_file=saveDir.replace('.svg', '.eps'))
 
     return(ax)
-    
-def embedAnnotation(ax, annotation):
-    """Add additional annotation on the exported traces"""
-    return
     
 
 def data2csv(data):

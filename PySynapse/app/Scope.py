@@ -21,7 +21,7 @@ import collections
 from pdb import set_trace
 
 # Global variables
-__version__ = "Scope Window 0.3"
+__version__ = "Scope Window 0.4"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
 old = True # load old data format
@@ -85,7 +85,7 @@ class SideDockPanel(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
-        self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=True)
+        self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=False)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
@@ -287,7 +287,7 @@ class SideDockPanel(QtGui.QWidget):
         # parse each formula
         for f0 in formula:
             if ":" in f0: # has range. Assume each formula hsa only 1 range
-                set_trace()
+                # set_trace()
                 f, rng = f0.split(":")
                 f = parseTilda(f)
                 rng = str2num(rng)
@@ -458,7 +458,7 @@ class SideDockPanel(QtGui.QWidget):
             return l, s
 
         if annSet.exec_(): # Need to wait annotationSettings has been completed
-            if annSet.artists.keys(): # if properties are properly specified, draw the artist
+            if annSet.artist.keys(): # if properties are properly specified, draw the artist
                 # Set Artist table item
                 self.annotationArtists, artist_name = append_num_to_repeated_str(self.annotationArtists, annSet.type)
                 AT_item = QtGui.QTableWidgetItem(artist_name)
@@ -471,7 +471,7 @@ class SideDockPanel(QtGui.QWidget):
                 self.annotation_table.setItem(row, 0, AT_item)
                 self.annotation_table.blockSignals(False)
                 # Get artist property
-                artistProperty = annSet.artists
+                artistProperty = annSet.artist
                 artistProperty['type'] = annSet.type
                 artistProperty['position'] = row
                 artistProperty['name'] = artist_name
@@ -507,21 +507,50 @@ class SideDockPanel(QtGui.QWidget):
         else: # assume checkstate > 0, likely 2, redraw the artist
             self.drawAnnotationArtist(artist=item._artistProp)
 
-    def drawAnnotationArtist(self, artist=None):
+    def drawAnnotationArtist(self, artist=None, which_layout=None):
         print('draw annotation artist')
-        #print(artist)
+        if which_layout is None:
+            which_layout = self.friend.layout[0]
+        if artist['type'] == 'box':
+            self.friend.drawBox(artist=artist, which_layout=which_layout)
+        elif artist['type'] == 'ttl':
+            # Get additional information about TTL from data: a list of OrderedDict
+            artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict
+            # set_trace()
         return
 
-    def eraseAnnotationArtist(self, artist=None):
-        print('erased an artist')
-        return
-
-    def clearAnnotationArtists(self):
+    def eraseAnnotationArtist(self, artist=None, which_layout=None):
+        self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='annotation')
+        # print('erased an artist')
         return
 
     def editAnnotationArtist(self):
-        # Redraw a modified artist
+        """ Redraw a modified artist"""
+        numRows = self.annotation_table.rowCount()
+        if numRows < 1:
+            return
+        row =self.annotation_table.currentRow()
+        if row is None or row < 0: # if no currently selected row, edit the last row
+            row = numRows - 1
+        # Get the item
+        item = self.annotation_table.item(row, 0)
+        # Prompt for new information
+        annSet = AnnotationSetting(artist=item._artistProp)
+        if annSet.exec_(): # Need to wait annotationSettings has been completed
+            if annSet.artist.keys(): # Draw new artist
+                # Remove the old artist
+                self.eraseAnnotationArtist(artist=item._artistProp)
+                artistProperty = annSet.artist
+                AT_item = QtGui.QTableWidgetItem(artistProperty['name'])
+                AT_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)  # can be checked | can be selected
+                AT_item.setCheckState(QtCore.Qt.Checked)  # newly added items are always checked
+                AT_item._artistProp = artistProperty
+                self.drawAnnotationArtist(artist=artistProperty)
+
+    def clearAnnotationArtists(self):
+        print("clear all artist")
         return
+
 
     # </editor-fold>
 
@@ -871,7 +900,7 @@ class SideDockPanel(QtGui.QWidget):
         return widgetFrame
 
     def setEDSettingWidgetFrame(self, widgetFrame, detectReportBox, event):
-        # Remove everthing at and below the setting rows: rigid setting
+        # Remove everything at and below the setting rows: rigid setting
         nrows = widgetFrame.layout().rowCount()
         if nrows>2:
             for row in range(2,nrows):
@@ -1334,7 +1363,7 @@ class ScopeWindow(QtGui.QMainWindow):
             self._usedColors = []
             self._loaded_array = []
             self.index = []
-            print('reset view')
+            # print('reset view')
 
         index_insert = list(set(index) - set(self.index))
         index_remove = list(set(self.index) - set(index))
@@ -1443,6 +1472,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
 
     def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom'):
+        """Draw events occurring at specific times"""
         p = None
         for l in self.layout:
             if which_layout[0] in l and which_layout[1] in l:
@@ -1467,9 +1497,9 @@ class ScopeWindow(QtGui.QMainWindow):
         for t in eventTime:
             p.plot(x=[t,t], y=[ypos_0, ypos_1], pen=color, name=pname)
 
-    def removeEvent(self, info=None, which_layout=None):
+    def removeEvent(self, info=None, which_layout=None, event_type='event'):
         """Remove one event type from specified layout (which_layout) or all
-        members of thelayout, if not specifying which_layout"""
+        members of the layout, if not specifying which_layout"""
         if not info:
             return
 
@@ -1480,12 +1510,60 @@ class ScopeWindow(QtGui.QMainWindow):
             p = self.graphicsView.getItem(row=l[2], col=l[3])
             # Remove based on item name
             pname = ".".join(info)+'.'+l[0]+'.'+l[1]
-            for k, a in enumerate(p.listDataItems()):
-                if pname in a.name(): # matching
-                    p.removeItem(a)
+            if event_type == 'event':
+                for k, a in enumerate(p.listDataItems()):
+                    if pname in a.name(): # matching
+                        p.removeItem(a)
+            else:
+                for k, a in enumerate(p.items):
+                    try:
+                        if pname in a.name():
+                            p.removeItem(a)
+                    except:
+                        if pname in a.name:
+                            p.removeItem(a)
 
             if which_layout: # if specified which_layout
                 break
+
+    def drawBox(self, artist, which_layout):
+        p = None
+        for l in self.layout:
+            if which_layout[0] in l and which_layout[1] in l:
+                # get graphics handle
+                p = self.graphicsView.getItem(row=l[2], col=l[3])
+                break
+        if not p:
+            return
+        # Stream + Channel + Name of the box
+        pname = artist['name'] + '.' + l[0] + '.' + l[1]
+        # Add the rectangle ROI
+        box_roi = QtGui.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
+                                          float(artist['width']), float(artist['height']))
+        box_roi.setPen(pg.mkPen(artist['linecolor']))
+        box_roi.setBrush(pg.mkBrush(artist['fillcolor']))
+        box_roi.name = pname
+        p.addItem(box_roi)
+
+    def drawROI(self, artist, which_layout, resizable=True):
+        p = None
+        for l in self.layout:
+            if which_layout[0] in l and which_layout[1] in l:
+                # get graphics handle
+                p = self.graphicsView.getItem(row=l[2], col=l[3])
+                break
+        if not p:
+            return
+        # Name of the box + Stream + Channel
+        pname = artist['name'] + '.' + l[0] + '.' + l[1]
+        # Add the rectangle ROI
+        box_roi = pg.RectROI([artist['x0'], artist['y0']], \
+                             [artist['width'], artist['height']],
+                             movable=True, removable=True,
+                             pen=artist['linecolor'])
+        p.addItem(box_roi, name=pname)
+        if not resizable:         # Make sure it is not resizable
+            [box_roi.removeHandle(h) for h in box_roi.getHandles()]
 
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self, stream, channel, row, col, index=None):
@@ -1614,8 +1692,11 @@ class ScopeWindow(QtGui.QMainWindow):
         if not self.viewRange.keys():
             self.viewMode = 'default'
 
-        default_yRange_dict = {'Voltage':(-100, 40), 'Current': (-500, 500),
-                          'Stimulus':(-500, 500)}
+        # Find out the default yrange options
+        options = readini(self.iniPath) # Read it real time
+        default_yRange_dict = {'Voltage':  (options['voltRangeMin'], options['voltRangeMax']),
+                               'Current':  (options['curRangeMin'],  options['curRangeMax']),
+                               'Stimulus': (options['stimRangeMin'], options['stimRangeMax'])}
 
         # Loop through all the subplots
         for n, l in enumerate(self.layout):
