@@ -2,13 +2,21 @@
 """
 Created: Fri Apr 7 22:12:21 2017
 
-Side dock toolbox for Scope window
+Side dock toolbox for Scope window.
+Methods that call self.friend assumes that the Scope window is already running (instance created)
 
 @author: Edward
 """
 
+# Global variables
+old = True # load old data format
+colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+
 from app.AccordionWidget import AccordionWidget
 from app.Annotations import *
+from util.spk_util import *
+from util.ImportData import NeuroData
+
 
 from pdb import set_trace
 
@@ -30,8 +38,7 @@ except AttributeError:
 class Toolbox(QtGui.QWidget):
     """Collapsible dock widget that displays settings and analysis results for the Scope window
     """
-    # Keep track of position of the widget added
-    _widget_index = 0
+    _widget_index = 0 # Keep track of position of the widget added
     _sizehint = None
     # used for replace formula variables, total allow 52 replacements, from a-zA-Z
     _newvarsList = [chr(i) for i in 65+np.arange(26)]+[chr(i) for i in 97+np.arange(26)]
@@ -210,7 +217,7 @@ class Toolbox(QtGui.QWidget):
                     try:
                         yind = self.friend.episodes['Epi'].index(d)
                     except:
-                        # arithReportBox.setText(g + " is not a valid episode")
+                        # arithReportBox.setText(d + " is not a valid episode")
                         return
 
                     if not self.friend.episodes['Data'][yind]: # if empty
@@ -242,7 +249,7 @@ class Toolbox(QtGui.QWidget):
         def callback(match):
             return next(callback.v)
 
-        # parse formulac
+        # parse formula
         if "{" in formula:
             # separate each formula
             formula = formula.replace("{","").replace("}","")
@@ -480,14 +487,11 @@ class Toolbox(QtGui.QWidget):
             self.friend.drawBox(artist=artist, which_layout=which_layout)
         elif artist['type'] == 'ttl':
             # Get additional information about TTL from data: a list of OrderedDict
-            artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict
+            artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict # TODO
             # set_trace()
-        return
 
     def eraseAnnotationArtist(self, artist=None, which_layout=None):
         self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='annotation')
-        # print('erased an artist')
-        return
 
     def editAnnotationArtist(self):
         """ Redraw a modified artist"""
@@ -514,8 +518,6 @@ class Toolbox(QtGui.QWidget):
 
     def clearAnnotationArtists(self):
         print("clear all artist")
-        return
-
 
     # </editor-fold>
 

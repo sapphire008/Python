@@ -254,31 +254,32 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         scalebarBox = AuxTransformBox(ax.transData)
-        scalebarBox.add_artist(plt.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
-        scalebarBox.add_artist(plt.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth))
-        scalebarBox.add_artist(plt.text(X/2, -Y/20, xlab, va='top', ha='center',color='k'))
-        scalebarBox.add_artist(plt.text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth))
+        scalebarBox.add_artist(matplotlib.text.Text(X/2, -Y/20, xlab, va='top', ha='center',color='k'))
+        scalebarBox.add_artist(matplotlib.text.Text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
         anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=scalebarBox, frameon=False, bbox_to_anchor=bbox_to_anchor)
         ax.add_artist(anchored_box)
+        print('called add trace bar')
         return(anchored_box)
 
-def AddAnnotationObjects(ann_dict_list, ax):
+def AddAnnotationObjects(artist_list, ax):
     """Draw the same annotation objects displayed on the graphics window 
     when exporting to matplotlib figures
         * ann_dict_list: a list of dictionaries, each element specifies the 
                          properties of an annotation object
     """
-    return
-    for c, ann_dict in enumerate(ann_dict_list):
-        if ann_dict['type'] == 'box':
+     # TODO
+    for c, artist in enumerate(artist_list):
+        if artist['type'] == 'box':
             pass
-        elif ann_dict['type'] == 'line':
+        elif artist['type'] == 'line':
             pass
-        elif ann_dict['type'] == 'circle':
+        elif artist['type'] == 'circle':
             pass
-        elif ann_dict['type'] == 'arrow':
+        elif artist['type'] == 'arrow':
             pass
-        elif ann_dict['type'] == 'symbol':
+        elif artist['type'] == 'symbol':
             pass
         else:
             pass
@@ -401,7 +402,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
         ax[c].set_ylim(r[1])
         # Add scalebar
         scalebar.append(AddTraceScaleBar(xunit='ms', yunit='mV' if l[0]=='Voltage' else 'pA', ax=ax[c]))
-        plt.subplots_adjust(hspace = .001)
+        plt.subplots_adjust(hspace=.001)
         # temp = 510 + c
         temp = tic.MaxNLocator(3)
         ax[c].yaxis.set_major_locator(temp)

@@ -49,6 +49,10 @@ Script structure
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - ~~Average trace display~~
 
+## Update Apr 11, 2017
+* Fixed bug when exporting figures, scalebar labels are being drawn twice
+* Fixed import errors / bugs after separating Toolbox side dock
+
 ## Update Apr 1, 2017
 * Started on annotation widget.
     - Able to add and delete the annotation items now.
