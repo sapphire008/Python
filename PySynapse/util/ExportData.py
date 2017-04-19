@@ -254,25 +254,31 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         scalebarBox = AuxTransformBox(ax.transData)
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth))
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
         scalebarBox.add_artist(matplotlib.text.Text(X/2, -Y/20, xlab, va='top', ha='center',color='k'))
         scalebarBox.add_artist(matplotlib.text.Text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
         anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=scalebarBox, frameon=False, bbox_to_anchor=bbox_to_anchor)
         ax.add_artist(anchored_box)
-        print('called add trace bar')
         return(anchored_box)
 
-def AddAnnotationObjects(artist_list, ax):
+def DrawAnnotationArtists(artist_dict, axs):
     """Draw the same annotation objects displayed on the graphics window 
     when exporting to matplotlib figures
         * ann_dict_list: a list of dictionaries, each element specifies the 
                          properties of an annotation object
     """
-     # TODO
-    for c, artist in enumerate(artist_list):
+    # TODO
+    for key, artist in artist_dict.items():
+        # Find out which axis to draw on
+        ax = axs[artist['layout'][2]]
+        if isinstance(ax, list):
+            ax = ax[artist['layout'][3]]
         if artist['type'] == 'box':
-            pass
+            mpl_artist = matplotlib.patches.Rectangle((artist['x0'], artist['y0']), artist['width'], artist['height'],
+                                                     ec=artist['linecolor'] if artist['line'] else 'none',
+                                                     fc=artist['fillcolor'], fill=artist['fill'],joinstyle='miter',
+                                                     capstyle='projecting')
         elif artist['type'] == 'line':
             pass
         elif artist['type'] == 'circle':
@@ -283,6 +289,9 @@ def AddAnnotationObjects(artist_list, ax):
             pass
         else:
             pass
+
+        # Add the artist to the plot
+        ax.add_patch(mpl_artist)
         
         
 @AdjustAxs()
@@ -313,7 +322,7 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
         final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes
 # %%
-def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=None, 
+def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300, fig_size=None,
                adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple', 
                setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export multiple traces overlapping each other"""    
@@ -328,7 +337,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
 
     if not colorfy:
         colorfy=['k']
-    fig, _= plt.subplots(nrows=nchannels, ncols=1, sharex=True)
+    fig, _ = plt.subplots(nrows=nchannels, ncols=1, sharex=True)
     ax = fig.get_axes()
     # text annotation area
     textbox = []
@@ -359,9 +368,9 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
                 
             # do the plot
             if m[0] in ['Voltage', 'Current'] or not monoStim:
-                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             else:
-                ax[c].plot(X, Y, color='k', lw=linewidth)
+                ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw initial value
             InitVal = "{0:0.0f}".format(Y[0])      
             if m[0] == 'Voltage':
@@ -394,6 +403,9 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
         scalebar = [annotationbox]
     else:
         scalebar = []
+
+    # Draw annotation artists
+    DrawAnnotationArtists(artists, axs=ax)
 
     # set axis
     for c, vr in enumerate(viewRange.items()):
@@ -430,7 +442,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, dpi=300, fig_size=N
         
     return(ax)
 
-def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300, 
+def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300,
                            fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
                            adjustFigW=True, adjustFigH=True, trimH=(None,None), 
                            annotation='Simple', setFont='default', fontSize=10, 
@@ -480,9 +492,9 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300
                 Y = Y + CurBase
             # do the plot
             if m[0] in ['Voltage', 'Current'] or not monoStim: # temporary workaround
-                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+                ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             else:
-                ax[c].plot(X, Y, color='k', lw=linewidth)
+                ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw the initial value, only for the first plot
             if n == 0:
                 InitVal = "{0:0.0f}".format(Y[0])      
@@ -557,7 +569,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, dpi=300
     return(ax)
     
     
-def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300, 
+def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists=None, dpi=300,
                       fig_size=None, adjustFigH=True, adjustFigW=True, nullRange=None, 
                       annotation='Simple', setFont='default',gridSpec='Vertical', 
                       scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False,
@@ -620,9 +632,9 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, dpi=300
                 first_last_mat[-1].append(ind)
             
             if m[0] in ['Voltage', 'Current'] or not monoStim:
-                ax[ind].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth)
+                ax[ind].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             else:
-                ax[ind].plot(X, Y, color='k', lw=linewidth)
+                ax[ind].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # View range
             viewRange_dict[(row,col)] = list(m)+list(viewRange[m])
             # Draw initial value

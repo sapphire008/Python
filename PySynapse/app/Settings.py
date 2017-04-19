@@ -293,6 +293,9 @@ class Settings(QtGui.QWidget):
         stream_label = QtGui.QLabel("Stream")
         min_label = QtGui.QLabel("Min")
         max_label = QtGui.QLabel("Max")
+        time_label = QtGui.QLabel('Time')
+        time_min_text = QtGui.QLineEdit(str(self.options['timeRangeMin']))
+        time_max_text = QtGui.QLineEdit(str(self.options['timeRangeMax']))
         volt_label = QtGui.QLabel("Voltage")
         volt_min_text = QtGui.QLineEdit(str(self.options['voltRangeMin']))
         volt_max_text = QtGui.QLineEdit(str(self.options['voltRangeMax']))
@@ -304,6 +307,8 @@ class Settings(QtGui.QWidget):
         stim_max_text = QtGui.QLineEdit(str(self.options['stimRangeMax']))
 
         # Put objects into setting dictionary
+        self.settingDict['timeRangeMin'] = time_min_text
+        self.settingDict['timeRangeMax'] = time_max_text
         self.settingDict['voltRangeMin'] = volt_min_text
         self.settingDict['voltRangeMax'] = volt_max_text
         self.settingDict['curRangeMin'] = cur_min_text
@@ -317,15 +322,18 @@ class Settings(QtGui.QWidget):
         view_groupBox.layout().addWidget(stream_label, 0, 0, 1, 1)
         view_groupBox.layout().addWidget(min_label, 0, 1, 1, 1)
         view_groupBox.layout().addWidget(max_label, 0, 2, 1, 1)
-        view_groupBox.layout().addWidget(volt_label, 1, 0, 1, 1)
-        view_groupBox.layout().addWidget(volt_min_text, 1, 1, 1, 1)
-        view_groupBox.layout().addWidget(volt_max_text, 1, 2, 1, 1)
-        view_groupBox.layout().addWidget(cur_label, 2, 0, 1, 1)
-        view_groupBox.layout().addWidget(cur_min_text, 2, 1, 1, 1)
-        view_groupBox.layout().addWidget(cur_max_text, 2, 2, 1, 1)
-        view_groupBox.layout().addWidget(stim_label, 3, 0, 1, 1)
-        view_groupBox.layout().addWidget(stim_min_text, 3, 1, 1, 1)
-        view_groupBox.layout().addWidget(stim_max_text, 3, 2, 1, 1)
+        view_groupBox.layout().addWidget(time_label, 1, 0, 1, 1)
+        view_groupBox.layout().addWidget(time_min_text, 1, 1, 1, 1)
+        view_groupBox.layout().addWidget(time_max_text, 1, 2, 1, 1)
+        view_groupBox.layout().addWidget(volt_label, 2, 0, 1, 1)
+        view_groupBox.layout().addWidget(volt_min_text, 2, 1, 1, 1)
+        view_groupBox.layout().addWidget(volt_max_text, 2, 2, 1, 1)
+        view_groupBox.layout().addWidget(cur_label, 3, 0, 1, 1)
+        view_groupBox.layout().addWidget(cur_min_text, 3, 1, 1, 1)
+        view_groupBox.layout().addWidget(cur_max_text, 3, 2, 1, 1)
+        view_groupBox.layout().addWidget(stim_label, 4, 0, 1, 1)
+        view_groupBox.layout().addWidget(stim_min_text, 4, 1, 1, 1)
+        view_groupBox.layout().addWidget(stim_max_text, 4, 2, 1, 1)
 
         # Oragnize the widget
         widgetFrame.layout().addWidget(view_groupBox)

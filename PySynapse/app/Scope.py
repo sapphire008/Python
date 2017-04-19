@@ -607,12 +607,6 @@ class ScopeWindow(QtGui.QMainWindow):
         if not self.viewRange.keys():
             self.viewMode = 'default'
 
-        # Find out the default yrange options
-        options = readini(self.iniPath) # Read it real time
-        default_yRange_dict = {'Voltage':  (options['voltRangeMin'], options['voltRangeMax']),
-                               'Current':  (options['curRangeMin'],  options['curRangeMax']),
-                               'Stimulus': (options['stimRangeMin'], options['stimRangeMax'])}
-
         # Loop through all the subplots
         for n, l in enumerate(self.layout):
             # get viewbox
@@ -624,10 +618,19 @@ class ScopeWindow(QtGui.QMainWindow):
                 # Make everything visible first, may help pervent failure 
                 # if the subsequent range calculation fails
                 p.autoRange()
+                # Find out the default yrange options
+                options = readini(self.iniPath)  # Read it real time
+                default_yRange_dict = {'Voltage': (options['voltRangeMin'], options['voltRangeMax']),
+                                       'Current': (options['curRangeMin'], options['curRangeMax']),
+                                       'Stimulus': (options['stimRangeMin'], options['stimRangeMax'])}
                 yRange = default_yRange_dict.get(l[0])
                 p.setYRange(yRange[0], yRange[1], padding=0)
-                maxX = max([max(s.xData) for s in p.dataItems])
-                p.setXRange(0, maxX, padding=0)
+                default_xRange = [options['timeRangeMin'], options['timeRangeMax']]
+                if default_xRange[0] is None or isinstance(default_xRange[0], str):
+                    default_xRange[0] = 0
+                if default_xRange[1] is None or isinstance(default_xRange[1], str):
+                    default_xRange[1] = max([max(s.xData) for s in p.dataItems])
+                p.setXRange(default_xRange[0], default_xRange[1], padding=0)
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
                 if n == len(self.layout)-1: # update only after iterating through
@@ -931,21 +934,23 @@ class ScopeWindow(QtGui.QMainWindow):
         options = readini(self.iniPath)
         # figure out the figure size
         nchannels = len(viewRange.keys())
+        # Annotation artists
+        annotationArtists = self.dockPanel.getArtists()
         # Do the plotting once all the necessary materials are gathered
         if arrangement == 'overlap':
-            PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+            PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
                        dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
                        setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                        stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement == 'concatenate':
-            PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+            PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
                                  adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'],
                                  setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                                  stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement in ['vertical', 'horizontal', 'channels x episodes', 'episodes x channels']:
-            PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors,
+            PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
                                  nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'],
                                  scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'],
@@ -995,16 +1000,29 @@ if __name__ == '__main__' and not run_example:
 #    'Dirs': ['D:/Data/Traces/2016/06.June/Data 7 Jun 2016/Neocortex G.07Jun16.S1.E13.dat']}
 #    index = [0]
 
-    episodes = {'Drug Name': [''], 'Epi': ['S1.E33', 'S1.E34', 'S1.E35'],
-    'Duration': [40000,40000,40000], 'Drug Level': [1,1,1], 'Time': ['25:06','25:54','26:43'],
-    'Name': 'Neocortex E.09Jun16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1],
+    # # Cell attached recording
+    # episodes = {'Drug Name': [''], 'Epi': ['S1.E33', 'S1.E34', 'S1.E35'],
+    # 'Duration': [40000,40000,40000], 'Drug Level': [1,1,1], 'Time': ['25:06','25:54','26:43'],
+    # 'Name': 'Neocortex E.09Jun16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1],
+    # 'Comment': ['TTL3: SIU train','',''],
+    # 'Dirs': ['D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E33.dat',
+    #          'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E34.dat',
+    #          'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
+
+    # Optogenetics
+    episodes = {'Drug Name': [''], 'Epi': ['S1.E22', 'S1.E23', 'S1.E24'],
+    'Duration': [50000,50000,50000], 'Drug Level': [0,0,0], 'Time': ['30:03','31:03','32:03'],
+    'Name': 'NeocortexChRNBM D.09Nov16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1],
     'Comment': ['TTL3: SIU train','',''],
-    'Dirs': ['D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E33.dat',
-             'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E34.dat',
-             'D:/Data/Traces/2016/04.April/Data 21 Apr 2016/NeocortexCA F.21Apr16.S1.E35.dat']}
+    'Dirs': ['D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E22.dat',
+             'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E23.dat',
+             'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E24.dat']}
+
+    artists = {'box1': {'position': 0, 'fill': False, 'name': 'box1', 'linewidth': '0.5669291338582677', 'height': '10', 'x0': '0', 'line': True, 'linecolor': 'k', 'width': '500', 'type': 'box', 'linestyle': '-', 'fillalpha': '100', 'fillcolor': 'w', 'y0': '0', 'layout': ['Voltage', 'A', 0, 0]}}
+
     index = [0]
     app = QtGui.QApplication(sys.argv)
-    w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Current', 'A', 1, 0]])
+    w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Stimulus', 'A', 1, 0]])
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)
     # w.toggleDataCursor(checked=True)

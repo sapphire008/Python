@@ -62,6 +62,7 @@ class Toolbox(QtGui.QWidget):
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
+        self.accWidget.addItem("Filter", self.filterWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -448,9 +449,9 @@ class Toolbox(QtGui.QWidget):
                 artistProperty['type'] = annSet.type
                 artistProperty['position'] = row
                 artistProperty['name'] = artist_name
-                AT_item._artistProp = artistProperty
                 # Draw the artist
-                self.drawAnnotationArtist(artist=artistProperty)
+                artistProperty = self.drawAnnotationArtist(artist=artistProperty)
+                AT_item._artistProp = artistProperty
 
     def removeAnnotationRow(self):
         numRows = self.annotation_table.rowCount()
@@ -469,6 +470,17 @@ class Toolbox(QtGui.QWidget):
         self.eraseAnnotationArtist(artist=item._artistProp)
         self.annotation_table.removeRow(row)
 
+    def getArtists(self):
+        """Return a dictionary of artists from annotationTable"""
+        artist_dict = {}
+        T = self.annotation_table
+        for r in range(self.annotation_table.rowCount()):
+            item = self.annotation_table.item(r, 0)
+            # Get annotation artist
+            artist_dict[item._artistProp['name']] = item._artistProp
+
+        return artist_dict
+
     def onArtistChecked(self, item=None):
         """Respond if click state was changed for pre-existing artists"""
         if item.column() > 0: # editing comments, ignore
@@ -480,15 +492,23 @@ class Toolbox(QtGui.QWidget):
             self.drawAnnotationArtist(artist=item._artistProp)
 
     def drawAnnotationArtist(self, artist=None, which_layout=None):
+        """
+        :param artist: artist properties
+        :param which_layout: allows only 1 layout
+        :return: artist
+        """
         print('draw annotation artist')
         if which_layout is None:
             which_layout = self.friend.layout[0]
+        artist['layout'] = which_layout
         if artist['type'] == 'box':
             self.friend.drawBox(artist=artist, which_layout=which_layout)
         elif artist['type'] == 'ttl':
             # Get additional information about TTL from data: a list of OrderedDict
             artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict # TODO
             # set_trace()
+
+        return artist
 
     def eraseAnnotationArtist(self, artist=None, which_layout=None):
         self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='annotation')
@@ -682,7 +702,6 @@ class Toolbox(QtGui.QWidget):
             widgetFrame.layout().addWidget(val, key[0], key[1])
         # Report box
         widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
-        return
 
     def getCFSettingTable(self, curve):
         if curve == 'Exponential':
@@ -1095,15 +1114,69 @@ class Toolbox(QtGui.QWidget):
 
     # </editor-fold>
 
+    #<editor-fold desc="Filter widget">
+    def filterWidget(self):
+        """Inplace Filter traces"""
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("Filter"))
 
-    # <editor-fold desc="Other utilities">
-    #------- Other utilities ------------------------------------------------
+        filter_button = QtGui.QPushButton('Apply Filter')
+        filter_button.setToolTip('Apply inplace filtering to current trace')
+        filtertype_comboBox = QtGui.QComboBox()
+        filtertype_comboBox.addItems(['Butter'])
+
+        widgetFrame.layout().addWidget(filter_button, 0, 0, 1, 2)
+        widgetFrame.layout().addWidget(filtertype_comboBox, 1, 0, 1, 2)
+
+        # Settings of filter
+        self.setFiltSettingWidgetFrame(widgetFrame, filtertype_comboBox.currentText())
+
+        # Refresh setting section when filter type changed
+        filtertype_comboBox.currentIndexChanged.connect(lambda: self.setFilterSettingWidgetFrame(widgetFrame, filtertype_comboBox.currentText()))
+
+        # When "Apply" button is pushed
+        filter_button.clicked.connect(lambda: self.inplaceFiltering(filtertype_comboBox.currentText()))
+
+        return widgetFrame
+
+    def setFiltSettingWidgetFrame(self, widgetFrame, filterType):
+        self.getFiltSettingTable(filterType)
+        for key, val in self.FiltSettingTable.items():
+            widgetFrame.layout().addWidget(val, key[0], key[1])
+
+    def getFiltSettingTable(self, filterType):
+        if filterType.lower() == 'butter':
+            order_label = QtGui.QLabel("Order")
+            order_label.setToolTip("Filter order")
+            order_text = QtGui.QLineEdit("3")
+            Wn_label = QtGui.QLabel("Wn")
+            Wn_label.setToolTip("Normalized cutoff frequency, between 0 and 1")
+            Wn_text = QtGui.QLineEdit("0.2")
+            self.FiltSettingTable = {(3,0): order_label, (3,1): order_text, (4,0): Wn_label, (4,1): Wn_text}
+        else:
+            pass
+
+    def inplaceFiltering(self, filterType):
+        # Get a list of current data
+        set_trace()
+        if filterType.lower() == 'butter':
+            pass
+
+        return
+    # </editor-fold>
+
+    # <editor-fold desc="Other utilities 2">
+    # ------- Other utilities ------------------------------------------------
     def replaceWidget(self, widget=None, index=0):
         old_widget = self.accWidget.takeAt(index)
-        self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed, index=index)
+        self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed,
+                               index=index)
+        return
 
     def sizeHint(self):
         """Helps with initial dock window size"""
-        return QtCore.QSize(self.friend.frameGeometry().width()/4.95, 20)
+        return QtCore.QSize(self.friend.frameGeometry().width() / 4.95, 20)
 
     # </editor-fold>
+
