@@ -98,7 +98,7 @@ class AnnotationSetting(QtGui.QDialog):
         h_label = QtGui.QLabel('Height')
         h_text = QtGui.QLineEdit(self.parseArtist(field='height', default='10', return_type=str))
         line_checkbox = QtGui.QCheckBox('Line')
-        line_checkbox.setCheckState(self.parseArtist(field='line', default= 2, return_type=int))
+        line_checkbox.setCheckState(self.parseArtist(field='line', default=2, return_type=bool))
         lw_label = QtGui.QLabel('Line Width')
         lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
         ls_label = QtGui.QLabel('Line Style')
@@ -106,7 +106,7 @@ class AnnotationSetting(QtGui.QDialog):
         lc_label = QtGui.QLabel('Line Color')
         lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
         fill_checkbox = QtGui.QCheckBox('Fill')
-        fill_checkbox.setCheckState(self.parseArtist(field='fill', default= 0, return_type=int))
+        fill_checkbox.setCheckState(self.parseArtist(field='fill', default=0, return_type=bool))
         fc_label = QtGui.QLabel('Fill Color')
         fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='w', return_type=str))
         fa_label = QtGui.QLabel('Fill Alpha')
@@ -229,7 +229,10 @@ class AnnotationSetting(QtGui.QDialog):
             val = default
 
         if return_type is not None:
-            val = return_type(val)
+            if return_type is bool:
+                val = bool(val)*2 # for boolean check state
+            else:
+                val = return_type(val)
 
         return val
 
