@@ -441,26 +441,40 @@ class ScopeWindow(QtGui.QMainWindow):
             if which_layout: # if specified which_layout
                 break
 
-    def drawBox(self, artist, which_layout):
-        p = None
-        for l in self.layout:
-            if which_layout[0] in l and which_layout[1] in l:
-                # get graphics handle
-                p = self.graphicsView.getItem(row=l[2], col=l[3])
-                break
-        if not p:
-            return
-        # Stream + Channel + Name of the box
-        pname = artist['name'] + '.' + l[0] + '.' + l[1]
-        # Add the rectangle ROI
-        box_roi = QtGui.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
-                                          float(artist['width']), float(artist['height']))
-        box_roi.setPen(pg.mkPen(artist['linecolor']))
-        box_roi.setBrush(pg.mkBrush(artist['fillcolor']))
-        box_roi.name = pname
-        p.addItem(box_roi)
+    def drawROI(self, artist, which_layout, **kwargs):
+        # Add the artist
+        if artist['type'] == 'box':
+            roi = QtGui.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
+                                        float(artist['width']), float(artist['height']))
+            roi.setBrush(pg.mkBrush(artist['fillcolor']))
+            pen = pg.mkPen(artist['linecolor'])
+            pen.setWidth(float(artist['linewidth']))
+            roi.setPen(pen)
+        elif artist['type'] == 'line':
+            roi = QtGui.QGraphicsLineItem(float(artist['x0']), float(artist['y0']), \
+                                          float(artist['x1']), float(artist['y1']))
+            pen = pg.mkPen(artist['linecolor'])
+            pen.setWidth(float(artist['linewidth']))
+            if artist['linestyle'] == '-':
+                pass
+            elif artist['linestyle'] == '--':
+                pen.setStyle(QtCore.Qt.DashLine)
+            elif artist['linestyle'] == '-.':
+                pen.setStyle(QtCore.Qt.DashDotLine)
+            elif artist['linestyle'] == ':':
+                pen.setStyle(QtCore.Qt.DotLine)
+            else:
+                pass
 
-    def drawROI(self, artist, which_layout, resizable=True):
+            roi.setPen(pen)
+        elif artist['type'] == 'rectROI':
+            roi = pg.RectROI([artist['x0'], artist['y0']], [artist['width'], artist['height']], \
+                             pen=artist['linecolor'], **kwargs)
+           # if not resizable:
+           #     [roi.removeHandle(h) for h in roi.getHandles()]
+        else:
+            raise(NotImplementedError("'{}' annotation object has not been implemented yet".format(artist['type'])))
+
         p = None
         for l in self.layout:
             if which_layout[0] in l and which_layout[1] in l:
@@ -469,16 +483,12 @@ class ScopeWindow(QtGui.QMainWindow):
                 break
         if not p:
             return
-        # Name of the box + Stream + Channel
+        # Set properties of the ROI artist
+        # Stream + channel + Name of the artist
         pname = artist['name'] + '.' + l[0] + '.' + l[1]
-        # Add the rectangle ROI
-        box_roi = pg.RectROI([artist['x0'], artist['y0']], \
-                             [artist['width'], artist['height']],
-                             movable=True, removable=True,
-                             pen=artist['linecolor'])
-        p.addItem(box_roi, name=pname)
-        if not resizable:         # Make sure it is not resizable
-            [box_roi.removeHandle(h) for h in box_roi.getHandles()]
+        roi.name = pname
+        p.addItem(roi)
+
 
     # ----------------------- Layout utilities --------------------------------
     def setLayout(self, stream, channel, row, col, index=None):

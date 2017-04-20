@@ -477,7 +477,10 @@ class Toolbox(QtGui.QWidget):
         for r in range(self.annotation_table.rowCount()):
             item = self.annotation_table.item(r, 0)
             # Get annotation artist
-            artist_dict[item._artistProp['name']] = item._artistProp
+            if isstrnum(item._artistProp):
+                artist_dict[item._artistProp['name']] = str2numeric(item._artistProp)
+            else:
+                artist_dict[item._artistProp['name']] = item._artistProp
 
         return artist_dict
 
@@ -497,16 +500,17 @@ class Toolbox(QtGui.QWidget):
         :param which_layout: allows only 1 layout
         :return: artist
         """
-        print('draw annotation artist')
         if which_layout is None:
             which_layout = self.friend.layout[0]
         artist['layout'] = which_layout
-        if artist['type'] == 'box':
-            self.friend.drawBox(artist=artist, which_layout=which_layout)
+        if artist['type'] in ['box', 'line']:
+            self.friend.drawROI(artist=artist, which_layout=which_layout)
         elif artist['type'] == 'ttl':
             # Get additional information about TTL from data: a list of OrderedDict
             artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict # TODO
             # set_trace()
+        else:
+            raise(NotImplementedError("'{}' annotation object has not been implemented yet".format(artist['type'])))
 
         return artist
 

@@ -33,12 +33,22 @@ except AttributeError:
         return QtGui.QApplication.translate(context, text, disambig)
 
 class AnnotationSetting(QtGui.QDialog):
+    # Class variable
+    ann_obj = ['box',  # [x1, y1, x2, y2, linewidth, linestyle, color]
+               'line',  # [x1, y1, x2, y2, linewidth, linestyle, color]
+               'circle',  # [center_x, center_y, a, b, rotation, linewidth, linestyle, color]
+               'arrow',  # [x, y, x_arrow, y_arrow, linewidth, linestyle, color]
+               'symbol',  # ['symbol', x, y, markersize, color]
+               'ttl']  # TTL triggered stimulus [bool_convert_pulse_to_step]
     def __init__(self, parent=None, artist=None):
         super(AnnotationSetting, self).__init__(parent)
         self.setWindowIcon(QtGui.QIcon('resources/icons/setting.png'))
         self.isclosed = False
         self.parent = parent
-        self.initialTypeSelectionDialog() # type of annotation setting to make
+        if artist is None:
+            self.initialTypeSelectionDialog() # type of annotation setting to make
+        else:
+            self.type = artist['type']
         self.artist = dict() if artist is None else artist
         self.settingDict = dict()
         self.setLayout(QtGui.QVBoxLayout())
@@ -47,6 +57,9 @@ class AnnotationSetting(QtGui.QDialog):
         if self.type == 'box':
             self.setWindowTitle("Box Annotations")
             widgetFrame = self.boxSettings()
+        elif self.type == 'line':
+            self.setWindowTitle('Line Annotation')
+            widgetFrame = self.lineSettings()
         elif self.type == 'ttl':
             self.setWindowTitle("TTL Annotation")
             widgetFrame = self.ttlSettings()
@@ -67,16 +80,9 @@ class AnnotationSetting(QtGui.QDialog):
         self.layout().addWidget(widgetFrame)
         self.layout().addWidget(self.buttonGroup)
 
-    def initialTypeSelectionDialog(self):
-        ann_obj = ['box',  # [x1, y1, x2, y2, linewidth, linestyle, color]
-                   'line',  # [x1, y1, x2, y2, linewidth, linestyle, color]
-                   'circle',  # [center_x, center_y, a, b, rotation, linewidth, linestyle, color]
-                   'arrow',  # [x, y, x_arrow, y_arrow, linewidth, linestyle, color]
-                   'symbol',  # ['symbol', x, y, markersize, color]
-                   'ttl'] # TTL triggered stimulus [bool_convert_pulse_to_step]
-
+    def initialTypeSelectionDialog(self, current_index=0):
         selected_item, ok = QtGui.QInputDialog.getItem(self, "Select annotation object type",
-                                              "annotation objects", ann_obj, 0, False)
+                                              "annotation objects", self.ann_obj, current_index, False)
         self.type = selected_item
 
     def boxSettings(self):
@@ -149,6 +155,58 @@ class AnnotationSetting(QtGui.QDialog):
         widgetFrame.layout().addWidget(fa_label, 5, 0, 1, 1)
         widgetFrame.layout().addWidget(fa_text, 5, 1, 1, 1)
         widgetFrame.layout().addWidget(fa_suffix_label, 5, 2, 1, 1)
+
+        return widgetFrame
+
+    def lineSettings(self):
+        widgetFrame = QtGui.QFrame()
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        widgetFrame.setSizePolicy(sizePolicy)
+        widgetFrame.setObjectName(_fromUtf8("lineSettingsWidgetFrame"))
+
+        # Settings for a line
+        x0_label = QtGui.QLabel('X0')
+        x0_text = QtGui.QLineEdit(self.parseArtist(field='x0', default='0', return_type=str))
+        y0_label = QtGui.QLabel('Y0')
+        y0_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
+        x1_label = QtGui.QLabel('X1')
+        x1_text = QtGui.QLineEdit(self.parseArtist(field='x0', default='1000', return_type=str))
+        y1_label = QtGui.QLabel('Y1')
+        y1_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
+
+        lw_label = QtGui.QLabel('Line Width')
+        lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
+        ls_label = QtGui.QLabel('Line Style')
+        ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='--', return_type=str))
+        lc_label = QtGui.QLabel('Line Color')
+        lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
+
+        # make a dictionary of hte vlaues
+        self.settingDict['x0'] = x0_text
+        self.settingDict['y0'] = y0_text
+        self.settingDict['x1'] = x1_text
+        self.settingDict['y1'] = y1_text
+        self.settingDict['linewidth'] = lw_text
+        self.settingDict['linestyle'] = ls_text
+        self.settingDict['linecolor'] = lc_text
+
+        # Add the widget to the window
+        widgetFrame.layout().addWidget(x0_label, 0, 0, 1, 1)
+        widgetFrame.layout().addWidget(x0_text, 0, 1, 1, 1)
+        widgetFrame.layout().addWidget(y0_label, 0, 2, 1, 1)
+        widgetFrame.layout().addWidget(y0_text, 0, 3, 1, 1)
+        widgetFrame.layout().addWidget(x1_label, 1, 0, 1, 1)
+        widgetFrame.layout().addWidget(x1_text, 1, 1, 1, 1)
+        widgetFrame.layout().addWidget(y1_label, 1, 2, 1, 1)
+        widgetFrame.layout().addWidget(y1_text, 1, 3, 1, 1)
+        widgetFrame.layout().addWidget(lw_label, 2, 2, 1, 1)
+        widgetFrame.layout().addWidget(lw_text, 2, 3, 1, 1)
+        widgetFrame.layout().addWidget(ls_label, 3, 0, 1, 1)
+        widgetFrame.layout().addWidget(ls_text, 3, 1, 1, 1)
+        widgetFrame.layout().addWidget(lc_label, 3, 2, 1, 1)
+        widgetFrame.layout().addWidget(lc_text, 3, 3, 1, 1)
 
         return widgetFrame
 

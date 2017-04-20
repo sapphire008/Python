@@ -276,11 +276,19 @@ def DrawAnnotationArtists(artist_dict, axs):
             ax = ax[artist['layout'][3]]
         if artist['type'] == 'box':
             mpl_artist = matplotlib.patches.Rectangle((artist['x0'], artist['y0']), artist['width'], artist['height'],
-                                                     ec=artist['linecolor'] if artist['line'] else 'none',
-                                                     fc=artist['fillcolor'], fill=artist['fill'],joinstyle='miter',
-                                                     capstyle='projecting')
+                                                      ec=artist['linecolor'] if artist['line'] else 'none',
+                                                      linewidth=artist['linewidth'],fc=artist['fillcolor'],
+                                                      fill=artist['fill'],joinstyle='miter',
+                                                      capstyle='projecting')
+
+            ax.add_patch(mpl_artist)
         elif artist['type'] == 'line':
-            pass
+            mpl_artist = matplotlib.lines.Line2D([artist['x0'], artist['x1']], [artist['y0'], artist['y1']],
+                                           color=artist['linecolor'], linewidth=artist['linewidth'],
+                                           linestyle=artist['linestyle'],
+                                           solid_joinstyle='miter', solid_capstyle='projecting',
+                                           dash_joinstyle='miter', dash_capstyle='projecting')
+            ax.add_artist(mpl_artist)
         elif artist['type'] == 'circle':
             pass
         elif artist['type'] == 'arrow':
@@ -291,9 +299,9 @@ def DrawAnnotationArtists(artist_dict, axs):
             pass
 
         # Add the artist to the plot
-        ax.add_patch(mpl_artist)
-        
-        
+        #ax.add_artist(mpl_artist)
+
+
 @AdjustAxs()
 def TurnOffAxis(ax):
     """Turn off all axis"""
