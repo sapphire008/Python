@@ -19,6 +19,9 @@ import matplotlib.font_manager as fm
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker, AuxTransformBox
 import matplotlib.ticker as tic
 
+# matplotlib.rcParams['pdf.fonttype'] = 42
+# matplotlib.rcParams['ps.fonttype'] = 42
+
 from pdb import set_trace
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -106,8 +109,10 @@ def SetFont(ax, fig, fontsize=12,fontname='Arial',items=None):
             if os.path.isfile(fontname): # check if font is a file
                 fontprop.set_file(fontname)
             else:# check if the name of font is available in the system
-                if not any([fontname.lower() in a.lower() for a in
-                        fm.findSystemFonts(fontpaths=None, fontext='ttf')]):
+                if not fontname.lower() in [f.name.lower() for f in fm.fontManager.ttflist] and \
+                   not fontname.lower() in [f.name.lower() for f in fm.fontManager.afmlist]:
+                        #any([fontname.lower() in a.lower() for a in
+                        #fm.findSystemFonts(fontpaths=None, fontext='ttf')]):
                      print('Cannot find specified font: %s' %(fontname))
                 fontprop.set_family(fontname) # set font name
             # set font for each object
@@ -265,8 +270,7 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
 def DrawAnnotationArtists(artist_dict, axs):
     """Draw the same annotation objects displayed on the graphics window 
     when exporting to matplotlib figures
-        * ann_dict_list: a list of dictionaries, each element specifies the 
-                         properties of an annotation object
+        * ann_dict: dictionaries of each artist
     """
     # TODO
     for key, artist in artist_dict.items():
@@ -277,9 +281,9 @@ def DrawAnnotationArtists(artist_dict, axs):
         if artist['type'] == 'box':
             mpl_artist = matplotlib.patches.Rectangle((artist['x0'], artist['y0']), artist['width'], artist['height'],
                                                       ec=artist['linecolor'] if artist['line'] else 'none',
-                                                      linewidth=artist['linewidth'],fc=artist['fillcolor'],
-                                                      fill=artist['fill'],joinstyle='miter',
-                                                      capstyle='projecting')
+                                                      linewidth=artist['linewidth'], linestyle=artist['linestyle'],
+                                                      fc=artist['fillcolor'],fill=artist['fill'],
+                                                      joinstyle='miter',capstyle='projecting')
 
             ax.add_patch(mpl_artist)
         elif artist['type'] == 'line':
@@ -295,6 +299,11 @@ def DrawAnnotationArtists(artist_dict, axs):
             pass
         elif artist['type'] == 'symbol':
             pass
+        elif artist['type'] == 'curve':
+            mpl_artist = matplotlib.lines.Line2D(artist['x'], artist['y'], color=artist['linecolor'],
+                                                 linewidth=0.5669291338582677, solid_joinstyle='bevel',
+                                                 solid_capstyle='butt')
+            ax.add_artist(mpl_artist)
         else:
             pass
 
@@ -436,7 +445,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
     # save the figure
     if adjustFigH:
         fig_size = (fig_size[0], fig_size[1]*nchannels)
-    
+
     fig.set_size_inches(fig_size)
 
     # plt.subplots_adjust(hspace=-0.8)
@@ -446,14 +455,14 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
     # Convert from svg to eps
     if '.svg' in saveDir:
         svg2eps_ai(source_file=saveDir, target_file=saveDir.replace('.svg', '.eps'))
-        
-        
+
+
     return(ax)
 
 def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300,
-                           fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10, 
-                           adjustFigW=True, adjustFigH=True, trimH=(None,None), 
-                           annotation='Simple', setFont='default', fontSize=10, 
+                           fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10,
+                           adjustFigW=True, adjustFigH=True, trimH=(None,None),
+                           annotation='Simple', setFont='default', fontSize=10,
                            linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export traces arranged horizontally.
     Good for an experiments acquired over multiple episodes.
@@ -492,7 +501,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
             elif n + 1 == len(index) and trimH[1] is not None:
                 X = spk_window(X, ts, (None, trimH[1]))
                 Y = spk_window(X, ts, (None, trimH[1]))
-            
+
             # Stim channel reflects current channel
             if stimReflectCurrent and m[0]=='Stimulus':
                 CurBase = spk_window(zData.Current[m[1]], ts, viewRange[m][0]) # use view range of stimulus on current
@@ -505,7 +514,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
                 ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw the initial value, only for the first plot
             if n == 0:
-                InitVal = "{0:0.0f}".format(Y[0])      
+                InitVal = "{0:0.0f}".format(Y[0])
                 if m[0] == 'Voltage':
                     InitVal += 'mV'
                 elif m[0] == 'Current':
@@ -515,24 +524,24 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
                         InitVal += 'pA'
                     else:
                         InitVal = ''
-                
+
                 ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]), Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
-                    
+
             if m[1] not in channels:
                 channels.append(m[1])
-            
+
         if annotation.lower() != 'none':
             final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels, mode=annotation)
             # Draw some annotations
             textbox.append(TextArea(final_notes, minimumdescent=False, textprops=dict(color=colorfy[n%len(colorfy)])))
-        
+
         # Set some spacing for the next episode
         if n+1 < len(index):
             if hSpaceType.lower() == 'fixed':
                 currentTime = currentTime + (len(Y)-1)*ts + maxWindow * hFixedSpace / 100.0
             elif hSpaceType.lower() in ['real time', 'realtime', 'rt']:
                 currentTime = currentTime + (df['Data'][index[n+1]].Protocol.WCtime - zData.Protocol.WCtime)*1000
-                    
+
     # Group all the episodes annotation text
     if annotation.lower() != 'none':
         box = VPacker(children=textbox, align="left",pad=0, sep=2)

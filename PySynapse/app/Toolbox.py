@@ -17,6 +17,7 @@ from app.Annotations import *
 from util.spk_util import *
 from util.ImportData import NeuroData
 
+from scipy.optimize import curve_fit
 
 from pdb import set_trace
 
@@ -42,7 +43,7 @@ class Toolbox(QtGui.QWidget):
     _sizehint = None
     # used for replace formula variables, total allow 52 replacements, from a-zA-Z
     _newvarsList = [chr(i) for i in 65+np.arange(26)]+[chr(i) for i in 97+np.arange(26)]
-
+    # Annotatable objects
     def __init__(self, parent=None, friend=None):
         super(Toolbox, self).__init__(parent)
         self.parent = parent
@@ -408,8 +409,6 @@ class Toolbox(QtGui.QWidget):
 
     def addAnnotationRow(self):
         """Add annotation into teh table"""
-        # Pop up the annotation settings window to get the properties of the annotation settings
-        annSet = AnnotationSetting()
         # annotationSettings.show()
         def append_num_to_repeated_str(l, s, recycle=False):
             # rep = sum(1 if s in a else 0 for a in l) # count
@@ -431,6 +430,8 @@ class Toolbox(QtGui.QWidget):
 
             return l, s
 
+        # Pop up the annotation settings window to get the properties of the annotation settings
+        annSet = AnnotationSetting()
         if annSet.exec_(): # Need to wait annotationSettings has been completed
             if annSet.artist.keys(): # if properties are properly specified, draw the artist
                 # Set Artist table item
@@ -473,6 +474,7 @@ class Toolbox(QtGui.QWidget):
     def getArtists(self):
         """Return a dictionary of artists from annotationTable"""
         artist_dict = {}
+        # Annottion table
         T = self.annotation_table
         for r in range(self.annotation_table.rowCount()):
             item = self.annotation_table.item(r, 0)
@@ -481,6 +483,12 @@ class Toolbox(QtGui.QWidget):
                 artist_dict[item._artistProp['name']] = str2numeric(item._artistProp)
             else:
                 artist_dict[item._artistProp['name']] = item._artistProp
+        # fitted curve
+        if hasattr(self, 'fittedCurve'):
+            artist_dict['fit'] = self.fittedCurve
+        # Detected events
+        #if hasattr(self, 'detectedEvents'):
+        #   artist_dict['event'] = self.detectedEvents
 
         return artist_dict
 
@@ -527,6 +535,13 @@ class Toolbox(QtGui.QWidget):
             row = numRows - 1
         # Get the item
         item = self.annotation_table.item(row, 0)
+        # check item type
+        if not hasattr(item, '_artistProp') or item._artistProp['type'] not in AnnotationSetting.ann_obj:
+            notepad = QtGui.QTableWidgetItem()
+            notepad.setText("This item is not editable")
+            self.annotation_table.setItem(row, 1, notepad)
+            return
+
         # Prompt for new information
         annSet = AnnotationSetting(artist=item._artistProp)
         if annSet.exec_(): # Need to wait annotationSettings has been completed
@@ -683,36 +698,29 @@ class Toolbox(QtGui.QWidget):
         curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText()))
 
         # Summary box behavior
-        fitButton.clicked.connect(lambda : self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
+        fitButton.clicked.connect(lambda: self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
 
         return widgetFrame
 
     def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
-        # Remove everthing at and below the setting rows: rigid setting
-        nrows = widgetFrame.layout().rowCount()
-        if nrows>2:
-            for row in range(3,nrows):
-                for col in range(widgetFrame.layout().columnCount()):
-                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
-                    if currentItem is not None:
-                        if currentItem.widget() is not cfReportBox:
-                            currentItem.widget().deleteLater()
-                        else:
-                            widgetFrame.layout().removeItem(currentItem)
-
+        # Remove everything at and below the setting rows: rigid setting
+        widgetFrame = self.removeFromWidget(widgetFrame, cfReportBox, row=3)
         # Get the setting table again
-        self.getCFSettingTable(curve)
+        self.getCFSettingTable(widgetFrame, cfReportBox, curve)
         for key, val in self.CFsettingTable.items():
             widgetFrame.layout().addWidget(val, key[0], key[1])
         # Report box
         widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
 
-    def getCFSettingTable(self, curve):
+    def getCFSettingTable(self, widgetFrame, cfReportBox, curve):
         if curve == 'Exponential':
             eqLabel = QtGui.QLabel("Equation:")
             eqComboBox = QtGui.QComboBox()
             eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)'])
+            eqComboBox.currentIndexChanged.connect(lambda: self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText()))
             self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
+            # Call it once at startup to get initialization parameters
+            self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText())
         elif curve == 'Power':
             eqLabel = QtGui.QLabel("Equation")
             eqComboBox = QtGui.QComboBox()
@@ -723,9 +731,84 @@ class Toolbox(QtGui.QWidget):
             degText = QtGui.QLineEdit("1")
             self.CFsettingTable = {(3,0):degLabel, (3,1): degText}
 
-    def curveFit(self, curve, cfReportBox):#, centerAndScale):
+    def setExpCFInitializationParams(self, widgetFrame, cfReportBox, equation='a*exp(b*x)+c'):
+        # Remove everything at and below the setting rows:
+        widgetFrame = self.removeFromWidget(widgetFrame, reportBox=cfReportBox, row=4)
+        # Get the setting table
+        self.getExpCFParamTable(equation=equation)
+        for key, val in self.CFsettingTable.items():
+            widgetFrame.layout().addWidget(val, key[0], key[1])
+        # Report box
+        widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
+
+    def getExpCFParamTable(self, equation='a*exp(b*x)+c'):
+        if equation == 'a*exp(b*x)+c':
+            a0_label = QtGui.QLabel('a0')
+            a0_text = QtGui.QLineEdit('auto')
+            b0_label = QtGui.QLabel('b0')
+            b0_text = QtGui.QLineEdit('auto')
+            c0_label = QtGui.QLabel('c0')
+            c0_text = QtGui.QLineEdit('0')
+            self.CFsettingTable[(4, 0)] = a0_label
+            self.CFsettingTable[(4, 1)] = a0_text
+            self.CFsettingTable[(5, 0)] = b0_label
+            self.CFsettingTable[(5, 1)] = b0_text
+            self.CFsettingTable[(6, 0)] = c0_label
+            self.CFsettingTable[(6, 1)] = c0_text
+        elif equation == 'a*exp(b*x)':
+            a0_label = QtGui.QLabel('a0')
+            a0_text = QtGui.QLineEdit('auto')
+            b0_label = QtGui.QLabel('b0')
+            b0_text = QtGui.QLineEdit('auto')
+            self.CFsettingTable[(4, 0)] = a0_label
+            self.CFsettingTable[(4, 1)] = a0_text
+            self.CFsettingTable[(5, 0)] = b0_label
+            self.CFsettingTable[(5, 1)] = b0_text
+        elif equation == 'a*exp(b*x)+c*exp(d*x)':
+            a0_label = QtGui.QLabel('a0')
+            a0_text = QtGui.QLineEdit('auto')
+            b0_label = QtGui.QLabel('b0')
+            b0_text = QtGui.QLineEdit('auto')
+            c0_label = QtGui.QLabel('c0')
+            c0_text = QtGui.QLineEdit('auto')
+            d0_label = QtGui.QLabel('d0')
+            d0_text = QtGui.QLineEdit('auto')
+            self.CFsettingTable[(4, 0)] = a0_label
+            self.CFsettingTable[(4, 1)] = a0_text
+            self.CFsettingTable[(5, 0)] = b0_label
+            self.CFsettingTable[(5, 1)] = b0_text
+            self.CFsettingTable[(6, 0)] = c0_label
+            self.CFsettingTable[(6, 1)] = c0_text
+            self.CFsettingTable[(7, 0)] = d0_label
+            self.CFsettingTable[(7, 1)] = d0_text
+        else:
+            pass
+
+    def getExpCFDefaultParams(self, ydata, equation='a*exp(b*x)+c'):
+        if equation == 'a*exp(b*x)+c':
+            p0 = [max(ydata), -0.015 if ydata[-1] < ydata[0] else 0.025, 0] # Default
+        elif equation == 'a*exp(b*x)':
+            p0 = [max(ydata), -0.015 if ydata[-1] < ydata[0] else 0.025]
+        elif equation == 'a*exp(b*x)+c*exp(d*x)':
+            p0 = [max(ydata), -0.015 if ydata[-1] < ydata[0] else 0.025, max(ydata),
+                  -0.015 if ydata[-1] < ydata[0] else 0.025]
+        else:
+            return
+
+        for m in range(len(p0)):
+            if self.CFsettingTable[(4+m, 1)].text() == 'auto':
+                pass
+            elif not isstrnum(self.CFsettingTable[(4+m, 1)].text()):
+                pass
+            else:
+                p0[m] = str2numeric(self.CFsettingTable[(4+m, 1)].text())
+
+        print('Initial fitted parameters')
+        print(p0)
+        return p0
+
+    def curveFit(self, curve, cfReportBox, currentView=(0,0)):#, centerAndScale):
         # get view
-        currentView = [0, 0]
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # clear previous fit artists
         count_fit = 0
@@ -754,19 +837,17 @@ class Toolbox(QtGui.QWidget):
         f0 = None
         if curve == 'Exponential':
             eqText = self.CFsettingTable[(3,1)].currentText()
+            p0 = self.getExpCFDefaultParams(ydata, equation=eqText)
             if eqText == 'a*exp(b*x)+c':
                 f0 = lambda x, a, b, c: a*np.exp(b*x)+c
-                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025, 0]
                 # bounds = [(-max(abs(ydata))*1.1, -10, -np.inf),  (max(abs(ydata))*1.1, 10, np.inf)]
                 ptext = ['a','b','c']
             elif eqText == 'a*exp(b*x)':
                 f0 = lambda x, a, b: a*np.exp(b*x)
-                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025]
                 # bounds = [(-max(abs(ydata))*1.1, -10), (max(abs(ydata))*1.1, 10)]
                 ptext = ['a','b']
             elif eqText == 'a*exp(b*x)+c*exp(d*x)':
                 f0 = lambda x, a, b, c, d: a*np.exp(b*x) + c*np.exp(d*x)
-                p0 = [max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025, max(ydata), -0.015 if ydata[-1]<ydata[0] else 0.025]
                 # bounds = [(-max(abs(ydata))*1.1, -10, -max(abs(ydata))*1.1, -10),  (max(abs(ydata))*1.1, 10, max(abs(ydata))*1.1, 10)]
                 ptext = ['a','b','c','d']
         elif curve == 'Power':
@@ -830,7 +911,10 @@ class Toolbox(QtGui.QWidget):
             if 'fit' in a.name():
                 a.setData(xdata+xoffset, yfit+yoffset)
             else:
-                p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: ' + eqText)
+                p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: '+eqText)
+        # Add fitted curve to annotation artist
+        self.fittedCurve = {'x': xdata+xoffset, 'y': yfit+yoffset, 'linecolor': 'r', 'name': 'fit: '+eqText, \
+                            'layout': self.friend.layout[currentView[0]], 'type': 'curve'}
         # Report the curve fit
         final_text = "Model: {}\nEquation:\n\t{}\n".format(curve, eqText)
         final_text += "Parameters:\n"
@@ -851,7 +935,7 @@ class Toolbox(QtGui.QWidget):
 
     # </editor-fold>
 
-    # <editor-fold desc="Analysis tools">
+    # <editor-fold desc="Event Detection tools">
     # ------- Analysis tools -------------------------------------------------
     def eventDetectionWidget(self):
         """This returns the initialized event detection widget"""
@@ -891,17 +975,7 @@ class Toolbox(QtGui.QWidget):
 
     def setEDSettingWidgetFrame(self, widgetFrame, detectReportBox, event):
         # Remove everything at and below the setting rows: rigid setting
-        nrows = widgetFrame.layout().rowCount()
-        if nrows>2:
-            for row in range(2,nrows):
-                for col in range(widgetFrame.layout().columnCount()):
-                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
-                    if currentItem is not None:
-                        if currentItem.widget() is not detectReportBox:
-                            currentItem.widget().deleteLater()
-                        else:
-                            widgetFrame.layout().removeItem(currentItem)
-
+        widgetFrame = self.removeFromWidget(widgetFrame, reportBox=detectReportBox, row=2)
         # Get the setting table again
         self.getEDSettingTable(event)
         for key, val in self.EDsettingTable.items():
@@ -1177,6 +1251,21 @@ class Toolbox(QtGui.QWidget):
         self.accWidget.addItem(title=old_widget.title(), widget=widget, collapsed=old_widget._collapsed,
                                index=index)
         return
+
+    def removeFromWidget(self, widgetFrame, reportBox, row=0):
+        """Remove widgets from a widgetFrame below row, excluding a reportBox"""
+        nrows = widgetFrame.layout().rowCount()
+        if nrows>row:
+            for row in range(row, nrows):
+                for col in range(widgetFrame.layout().columnCount()):
+                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
+                    if currentItem is not None:
+                        if currentItem.widget() is not reportBox:
+                            currentItem.widget().deleteLater()
+                        else:
+                            widgetFrame.layout().removeItem(currentItem)
+
+        return widgetFrame
 
     def sizeHint(self):
         """Helps with initial dock window size"""

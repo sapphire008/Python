@@ -27,7 +27,6 @@ old = True # load old data format
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import curve_fit
 
 from PyQt4 import QtGui, QtCore
 
@@ -432,40 +431,49 @@ class ScopeWindow(QtGui.QMainWindow):
             else:
                 for k, a in enumerate(p.items):
                     try:
-                        if pname in a.name():
+                        if a.name() in pname:
                             p.removeItem(a)
+                            # print('removed {}'.format(a.name()))
                     except:
-                        if pname in a.name:
+                        if a.name in pname:
                             p.removeItem(a)
+                            # print('removed {}'.format(a.name))
 
             if which_layout: # if specified which_layout
                 break
 
     def drawROI(self, artist, which_layout, **kwargs):
+        """Draw a specified ROI on the canvas"""
+        def setPenStyle(pen, linestyle):
+            if linestyle == '-':
+                pass
+            elif linestyle == '--':
+                pen.setStyle(QtCore.Qt.DashLine)
+            elif linestyle == '-.':
+                pen.setStyle(QtCore.Qt.DashDotLine)
+            elif linestyle == ':':
+                pen.setStyle(QtCore.Qt.DotLine)
+            else:
+                pass
+
+            return pen
         # Add the artist
         if artist['type'] == 'box':
             roi = QtGui.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
                                         float(artist['width']), float(artist['height']))
-            roi.setBrush(pg.mkBrush(artist['fillcolor']))
-            pen = pg.mkPen(artist['linecolor'])
-            pen.setWidth(float(artist['linewidth']))
-            roi.setPen(pen)
+            if artist['fill']:
+                roi.setBrush(pg.mkBrush(artist['fillcolor']))
+            if artist['line']:
+                pen = pg.mkPen(artist['linecolor'])
+                pen.setWidth(float(artist['linewidth']))
+                pen = setPenStyle(pen, artist['linestyle'])
+                roi.setPen(pen)
         elif artist['type'] == 'line':
             roi = QtGui.QGraphicsLineItem(float(artist['x0']), float(artist['y0']), \
                                           float(artist['x1']), float(artist['y1']))
             pen = pg.mkPen(artist['linecolor'])
             pen.setWidth(float(artist['linewidth']))
-            if artist['linestyle'] == '-':
-                pass
-            elif artist['linestyle'] == '--':
-                pen.setStyle(QtCore.Qt.DashLine)
-            elif artist['linestyle'] == '-.':
-                pen.setStyle(QtCore.Qt.DashDotLine)
-            elif artist['linestyle'] == ':':
-                pen.setStyle(QtCore.Qt.DotLine)
-            else:
-                pass
-
+            pen = setPenStyle(pen, artist['linestyle'])
             roi.setPen(pen)
         elif artist['type'] == 'rectROI':
             roi = pg.RectROI([artist['x0'], artist['y0']], [artist['width'], artist['height']], \
@@ -475,6 +483,7 @@ class ScopeWindow(QtGui.QMainWindow):
         else:
             raise(NotImplementedError("'{}' annotation object has not been implemented yet".format(artist['type'])))
 
+        # Get which graphicsview to draw the ROI on
         p = None
         for l in self.layout:
             if which_layout[0] in l and which_layout[1] in l:
@@ -694,7 +703,7 @@ class ScopeWindow(QtGui.QMainWindow):
              # if did not specify which viewbox, update on all views
             plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
         if (self.viewRegionOn and not checked) or cmd == 'remove': # remove
-            # Remove all the linear regions aand data tip labels
+            # Remove all the linear regions and data tip labels
             def removeRegion(pm):
                 for r in pm.items:
                     if "LinearRegionItem" in str(type(r)) and r in self.graphicsView.artists:
@@ -745,6 +754,9 @@ class ScopeWindow(QtGui.QMainWindow):
             label.setText(self.regionDataTip(rng=self.selectedRange))
             self.graphicsView.addItem(label)
             self.graphicsView.artists.append(label)
+
+            # Add right click menu item for selection region, allowing precise definition of selection region
+            # self.addMenu
         else:
             raise(Exception('toggleRegionSelection fell through'))
 
@@ -1027,8 +1039,6 @@ if __name__ == '__main__' and not run_example:
     'Dirs': ['D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E22.dat',
              'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E23.dat',
              'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E24.dat']}
-
-    artists = {'box1': {'position': 0, 'fill': False, 'name': 'box1', 'linewidth': '0.5669291338582677', 'height': '10', 'x0': '0', 'line': True, 'linecolor': 'k', 'width': '500', 'type': 'box', 'linestyle': '-', 'fillalpha': '100', 'fillcolor': 'w', 'y0': '0', 'layout': ['Voltage', 'A', 0, 0]}}
 
     index = [0]
     app = QtGui.QApplication(sys.argv)

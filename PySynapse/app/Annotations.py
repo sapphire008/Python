@@ -109,12 +109,15 @@ class AnnotationSetting(QtGui.QDialog):
         lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
         ls_label = QtGui.QLabel('Line Style')
         ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='-', return_type=str))
+        ls_text.setToolTip('"-" (default), "--", "-.", ":"')
         lc_label = QtGui.QLabel('Line Color')
         lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
+        lc_text.setToolTip('Single letter or hex value of the color')
         fill_checkbox = QtGui.QCheckBox('Fill')
         fill_checkbox.setCheckState(self.parseArtist(field='fill', default=0, return_type=bool))
         fc_label = QtGui.QLabel('Fill Color')
         fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='w', return_type=str))
+        fc_text.setToolTip('Single letter or hex value of the color')
         fa_label = QtGui.QLabel('Fill Alpha')
         fa_text = QtGui.QLineEdit(self.parseArtist(field='fillalpha', default='100', return_type=str))
         fa_suffix_label = QtGui.QLabel('%')
@@ -180,8 +183,10 @@ class AnnotationSetting(QtGui.QDialog):
         lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
         ls_label = QtGui.QLabel('Line Style')
         ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='--', return_type=str))
+        ls_text.setToolTip('"-" (default), "--", "-.", ":"')
         lc_label = QtGui.QLabel('Line Color')
         lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
+        lc_text.setToolTip('Single letter or hex value of the color')
 
         # make a dictionary of hte vlaues
         self.settingDict['x0'] = x0_text
@@ -234,18 +239,11 @@ class AnnotationSetting(QtGui.QDialog):
 
 
     def checkSettingUpdates(self):
+        """Sanity check fields that cannot be empty input"""
         if self.type == 'box':
-            keys = ['x0', 'y0', 'width', 'height', 'linewidth', 'linestyle', 'linecolor', 'fillcolor', 'fillalpha'] # keys that cannot be empty input
-            for k in keys:
-                if self.artist[k] == '':
-                    msg = QtGui.QMessageBox()
-                    msg.setWindowTitle("Error")
-                    msg.setText("'{}' argument cannot be empty when drawing a '{}'".format(k, self.type))
-                    msg.exec_()
-                    return False
-            return True
+            keys = ['x0', 'y0', 'width', 'height', 'linewidth', 'linestyle', 'linecolor', 'fillcolor', 'fillalpha']
         elif self.type == 'line':
-            return True
+            keys = ['x0', 'y0', 'x1', 'y1', 'linewidth', 'linestyle', 'linecolor']
         elif self.type == 'circle':
             return True
         elif self.type == 'arrow':
@@ -256,6 +254,15 @@ class AnnotationSetting(QtGui.QDialog):
             return True
         else:
             return True
+
+        for k in keys:
+            if self.artist[k] == '':
+                msg = QtGui.QMessageBox()
+                msg.setWindowTitle("Error")
+                msg.setText("'{}' argument cannot be empty when drawing a '{}'".format(k, self.type))
+                msg.exec_()
+                return False
+        return True
 
     def updateSettings(self, closeWidget=False):
         for k, v in self.settingDict.items():
