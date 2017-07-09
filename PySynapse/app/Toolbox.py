@@ -11,6 +11,7 @@ Methods that call self.friend assumes that the Scope window is already running (
 # Global variables
 old = True # load old data format
 colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+ignoreFirstTTL = True # Ignore the first set of TTL Data when parsing TTL pulse protocols
 
 from app.AccordionWidget import AccordionWidget
 from app.Annotations import *
@@ -49,6 +50,7 @@ class Toolbox(QtGui.QWidget):
         self.parent = parent
         self.friend = friend
         self.detectedEvents = []
+        self.eventArtist = [] # list of IDs
         self.annotationArtists = [] # list of IDs
         self.setupUi()
 
@@ -59,7 +61,7 @@ class Toolbox(QtGui.QWidget):
 
         # Add various sub-widgets, which interacts with Scope, a.k.a, friend
         self.accWidget.addItem("Arithmetic", self.arithmeticWidget(), collapsed=True)
-        self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=False)
+        self.accWidget.addItem("Annotation", self.annotationWidget(), collapsed=True)
         self.accWidget.addItem("Channels", self.layoutWidget(), collapsed=True)
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
@@ -475,7 +477,6 @@ class Toolbox(QtGui.QWidget):
         """Return a dictionary of artists from annotationTable"""
         artist_dict = {}
         # Annottion table
-        T = self.annotation_table
         for r in range(self.annotation_table.rowCount()):
             item = self.annotation_table.item(r, 0)
             # Get annotation artist
@@ -487,8 +488,9 @@ class Toolbox(QtGui.QWidget):
         if hasattr(self, 'fittedCurve'):
             artist_dict['fit'] = self.fittedCurve
         # Detected events
-        #if hasattr(self, 'detectedEvents'):
-        #   artist_dict['event'] = self.detectedEvents
+        if hasattr(self, 'eventArtist'):
+            for evt in self.eventArtist:
+                artist_dict[evt['name']] = evt
 
         return artist_dict
 
@@ -515,15 +517,85 @@ class Toolbox(QtGui.QWidget):
             self.friend.drawROI(artist=artist, which_layout=which_layout)
         elif artist['type'] == 'ttl':
             # Get additional information about TTL from data: a list of OrderedDict
-            artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict # TODO
-            # set_trace()
+            artist['TTL'] = self.friend.episodes['Data'][self.friend.index[-1]].Protocol.ttlDict
+            # Get SIU duration
+            artist['SIU_Duration'] =self.friend.episodes['Data'][self.friend.index[-1]].Protocol.genData[53] # microsec
+            artist['TTLROIs'] = [[]] * len(artist['TTL']) # used to store properties of TTL annotation shapes
+            # Looping through each TTL data
+            for n, TTL in enumerate(artist['TTL']):
+                if ignoreFirstTTL and n == 0:
+                    continue
+
+                if not TTL['is_on']: # global enable
+                    continue
+
+                TTL_art = []
+                if TTL['Step_is_on']:
+                    TTL_art.append({'start': np.array([TTL['Step_Latency']]),
+                                    'dur': np.array([TTL['Step_Duration']])})
+
+                if TTL['SIU_Single_Shocks_is_on']:
+                    TTL_art.append({'start': np.array([TTL['SIU_A'], TTL['SIU_B'], TTL['SIU_C'], TTL['SIU_D']]),
+                                   'dur': (artist['SIU_Duration']/1000.0 if not artist['bool_pulse2step'] else 25)})
+
+                if TTL['SIU_Train_is_on']:
+                    if artist['bool_pulse2step']:
+                        TTL_art.append({'start': np.array([TTL['SIU_Train_Start']]),
+                                        'dur': np.array([(TTL['SIU_Train_Number'] -1) * TTL['SIU_Train_Interval'] + artist['SIU_Duration']/1000 +\
+                                               ((TTL['SIU_Train_Burst_Number'] - 1) * TTL['SIU_Train_Burst_Internal'] if TTL['SIU_Train_of_Bursts_is_on'] else 0)])})
+                    else:
+                        start_mat = np.arange(int(TTL['SIU_Train_Number'])) * TTL['SIU_Train_Interval'] + TTL['SIU_Train_Start']
+                        if TTL['SIU_Train_of_Bursts_is_on']:
+                            burst_mat = np.arange(int(TTL['SIU_Train_Burst_Number'])) * TTL['SIU_Train_Burst_Interval']
+                            burst_mat = burst_mat[:, np.newaxis]
+                            start_mat = start_mat + burst_mat # broadcasting
+                            start_mat = start_mat.flatten(order='F')
+                        TTL_art.append({'start': start_mat, 'dur': artist['SIU_Duration']/1000})
+
+                artist['TTLROIs'][n] = TTL_art
+
+            # Draw the ROIs once we know the start and the end
+            if artist['bool_realpulse']:
+                p = None
+                for l in self.friend.layout:
+                    if which_layout[0] in l and which_layout[1] in l:
+                        # get graphics handle
+                        p = self.friend.graphicsView.getItem(row=l[2], col=l[3])
+                        break
+                if not p:
+                    return
+                yRange = p.viewRange()[1]
+                yheight = abs((yRange[1] - yRange[0]) / 20.0)
+
+            iteration = 0
+            self.TTL_final_artist = [] # self.getArtist will get artist from here
+            for n, TTL in enumerate(artist['TTLROIs']): # for each TTL channel
+                if not TTL: # continue if empty
+                    continue
+                for m, ROIs in enumerate(TTL): # for each ROI in the TTL
+                    if artist['bool_realpulse']: # draw a box
+                        y0 = yRange[0] + iteration * yheight * 1.35
+                        for x0 in ROIs['start']:
+                            evt = {'type': 'box', 'x0': x0, 'y0': y0, 'width': ROIs['dur'], 'height': yheight, 'fill': True,
+                                   'fillcolor': 'k', 'line': False, 'linecolor': 'k', 'linewidth': 0, 'linstyle': '-',
+                                   'name': artist['name']}
+                            self.friend.drawROI(artist=evt, which_layout=which_layout)
+                            self.TTL_final_artist.append(evt)
+                    else: # draw as events
+                        evt = self.friend.drawEvent(ROIs['start'], which_layout=which_layout, info=[artist['name']], color='k', drawat='bottom', iteration=iteration)
+                        self.TTL_final_artist.append(evt)
+                    iteration = iteration + 1 # incerase iteration wen drawing everytime
+
         else:
             raise(NotImplementedError("'{}' annotation object has not been implemented yet".format(artist['type'])))
 
         return artist
 
     def eraseAnnotationArtist(self, artist=None, which_layout=None):
-        self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='annotation')
+        if artist['type'] == 'ttl' and not artist['bool_realpulse']:
+            self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='event')
+        else:
+            self.friend.removeEvent(info=[artist['name']], which_layout=which_layout, event_type='annotation')
 
     def editAnnotationArtist(self):
         """ Redraw a modified artist"""
@@ -554,6 +626,22 @@ class Toolbox(QtGui.QWidget):
                 AT_item.setCheckState(QtCore.Qt.Checked)  # newly added items are always checked
                 AT_item._artistProp = artistProperty
                 self.drawAnnotationArtist(artist=artistProperty)
+
+
+    def updateTTL(self):
+        # Get TTL artist
+        # print('update TTL')
+        TTL = None
+        for r in range(self.annotation_table.rowCount()):
+            if 'ttl' in self.annotation_table.item(r, 0)._artistProp['name'] and \
+                    self.annotation_table.item(r, 0).checkState():
+                TTL = self.annotation_table.item(r, 0)._artistProp
+                break
+        if TTL is None:
+            return
+
+        self.eraseAnnotationArtist(artist=TTL)
+        self.drawAnnotationArtist(artist=TTL)
 
     def clearAnnotationArtists(self):
         print("clear all artist")
@@ -803,8 +891,8 @@ class Toolbox(QtGui.QWidget):
             else:
                 p0[m] = str2numeric(self.CFsettingTable[(4+m, 1)].text())
 
-        print('Initial fitted parameters')
-        print(p0)
+        #print('Initial fitted parameters')
+        #print(p0)
         return p0
 
     def curveFit(self, curve, cfReportBox, currentView=(0,0)):#, centerAndScale):
@@ -1123,8 +1211,8 @@ class Toolbox(QtGui.QWidget):
             if drawEvent:
                 if selectedWindow[0] is not None:
                     spike_time += selectedWindow[0]
-                self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
-
+                eventArtist = self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
+                self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', riseTime=1, decayTime=4, amp=1, step=20, criterion='se', thresh=3.0):
@@ -1158,8 +1246,8 @@ class Toolbox(QtGui.QWidget):
             if drawEvent:
                 if selectedWindow[0] is not None:
                     event_time += selectedWindow[0]
-                self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
-
+                eventArtist = self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
+                self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     def detectCellAttachedSpikes(self, detectReportBox, drawEvent=False, msh=30, msd=10, basefilt=20, maxsh=300):
@@ -1186,8 +1274,8 @@ class Toolbox(QtGui.QWidget):
             if drawEvent:
                 if selectedWindow[0] is not None:
                     spike_time += selectedWindow[0]
-                self.friend.drawEvent(spike_time, which_layout = ['Current', c], info=[self.detectedEvents[-1]])
-
+                eventArtist = self.friend.drawEvent(spike_time, which_layout = ['Current', c], info=[self.detectedEvents[-1]])
+                self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     # </editor-fold>

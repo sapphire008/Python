@@ -175,9 +175,9 @@ class AnnotationSetting(QtGui.QDialog):
         y0_label = QtGui.QLabel('Y0')
         y0_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
         x1_label = QtGui.QLabel('X1')
-        x1_text = QtGui.QLineEdit(self.parseArtist(field='x0', default='1000', return_type=str))
+        x1_text = QtGui.QLineEdit(self.parseArtist(field='x1', default='1000', return_type=str))
         y1_label = QtGui.QLabel('Y1')
-        y1_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
+        y1_text = QtGui.QLineEdit(self.parseArtist(field='y1', default='0', return_type=str))
 
         lw_label = QtGui.QLabel('Line Width')
         lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
@@ -229,11 +229,17 @@ class AnnotationSetting(QtGui.QDialog):
         pulse2step_checkbox.setCheckState(2)
         pulse2step_checkbox.setToolTip("Draw a block of short pulses as a continuous step")
 
+        realpulse_checkbox = QtGui.QCheckBox('Draw Real Pulse Width')
+        realpulse_checkbox.setCheckState(2)
+        realpulse_checkbox.setToolTip('If unchecked, pulses will be represented as a vertial line only')
+
         # Make a dictionary of the values
         self.settingDict['bool_pulse2step'] = pulse2step_checkbox
+        self.settingDict['bool_realpulse'] = realpulse_checkbox
 
         # Add the widgets to the window
         widgetFrame.layout().addWidget(pulse2step_checkbox, 0, 0, 1, 1)
+        widgetFrame.layout().addWidget(realpulse_checkbox, 1, 0, 1, 1)
 
         return widgetFrame
 

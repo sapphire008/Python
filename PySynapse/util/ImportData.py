@@ -280,7 +280,7 @@ class NeuroData(object):
     
     @staticmethod
     def parseTTLArray_old(TTLarray):
-        """Convert TTL specifications into a trace"""
+        """Convert the TTL array into meaningful dictionary"""
         TTL = OrderedDict()
         TTL['is_on'] = TTLarray[0]
         TTL['use_AWF'] = TTLarray[1]
@@ -301,6 +301,19 @@ class NeuroData(object):
         TTL['SIU_Train_Burst_Number'] = TTLarray[16]
         return TTL
 
+    @staticmethod
+    def parseGenArray_old(GenArray):
+        """Convert genData array into meaningful dictionary"""
+        Gen = OrderedDict()
+        Gen['chantype'] = GenArray[3:11]
+        Gen['chanGain'] = GenArray[11:19]
+        Gen['chanExtGain'] = GenArray[19:27]
+        Gen['AuxTTlEnable'] = GenArray[51]
+        Gen['extTrig'] = GenArray[52]
+        Gen['SIUDuration'] = GenArray[53]
+        Gen['episodicMode'] = GenArray[54]
+        Gen['programCode'] = GenArray[55]
+        return Gen
         
 
 def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):

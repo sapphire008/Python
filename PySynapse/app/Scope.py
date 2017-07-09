@@ -324,6 +324,8 @@ class ScopeWindow(QtGui.QMainWindow):
         if not bool_old_episode:
             self.dockPanel.updateLayoutComboBox()
 
+        self.dockPanel.updateTTL()
+
         # print(self.layout)
 
     def drawEpisode(self, zData, info=None, pen=None, layout=None):
@@ -385,7 +387,7 @@ class ScopeWindow(QtGui.QMainWindow):
                     p1.removeItem(a)
 
 
-    def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom'):
+    def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom', iteration=0):
         """Draw events occurring at specific times"""
         p = None
         for l in self.layout:
@@ -401,15 +403,20 @@ class ScopeWindow(QtGui.QMainWindow):
         yRange = p.viewRange()[1]
         if linesize is None:
             linesize = abs((yRange[1]-yRange[0]) / 15.0)
-        if drawat == 'bottom':
-            ypos_0, ypos_1 = yRange[0], yRange[0] + linesize
+        if drawat == 'bottom': # Stacked backwards
+            ypos_0, ypos_1 = yRange[0] + iteration * linesize * 1.35, yRange[0] + linesize - iteration * linesize * 1.35
         else: # top
-            ypos_0, ypos_1 = yRange[1], yRange[1] - linesize
+            ypos_0, ypos_1 = yRange[1] - iteration * linesize * 1.35, yRange[1] - linesize - iteration * linesize * 1.35
 
         # Cell + Episode + Even type + Stream + Channel
         pname = ".".join(info)+'.'+l[0]+'.'+l[1]
         for t in eventTime:
             p.plot(x=[t,t], y=[ypos_0, ypos_1], pen=color, name=pname)
+
+        eventArtist = {'eventTime': eventTime, 'y': [ypos_0, ypos_1], 'layout': which_layout, 'name': pname,
+                               'linecolor': color, 'type': 'event'}
+
+        return eventArtist
 
     def removeEvent(self, info=None, which_layout=None, event_type='event'):
         """Remove one event type from specified layout (which_layout) or all
@@ -429,15 +436,21 @@ class ScopeWindow(QtGui.QMainWindow):
                     if pname in a.name(): # matching
                         p.removeItem(a)
             else:
-                for k, a in enumerate(p.items):
+                index = 0
+                iteration = len(p.items)
+                for k in range(iteration):
                     try:
-                        if a.name() in pname:
-                            p.removeItem(a)
-                            # print('removed {}'.format(a.name()))
+                        if p.items[index].name() in pname:
+                            p.removeItem(p.items[index])
+                        else:
+                            index = index + 1
+                            #continue
                     except:
-                        if a.name in pname:
-                            p.removeItem(a)
-                            # print('removed {}'.format(a.name))
+                        if p.items[index].name in pname:
+                            p.removeItem(p.items[index])
+                        else:
+                            index = index + 1
+                            #continue
 
             if which_layout: # if specified which_layout
                 break
@@ -722,7 +735,7 @@ class ScopeWindow(QtGui.QMainWindow):
 
         elif (not self.viewRegionOn and checked) or cmd == 'add': # add
             # Update current data view range
-            print(rng)
+            # print(rng)
             rng = None
             if rng is None:
                 self.getDataViewRange()

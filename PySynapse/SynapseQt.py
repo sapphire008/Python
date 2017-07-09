@@ -728,6 +728,8 @@ if __name__ == '__main__':
     # w = Synapse_MainWindow()
     w = Synapse_MainWindow(startpath='D:/Data/Traces/')
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/11.November/Data 9 Nov 2016', hideScopeToolbox=False)
+    w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/06.June/Data 30 Jun 2017', hideScopeToolbox=False)
+
     w.show()
     # Connect upon closin
     # app.aboutToQuit.connect(restartpyshell)
