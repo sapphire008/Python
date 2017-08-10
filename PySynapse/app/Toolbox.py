@@ -356,6 +356,7 @@ class Toolbox(QtGui.QWidget):
 
     # <editor-fold desc="Annotation widget">
     # ----------- Annotation widget ------------------------------------------
+    # TODO: when add a TTL object in the table, also display the detailed description of the object
     def annotationWidget(self):
         """Adding annotation items on the graph"""
         widgetFrame = QtGui.QFrame(self)

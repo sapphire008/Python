@@ -48,6 +48,8 @@ Script structure
       * ~~exponential / double exponential curve fitting~~
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - ~~Average trace display~~
+    - Integrate Ben's clipboard program to make .ini files (Export .ini file)
+    - Fix ttl markers when changing cell. Add notes on the table regarding ttl information.
 
 ## Update Apr 11, 2017
 * Fixed bug when exporting figures, scalebar labels are being drawn twice

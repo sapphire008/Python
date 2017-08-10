@@ -70,7 +70,7 @@ exportFigures_AI_CS6(sourceFile="{format_source_file}", targetFile="{format_targ
 
 
 def svg2eps_ai(source_file, target_file, \
-               illustrator_path="C:/Program Files/Adobe/Adobe Illustrator CS6 (64 Bit)/Support Files/Contents/Windows/Illustrator.exe",\
+               illustrator_path="D:/Edward/Software/AdobeIllustratorCS6(64bit)Portable/Support Files/Contents/Windows/Illustrator.exe",\
                jsx_file_str = jsx_file_str_AI_CS6, DEBUG=False):
     """Use Adobe Illustrator to convert svg to eps"""
     # Change the strings
@@ -80,11 +80,11 @@ def svg2eps_ai(source_file, target_file, \
     f = open(tmp_f, 'w')
     f.write(jsx_file_str)
     f.close()
-    
+
     # Remove previous target file if already existed
     if os.path.isfile(target_file):
         os.remove(target_file)
-    
+
     # subprocess.check_call([illustrator_path, '-run', tmp_f])
     cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
     pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -98,12 +98,12 @@ def svg2eps_ai(source_file, target_file, \
         sleep_iter = sleep_iter + 1.0
         if sleep_iter > max_sleep_iter:
             break
-            
+
     # pro.terminate()
     #os.kill(os.getpid(), signal.SIGTERM)  # Send the signal to all the process groups
     pro.kill()
     os.remove(tmp_f)
-    
+
 def svg2eps_inkscape(source_file, target_file, \
                      inkscape_path='"C:\\Program Files\\Inkscape\\inkscape.exe"'):
     """Use inkscape to convert svg to eps"""
@@ -113,9 +113,9 @@ def svg2eps_inkscape(source_file, target_file, \
     pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     #subprocess.check_call([inkscape_path, source_file, '-E', target_file])
     print(pro.stdout)
-    
-    
-        
+
+
+
 
 if __name__ == '__main__':
     source_file = '"R:\\temp.svg"'

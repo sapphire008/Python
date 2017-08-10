@@ -129,10 +129,6 @@ class NeuroData(object):
                 self.Protocol.dacName.append(readVBString(fid))
                 dacDataStr += self.generateDACdesc(chanCounter, self.Protocol.dacData[-1])
                 chanCounter += 1
-            
-
-            # Stimulus description
-            self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip()).strip()
 
             #print(fid.tell())
             # Get other parameters
@@ -157,7 +153,9 @@ class NeuroData(object):
             self.Protocol.ampDesc = []
             for index in range(self.Protocol.numChannels):
                 self.Protocol.ampDesc.append(readVBString(fid))
-            
+
+            # Stimulus description
+            self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip() + " " + self.Protocol.acquireComment).strip()
 
             # Get Channel info
             channelDict = {'VoltADC1':'VoltA','VoltADC3':'VoltB',
