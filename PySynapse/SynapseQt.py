@@ -480,13 +480,14 @@ class TableviewDelegate(QtGui.QItemDelegate):
 
 # %%
 class Synapse_MainWindow(QtGui.QMainWindow):
-    def __init__(self, parent=None, startpath=None, hideScopeToolbox=True):
+    def __init__(self, parent=None, startpath=None, hideScopeToolbox=True, layout=None):
         super(Synapse_MainWindow, self).__init__(parent)
         # Set up the GUI window
         self.setupUi(self)
         # Set the treeview model for directory
         self.setDataBrowserTreeView(startpath=startpath)
         self.hideScopeToolbox = hideScopeToolbox
+        self.scopeLayout = layout
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -715,7 +716,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Call scope window
         if not hasattr(self, 'sw'): # Start up a new window
             # self.sw = ScopeWindow(parent=self)
-            self.sw = ScopeWindow(partner=self, hideDock=self.hideScopeToolbox) # new window
+            self.sw = ScopeWindow(partner=self, hideDock=self.hideScopeToolbox, layout=self.scopeLayout) # new window
         if self.sw.isclosed:
             self.sw.show()
             self.sw.isclosed = False
@@ -726,10 +727,11 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     # w = Synapse_MainWindow()
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/')
+    w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False)
+    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False, layout=[['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]])
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/11.November/Data 9 Nov 2016', hideScopeToolbox=False)
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/06.June/Data 30 Jun 2017', hideScopeToolbox=False)
-    w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/08.August/Data 8 Aug 2017')
+    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/08.August/Data 8 Aug 2017') # voltage clamp
     w.show()
     # Connect upon closin
     # app.aboutToQuit.connect(restartpyshell)

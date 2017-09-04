@@ -18,6 +18,7 @@ from app.Annotations import *
 from util.spk_util import *
 from util.ImportData import NeuroData
 
+from scipy.signal import butter, filtfilt
 from scipy.optimize import curve_fit
 
 from pdb import set_trace
@@ -66,6 +67,7 @@ class Toolbox(QtGui.QWidget):
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
         self.accWidget.addItem("Filter", self.filterWidget(), collapsed=True)
+        # self.accWidget.addItem("Function", self.functionWidget(), collapsed=True)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -91,14 +93,18 @@ class Toolbox(QtGui.QWidget):
         # Range unit label
         rangeUnitLabel = QtGui.QLabel("ms")
 
+        # Apply filtering before calculation
+        filtCheckBox = QtGui.QCheckBox("Apply filter before calculation")
+        filtCheckBox.setToolTip('Apply a filter, defined in the "Filter" tool onto each episode, before doing any calculation')
+
         # Formula
         formulaTextBox = QtGui.QLineEdit()
         formulaTextBox.setPlaceholderText("Formula")
         Tooltips = "Examples:\n"
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
         Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
-        Tooltips += "Calculation between regions: S1.E1:[500, 700] - S1.E2:[800, 1000]\n"
-        Tooltips += "Multiple manipulations: {S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6}"
+        Tooltips += "Calculation between regions: S1.E1[500,700] - S1.E2[800,1000]\n"
+        Tooltips += "Multiple manipulations: S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6"
         formulaTextBox.setToolTip(Tooltips)
 
         # Report box
@@ -108,16 +114,17 @@ class Toolbox(QtGui.QWidget):
 
         # Connect all the items to calculationevents
         nullCheckBox.stateChanged.connect(lambda checked: self.nullTraces(checked, rangeTextBox))
-        calculateButton.clicked.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), arithReportBox))
-        formulaTextBox.returnPressed.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), arithReportBox))
+        calculateButton.clicked.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), filtCheckBox.checkState(), arithReportBox))
+        formulaTextBox.returnPressed.connect(lambda: self.calculateTraces(formulaTextBox.text(), nullCheckBox.checkState(), filtCheckBox.checkState(), arithReportBox))
 
         # Organize all the items in the frame
         widgetFrame.layout().addWidget(calculateButton, 0, 0, 1, 3)
         widgetFrame.layout().addWidget(nullCheckBox, 1, 0)
         widgetFrame.layout().addWidget(rangeTextBox, 1, 1)
         widgetFrame.layout().addWidget(rangeUnitLabel, 1, 2)
-        widgetFrame.layout().addWidget(formulaTextBox, 2, 0, 1, 3)
-        widgetFrame.layout().addWidget(arithReportBox, 3, 0, 1, 3)
+        widgetFrame.layout().addWidget(filtCheckBox, 2, 0, 1, 3)
+        widgetFrame.layout().addWidget(formulaTextBox, 3, 0, 1, 3)
+        widgetFrame.layout().addWidget(arithReportBox, 4, 0, 1, 3)
 
         return widgetFrame
 
@@ -137,7 +144,9 @@ class Toolbox(QtGui.QWidget):
         self.friend.updateEpisodes(episodes=episodes, index=[], updateLayout=False) # clear all the episodes
         self.friend.updateEpisodes(episodes=episodes, index=index, updateLayout=False) # redraw all the episodes
 
-    def calculateTraces(self, formula, isNulled, arithReportBox):
+    def calculateTraces(self, formula, isNulled, isfilt, arithReportBox):
+        if not formula or formula=="Formula":
+            return
         arithReportBox.setText('') # clear any previous error message first
         if isNulled:
             r = self.friend.nullRange # should have been already calculated before
@@ -166,12 +175,16 @@ class Toolbox(QtGui.QWidget):
             e.g. f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8 +5" -->
             D = [S1.E1, S1.E2, S1.E3, S1.E4], K = [1, 1, -0.5, 0.375]
             C = 5 (constant term)
+            If each episode is followed by a range, e.g.
+            f = "S1.E1[100,500] + S1.E2[600,1000] - S1.E3[200,600]/ 2 + S1.E4[700,1100] * 3 / 8 +5",
+            also return the range R = [[100,500], [600,1000], [200,600], [700,1100]]. Otherwis, R = None
             """
             # separate the formula first
             groups = [s.replace(" ","") for s in filter(None, re.split(r"(\+|-)", f))]
             D = [] # data variable
             K = [] # scale factors
             C = 0 # constant
+            R = []
 
             for n, g in enumerate(groups):
                 # initialize scale factor
@@ -208,14 +221,31 @@ class Toolbox(QtGui.QWidget):
                     arithReportBox.setText("Unexpected formula")
                     return
 
-            return D, K, C
+            # Further separate D and R
+            bool_has_range = False
+            for count_g, g in enumerate(D):
+                if "[" in g:
+                    if not bool_has_range:
+                        bool_has_range = True
+                    g, rng_tmp = re.split("\[", g)
+                    D[count_g] = g
+                    R.append(str2num("+"+rng_tmp))
+
+            # Double check the length of D and R matches
+            if bool_has_range and len(D) != len(R):
+                arithReportBox.setText("Specified ranges must follow each episode.")
+                return
+
+            return D, K, C, R
 
         def simpleMath(f, stream, channel, **kwargs):
             """" f = "S1.E1 + S1.E2 - S1.E3 / 2 + S1.E4 * 3 / 8"
             Additional variables can be provided by **kwargs"""
-            D, K, Y = parseSimpleFormula(f)
+            D, K, Y, R = parseSimpleFormula(f)
+            if not R:
+                R = [[]] * len(K)
 
-            for d, k in zip(D, K):
+            for d, k, w in zip(D, K, R):
                 if d not in kwargs.keys():
                     # load episodes
                     try:
@@ -228,9 +258,20 @@ class Toolbox(QtGui.QWidget):
                         self.friend.episodes['Data'][yind] = NeuroData(dataFile=self.friend.episodes['Dirs'][yind], old=old, infoOnly=False)
 
                     y = getattr(self.friend.episodes['Data'][yind], stream)[channel] # get the time series
+                    # Window the episode if R is not empty
+                    if w:
+                        y = spk_window(y, self.friend.episodes['Data'][yind].Protocol.msPerPoint, w)
                     # null the time series
                     if r is not None:
                         y = y - self.friend.getNullBaseline(y, self.friend.episodes['Data'][yind].Protocol.msPerPoint, r)
+
+                    if isfilt: # apply a filter based on "Filter" tool specification
+                        filterType = self.filtertype_comboBox.currentText()
+                        self.getFiltSettingTable(filterType) # update
+                        y = self.inplaceFiltering(True, filterType, yData=y)
+                        if y is None:
+                            print('filtered y became None')
+
                 else:
                     y = kwargs[d] # assume everything is processed
 
@@ -254,23 +295,18 @@ class Toolbox(QtGui.QWidget):
             return next(callback.v)
 
         # parse formula
-        if "{" in formula:
+        # set_trace()
+        if ";" in formula: # a list of formulas
             # separate each formula
-            formula = formula.replace("{","").replace("}","")
             formula = formula.split(";")
+        elif "\n" in formula: # a list of formulas separated by newline character
+            formula = formula.split("\n")
         else:
             formula = [formula]
 
         # parse each formula
         for f0 in formula:
-            if ":" in f0: # has range. Assume each formula hsa only 1 range
-                # set_trace()
-                f, rng = f0.split(":")
-                f = parseTilda(f)
-                rng = str2num(rng)
-            else:
-                f = parseTilda(f0)
-                rng = None
+            f = parseTilda(f0)
             # if has parenthesis
             y = dict()
             try:
@@ -304,9 +340,6 @@ class Toolbox(QtGui.QWidget):
 
             # Subset of the time series if range specified
             ts = self.friend.episodes['Sampling Rate'][0]
-            if rng is not None:
-                for s, c, _, _ in self.friend.layout:
-                    y[(s,c)] = spk_window(y[(s,c)], ts, rng)
 
             y_len = len(y[s,c]) # length of time series
 
@@ -772,9 +805,8 @@ class Toolbox(QtGui.QWidget):
         # Center and scale
         # csCheckBox = QtGui.QCheckBox("Center and scale")
         # Report box
-        cfReportBox = QtGui.QLabel("Curve Fit Results")
+        cfReportBox = QtGui.QTextEdit("Curve Fit Results")
         cfReportBox.setStyleSheet("background-color: white")
-        cfReportBox.setWordWrap(True)
 
         # Arrange the widget
         widgetFrame.layout().addWidget(fitButton, 0, 0, 1,3)
@@ -790,6 +822,7 @@ class Toolbox(QtGui.QWidget):
         fitButton.clicked.connect(lambda: self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
 
         return widgetFrame
+
 
     def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
         # Remove everything at and below the setting rows: rigid setting
@@ -884,7 +917,7 @@ class Toolbox(QtGui.QWidget):
         else:
             return
 
-        for m in range(len(p0)):
+        for m in range(len(p0)): # replacing with user custom values
             if self.CFsettingTable[(4+m, 1)].text() == 'auto':
                 pass
             elif not isstrnum(self.CFsettingTable[(4+m, 1)].text()):
@@ -900,20 +933,23 @@ class Toolbox(QtGui.QWidget):
         # get view
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # clear previous fit artists
-        count_fit = 0
+        # count_fit = 0
         for k, a in enumerate(p.listDataItems()):
             if 'fit' in a.name():
-                count_fit = count_fit + 1
+                # count_fit = count_fit + 1
+                # Erase the older fits
+                p.removeItem(a)
 
-        if len(p.listDataItems())-count_fit > 1:
-            cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
-            return
+        # if len(p.listDataItems())-count_fit > 1:
+        #     cfReportBox.setText("Can only fit curve at 1 trace at a time. Please select only 1 trace")
+        #     return
 
-        # Get the plotted data
+        # Get only the plotted data of first channel / stream
         d = p.listDataItems()[0]
 
         if self.friend.viewRegionOn: # fit between region selection
             xdata, ydata = spk_window(d.xData, d._ts, self.friend.selectedRange), spk_window(d.yData, d._ts, self.friend.selectedRange)
+
         else: # fit within the current view
             xdata, ydata = spk_window(d.xData, d._ts, p.viewRange()[0]), spk_window(d.yData, d._ts, p.viewRange()[0])
 
@@ -1288,22 +1324,23 @@ class Toolbox(QtGui.QWidget):
         widgetFrame.setLayout(QtGui.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("Filter"))
 
-        filter_button = QtGui.QPushButton('Apply Filter')
-        filter_button.setToolTip('Apply inplace filtering to current trace')
-        filtertype_comboBox = QtGui.QComboBox()
-        filtertype_comboBox.addItems(['Butter'])
+        filter_checkbox = QtGui.QCheckBox('Apply Filter')
+        filter_checkbox.setToolTip('Apply inplace filtering to current trace')
+        self.filtertype_comboBox = QtGui.QComboBox()
+        self.filtertype_comboBox.addItems(['Butter'])
 
-        widgetFrame.layout().addWidget(filter_button, 0, 0, 1, 2)
-        widgetFrame.layout().addWidget(filtertype_comboBox, 1, 0, 1, 2)
+        widgetFrame.layout().addWidget(filter_checkbox, 0, 0, 1, 2)
+        widgetFrame.layout().addWidget(self.filtertype_comboBox, 1, 0, 1, 2)
 
         # Settings of filter
-        self.setFiltSettingWidgetFrame(widgetFrame, filtertype_comboBox.currentText())
+        self.setFiltSettingWidgetFrame(widgetFrame, self.filtertype_comboBox.currentText())
 
         # Refresh setting section when filter type changed
-        filtertype_comboBox.currentIndexChanged.connect(lambda: self.setFilterSettingWidgetFrame(widgetFrame, filtertype_comboBox.currentText()))
+        self.filtertype_comboBox.currentIndexChanged.connect(lambda: self.setFilterSettingWidgetFrame(widgetFrame, self.filtertype_comboBox.currentText()))
 
-        # When "Apply" button is pushed
-        filter_button.clicked.connect(lambda: self.inplaceFiltering(filtertype_comboBox.currentText()))
+        # When "Apply Filter" checkbox is clicked
+        filter_checkbox.stateChanged.connect(lambda checked: self.inplaceFiltering(checked, self.filtertype_comboBox.currentText()))
+
 
         return widgetFrame
 
@@ -1320,17 +1357,52 @@ class Toolbox(QtGui.QWidget):
             Wn_label = QtGui.QLabel("Wn")
             Wn_label.setToolTip("Normalized cutoff frequency, between 0 and 1")
             Wn_text = QtGui.QLineEdit("0.2")
-            self.FiltSettingTable = {(3,0): order_label, (3,1): order_text, (4,0): Wn_label, (4,1): Wn_text}
+            Btype_label = QtGui.QLabel("Type")
+            Btype_combobox = QtGui.QComboBox()
+            Btype_combobox.addItems(["low","high", "band"])
+            self.FiltSettingTable = {(3,0): order_label, (3,1): order_text, (4,0): Wn_label, (4,1): Wn_text,
+                                     (5,0): Btype_label, (5,1): Btype_combobox}
         else:
             pass
 
-    def inplaceFiltering(self, filterType):
-        # Get a list of current data
-        set_trace()
-        if filterType.lower() == 'butter':
-            pass
+    def inplaceFiltering(self, checked, filterType, currentView=(0,0), yData=None):
+        p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
+        # Get only the plotted data of first channel / stream
+        d = p.listDataItems()[0]
 
+        if checked: # assuming changed from unchecked to checked state, apply the filter
+            if filterType.lower() == 'butter':
+                Order = str2numeric(self.FiltSettingTable[(3,1)].text())
+                Wn = str2num(self.FiltSettingTable[(4,1)].text())
+                Btype = self.FiltSettingTable[(5,1)].currentText()
+                if yData is None: # inplace
+                    y = self.butterFilter(d.yData, Order, Wn, Btype)
+                    d.original_yData = d.yData
+                    d.setData(d.xData, y)
+                else:
+                    y = self.butterFilter(yData, Order, Wn, Btype)
+                    return y
+        else: # assuming changed from checked to unchecked state, recover original data
+            if not hasattr(d, 'original_yData'):
+                print('Data is not currently filtered, cannot recover original data')
+                return
+            else:
+                d.setData(d.xData, d.original_yData)
+
+
+    def butterFilter(self, y, Order, Wn, Btype="low"):
+        b, a = butter(Order, Wn, btype=Btype, analog=False, output='ba')
+        y_filt = filtfilt(b, a, y)
+        return y_filt
+
+
+    # </editor-fold>
+
+    # <editor-fold desc="Function widget">
+    def functionWidget(self):
+        """Apply a function to selected regions and print out the summary"""
         return
+
     # </editor-fold>
 
     # <editor-fold desc="Other utilities 2">

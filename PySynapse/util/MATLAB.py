@@ -386,6 +386,29 @@ def cell2array(C):
     """Helpful when reading MATLAB .mat files containing cellarray"""
     return np.array([c[0][0] for c in C])
 
+def cell2list_b(C):
+    n, m = C.shape
+    K = np.zeros((n,m))
+    K = K.tolist()
+    for i in range(n):
+        for j in range(m):
+            tmp = C[i][j][0]
+            if isinstance(tmp, (np.ndarray, list)):
+                tmp = tmp[0]
+            
+            K[i][j] = tmp
+    return K 
+
+def list2df(K):
+    headers = K[0]
+    df = {}
+    for n, h in enumerate(headers):
+        df[h] = [c[n] for c in K[1:]]
+    
+    df = pd.DataFrame(data=df, columns=headers)
+    
+    return df
+
 
 def sort_nicely( l ):
     """ Sort the given list of strings in the way that humans expect."""

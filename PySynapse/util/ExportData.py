@@ -259,9 +259,9 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         scalebarBox = AuxTransformBox(ax.transData)
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
-        scalebarBox.add_artist(matplotlib.text.Text(X/2, -Y/20, xlab, va='top', ha='center',color='k'))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
+        scalebarBox.add_artist(matplotlib.text.Text(X/2, -Y/20, xlab, va='top', ha='center', color='k'))
         scalebarBox.add_artist(matplotlib.text.Text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
         anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=scalebarBox, frameon=False, bbox_to_anchor=bbox_to_anchor)
         ax.add_artist(anchored_box)
@@ -716,6 +716,9 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
         # temp = 510 + c
         temp = tic.MaxNLocator(3)
         ax[ind].yaxis.set_major_locator(temp)
+
+        # Draw annotation artist for each export
+        DrawAnnotationArtists(artists, axs=[ax[ind]])
                         
     if (isinstance(setFont, str) and setFont.lower() in ['default', 'arial', 'helvetica']) or \
                     (isinstance(setFont, bool) and setFont):
