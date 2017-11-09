@@ -28,19 +28,6 @@ def readVBString(fid):
             tmp = np.fromfile(fid, '|S1', stringLength)
             return(np.ndarray.tostring(tmp).decode('UTF-8'))
 
-def isempty(m):
-    """Return true if:
-    a). an empty string
-    b). a list of length zero
-    c). a tuple of length zero
-    d). a numpy array of length zero
-    e). a singleton that is not None
-    """
-    if isinstance(m, (list, tuple, str, np.ndarray)):
-        return len(m) == 0
-    else:
-        return True if m else False
-
 class Protocol(object): # for composition
     pass
 

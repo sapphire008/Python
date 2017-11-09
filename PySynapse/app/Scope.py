@@ -93,6 +93,8 @@ class ScopeWindow(QtGui.QMainWindow):
         # self.linkViewRegion = True
         # Data tip
         self.dataCursorOn = False
+        # crosshair
+        self.crosshairOn = False
         # self.linkCrossHair = True
         # Keep track of which colors have been used
         self._usedColors = []
@@ -208,13 +210,18 @@ class ScopeWindow(QtGui.QMainWindow):
         viewRegionAction.setStatusTip('Show view region selection')
         viewRegionAction.triggered.connect(lambda: self.toggleRegionSelection(viewRegionAction.isChecked()))
         viewMenu.addAction(viewRegionAction)
-        # View: cross hair
+        # View: data cursor
         dataCursorAction = QtGui.QAction('Data cursor', self, checkable=True, checked=False)
         dataCursorAction.setShortcut('Alt+T')
         dataCursorAction.setStatusTip('Show data cursor on the traces')
-        dataCursorAction.isChecked()
         dataCursorAction.triggered.connect(lambda: self.toggleDataCursor(dataCursorAction.isChecked()))
         viewMenu.addAction(dataCursorAction)
+        # View: crosshair
+        crosshairAction = QtGui.QAction('Crosshair', self, checkable=True, checked=False)
+        crosshairAction.setShortcut('Alt+X')
+        crosshairAction.setStatusTip('Show crosshair on the plots')
+        crosshairAction.triggered.connect(lambda: self.toggleCrosshair(crosshairAction.isChecked()))
+        viewMenu.addAction(crosshairAction)
         # View: Keep previous
         keepPrev = QtGui.QAction('Keep previous', self, checkable=True, checked=False)
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
@@ -706,6 +713,10 @@ class ScopeWindow(QtGui.QMainWindow):
             self.toggleDataCursor(checked=False)
             self.toggleDataCursor(checked=True)
 
+        if self.crosshairOn: # remove, then redraw
+            self.toggleCrosshair(checked=False)
+            self.toggleCrosshair(checked=True)
+
     def toggleRegionSelection(self, checked, plotitem=None, rng=None, rememberRange=False, cmd=None):
         """Add linear view region. Region selection for data analysis
         rememberRange: when toggling, if set to True, when checked again, the
@@ -830,24 +841,34 @@ class ScopeWindow(QtGui.QMainWindow):
             #if did not specify which viewbox, update on all views
             plotitem = [self.graphicsView.getItem(row=l[2], col=l[3]) for l in self.layout]
         if (self.dataCursorOn and not checked) or cmd == 'remove': # remove
-            # Remove all the vertical line objects and data tip labels
+            # Remove all the line objects from the view first
             def removeCursor(pm):
-                for r in pm.items:
+                indices = []
+                for nr, r in enumerate(pm.items):
                     if 'InfiniteLine' in str(type(r)) and r in self.graphicsView.artists:
-                        pm.removeItem(r)
+                        indices.append(nr)
+
+                for ind in sorted(indices, reverse=True):
+                        pm.removeItem(pm.items[ind])
+
             # Vectorize
             removeCursor = np.frompyfunc(removeCursor, 1, 1)
             # Remove the cursor
             removeCursor(plotitem)
-            # Remove labels and records in artists
+
+            # Then, remove the items from graphicsView.artists
             for n, r in enumerate(self.graphicsView.artists):
                 if 'InfiniteLine' in str(type(r)):
                     self.graphicsView.artists[n] = None
-                # set_trace()
-                if 'LabelItem' in str(type(r)) and r in self.graphicsView.items() and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
-                    self.graphicsView.removeItem(r)
+                if 'LabelItem' in str(type(r)) and 'Start' not in r.text and 'End' not in r.text and 'Diff' not in r.text:
+                    try:
+                        self.graphicsView.removeItem(r)
+                    except:
+                        pass
                     self.graphicsView.artists[n] = None
-            self.graphicsView.artists = [r for r in self.graphicsView.artists if r]
+
+            self.graphicsView.artists = [r for r in self.graphicsView.artists if r] # Get rid of None
+
 
         elif (not self.dataCursorOn and checked) or cmd == 'add': # add
             # Add a data tip label
@@ -858,20 +879,26 @@ class ScopeWindow(QtGui.QMainWindow):
             # Add the data cursor
             def addCursor(pm):
                 # Initialize the cursor
-                cursor = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('k'))
-                pm.addItem(cursor, ignoreBounds=False)
+                cursorV = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('k'), name='verticalCursor')
+                pm.addItem(cursorV, ignoreBounds=False)
                 # Modify cursor and label upon mouse moving
-                pm.scene().sigMouseMoved.connect(lambda pos: self.onMouseMoved(pos, cursor, plotitem, label))
+                pm.scene().sigMouseMoved.connect(lambda pos: self.onMouseMoved(pos, cursorV, plotitem, label))
                 # proxy = pg.SignalProxy(pm.scene().sigMouseMoved, rateLimit=60, slot=lambda evt: self.onMouseMoved(evt, cursor, pm, label)) # proxy =, limit refreshment
                 # add these items in a collection
-                self.graphicsView.artists.append(cursor)
-
+                self.graphicsView.artists.append(cursorV)
+                # Add horizontal cursor
+                if self.crosshairOn:
+                    cursorH = pg.InfiniteLine(angle=0, movable=False, pen=pg.mkPen('k'), name='horizontalCursor')
+                    pm.addItem(cursorH, ignoreBounds=False)
+                    pm.scene().sigMouseMoved.connect(lambda pos: self.onMouseMoved(pos, cursorH, plotitem, label=None))
+                    self.graphicsView.artists.append(cursorH)
             # vectorize
             addCursor = np.frompyfunc(addCursor, 1, 1)
             # Do the adding
             addCursor(plotitem)
         else:
-            raise(Exception('toggleDataCursor fell through'))
+            return
+            # raise(Exception('toggleDataCursor fell through'))
 
         # Update attribute
         self.dataCursorOn = checked
@@ -891,13 +918,22 @@ class ScopeWindow(QtGui.QMainWindow):
             if p.sceneBoundingRect().contains(pos):
                 mousePoint = p.vb.mapSceneToView(pos)
                 xpos = mousePoint.x() # modify xpos
-                cursor.setPos(mousePoint.x())
+                if cursor.name()[0] == 'v':
+                    cursor.setPos(mousePoint.x())
+                elif cursor.name()[0] == 'h':
+                    cursor.setPos(mousePoint.y())
+                else:
+                    raise(ValueError('Unrecognized cursor type'))
 
         # Set label only once
+        if label is None:
+            return
         label_text = self.cursorDataTip(xpos)
+        #label_text = label_text + "\n{}, {}".format(str(self.graphicsView.items()[1]), str(self.graphicsView.artists[0]))
         if not label_text:
             return
         label.setText(label_text) # change data tip content
+
 
     def cursorDataTip(self, x):
         """Print the data tip in HTML format"""
@@ -927,6 +963,16 @@ class ScopeWindow(QtGui.QMainWindow):
         final_HTML = table_HTML.format(final_HTML)
 
         return final_HTML
+
+    def toggleCrosshair(self, checked=False, plotitem=None):
+        if checked: # from unchecked to checked
+            if self.dataCursorOn:
+                self.toggleDataCursor(checked=False) # turn off cursor first
+            self.crosshairOn = True
+            self.toggleDataCursor(checked=True) # turn it back on with crosshair
+        else: # from checked to unchecked
+            self.toggleDataCursor(checked=False) # turn it off
+            self.crosshairOn = False
 
     def exportWithScalebar(self, arrangement='overlap'):
         viewRange = collections.OrderedDict()

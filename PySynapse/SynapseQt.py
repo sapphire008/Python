@@ -727,7 +727,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     # w = Synapse_MainWindow()
-    w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False)
+    w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False, layout=[['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]])
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/11.November/Data 9 Nov 2016', hideScopeToolbox=False)
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/06.June/Data 30 Jun 2017', hideScopeToolbox=False)

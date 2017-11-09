@@ -341,6 +341,8 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
         # notes.append("Channel %s %.1f mV %d pA"%(ch, min(getattr(zData, 'Voltage')[ch]), min(getattr(zData, 'Current')[ch])  ))
     if mode.lower() == 'simple' and zData.Protocol.acquireComment != 'PySynapse Arithmetic Data':
         final_notes = os.path.basename(os.path.splitext(zData.Protocol.readDataFrom)[0]) + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
+    elif mode.lower() == 'label only':
+        final_notes = os.path.basename(os.path.splitext(zData.Protocol.readDataFrom)[0])
     else: # Full
         final_notes = zData.Protocol.readDataFrom + ' ' + ' '.join(notes) + ' WCTime: ' + zData.Protocol.WCtimeStr + ' min'
     return final_notes

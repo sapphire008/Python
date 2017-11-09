@@ -67,7 +67,7 @@ class Toolbox(QtGui.QWidget):
         self.accWidget.addItem("Curve Fit", self.curvefitWidget(), collapsed=True)
         self.accWidget.addItem("Event Detection", self.eventDetectionWidget(), collapsed=True)
         self.accWidget.addItem("Filter", self.filterWidget(), collapsed=True)
-        # self.accWidget.addItem("Function", self.functionWidget(), collapsed=True)
+        self.accWidget.addItem("Function", self.functionWidget(), collapsed=False)
 
         self.accWidget.setRolloutStyle(self.accWidget.Maya)
         self.accWidget.setSpacing(0) # More like Maya but I like some padding.
@@ -104,7 +104,8 @@ class Toolbox(QtGui.QWidget):
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
         Tooltips += "Diff between episodes: S1.E1-S1.E2\n"
         Tooltips += "Calculation between regions: S1.E1[500,700] - S1.E2[800,1000]\n"
-        Tooltips += "Multiple manipulations: S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6"
+        Tooltips += "Multiple manipulations: S1.E1 - S1.E2; S1.E3 - S1.E4; S1.E5 - S1.E6\n"
+        Tooltips += "Short hand of S1.E1+S1.E2+S1.E3+S1.E4: S1.E1~4"
         formulaTextBox.setToolTip(Tooltips)
 
         # Report box
@@ -787,8 +788,8 @@ class Toolbox(QtGui.QWidget):
 
     # </editor-fold>
 
-    # <editor-fold desc="Curve fitting tools">
-    # -------- Curve fitting tools -------------------------------------------
+    # <editor-fold desc="Curve Fitting tools">
+    # -------- Curve Fitting tools -------------------------------------------
     def curvefitWidget(self):
         """This returns the initialized curve fitting widget
         """
@@ -1049,11 +1050,11 @@ class Toolbox(QtGui.QWidget):
             final_text += "Time Constants:\n"
             if eqText in ['a*exp(b*x)+c', 'a*exp(b*x)']:
                 tau = -1.0/popt[1]
-                final_text += "\ttau: " + "{:.4g} ms".format(tau) + "\n"
+                final_text += "\ttau: " + "{:.5f} ms".format(tau) + "\n"
             elif eqText == 'a*exp(b*x)+c*exp(d*x)':
                 tau1, tau2 = -1.0/popt[1], -1.0/popt[3]
-                final_text += "\ttau1: " + "{:.4g} ms".format(tau1) + "\n"
-                final_text += "\ttau2: " + "{:.4g} ms".format(tau2) + "\n"
+                final_text += "\ttau1: " + "{:.5f} ms".format(tau1) + "\n"
+                final_text += "\ttau2: " + "{:.5f} ms".format(tau2) + "\n"
 
         final_text += "\nGoodness of fit:\n\tSSE: {:.4g}\n\tR-squared: {:.4g}\n\tAdjusted R-squared: {:.4g}\n\tRMSE: {:.4g}".format(SSE, R_sq, R_sq_adj, RMSE)
         cfReportBox.setText(final_text)
@@ -1237,7 +1238,7 @@ class Toolbox(QtGui.QWidget):
             selectedWindow = [None, None]
         final_label_text = ""
         for c, Vs in zData.Voltage.items():
-            Vs = spk_window(Vs, ts,selectedWindow, t0=0)
+            Vs = spk_window(Vs, ts, selectedWindow, t0=0)
             num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd)
             final_label_text = final_label_text + c + " : \n"
             final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
@@ -1368,7 +1369,7 @@ class Toolbox(QtGui.QWidget):
     def inplaceFiltering(self, checked, filterType, currentView=(0,0), yData=None):
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # Get only the plotted data of first channel / stream
-        d = p.listDataItems()[0]
+        data = p.listDataItems()
 
         if checked: # assuming changed from unchecked to checked state, apply the filter
             if filterType.lower() == 'butter':
@@ -1376,19 +1377,20 @@ class Toolbox(QtGui.QWidget):
                 Wn = str2num(self.FiltSettingTable[(4,1)].text())
                 Btype = self.FiltSettingTable[(5,1)].currentText()
                 if yData is None: # inplace
-                    y = self.butterFilter(d.yData, Order, Wn, Btype)
-                    d.original_yData = d.yData
-                    d.setData(d.xData, y)
+                    for d in data:
+                        y = self.butterFilter(d.yData, Order, Wn, Btype)
+                        d.original_yData = d.yData
+                        d.setData(d.xData, y)
                 else:
                     y = self.butterFilter(yData, Order, Wn, Btype)
                     return y
-        else: # assuming changed from checked to unchecked state, recover original data
-            if not hasattr(d, 'original_yData'):
-                print('Data is not currently filtered, cannot recover original data')
-                return
-            else:
-                d.setData(d.xData, d.original_yData)
-
+        else: # inplace only: assuming changed from checked to unchecked state, recover original data
+            for d in data:
+                if not hasattr(d, 'original_yData'):
+                    print('Data is not currently filtered, cannot recover original data')
+                    return
+                else:
+                    d.setData(d.xData, d.original_yData)
 
     def butterFilter(self, y, Order, Wn, Btype="low"):
         b, a = butter(Order, Wn, btype=Btype, analog=False, output='ba')
@@ -1401,7 +1403,86 @@ class Toolbox(QtGui.QWidget):
     # <editor-fold desc="Function widget">
     def functionWidget(self):
         """Apply a function to selected regions and print out the summary"""
-        return
+        widgetFrame = QtGui.QFrame(self)
+        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame.setObjectName(_fromUtf8("FunctionWidgetFrame"))
+        widgetFrame.layout().setSpacing(10)
+        # Apply button
+        applyButton = QtGui.QPushButton("Apply")
+        # Select from a list of pre-existing tools, or enter a custom function
+        functionComboBox = QtGui.QComboBox()
+        functionComboBox.addItems(['mean', 'std', 'rms', 'series resistance', 'custom'])
+        # Summary box
+        functionReportBox = QtGui.QLabel("Apply Function Results")
+        functionReportBox.setStyleSheet("background-color: white")
+        functionReportBox.setWordWrap(True)
+        # Arrange the widget
+        widgetFrame.layout().addWidget(applyButton, 0, 0, 1, 3)
+        widgetFrame.layout().addWidget(functionComboBox, 1, 0, 1, 3)
+
+        # Get setting for each function
+        self.setAFSettingWidgetFrame(widgetFrame, functionReportBox, functionComboBox.currentText())
+
+        # Refresh setting section when function changed
+        functionComboBox.currentIndexChanged.connect(lambda: self.setAFSettingWidgetFrame(widgetFrame, functionReportBox, functionComboBox.currentText()))
+        # Summary box behavior
+        applyButton.clicked.connect(lambda: self.applyFunction(functionComboBox.currentText(), functionReportBox))
+        return widgetFrame
+
+    def setAFSettingWidgetFrame(self, widgetFrame, functionReportBox, func):
+        # Remove everything at and below the setting rows: rigid setting
+        widgetFrame = self.removeFromWidget(widgetFrame, reportBox=functionReportBox, row=2)
+        self.getFASettingTable(func)
+        for key, val in self.FASettingTable.items():
+            widgetFrame.layout().addWidget(val, key[0], key[1], 1, 3)
+        # Report box
+        widgetFrame.layout().addWidget(functionReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
+
+    def getFASettingTable(self, func='mean'):
+        """Return a table for settings of each function to be applied"""
+        if func =='custom':
+            customFuncTextEdit = QtGui.QLineEdit()
+            customFuncTextEdit.setPlaceholderText("Custom Function")
+            customFuncTextEdit.setToolTip("Enter a custom function to be applied")
+            self.FASettingTable = {(2,0):customFuncTextEdit}
+        else:
+            self.FASettingTable = {}
+
+
+    def applyFunction(self, func='mean', functionReportBox=None):
+        if not self.friend.index or len(self.friend.index)>1:
+            functionReportBox.setText("Can only apply function to one episode at a time")
+            return
+        layout = self.friend.layout[0] # Apply only onto the trace in the first / top layout
+        zData = self.friend.episodes['Data'][self.friend.index[-1]]
+        ts = zData.Protocol.msPerPoint
+        final_label_text = ""
+
+        if func in ['mean', 'std', 'rms']:
+            Y = getattr(zData, layout[0])[layout[1]]
+            if self.friend.viewRegionOn:
+                Y = spk_window(Y, ts, self.friend.selectedRange)
+
+        if func == 'mean':
+            if layout[0][0].lower() == 'v':
+                unit_suffix = 'mV'
+            elif layout[0][0].lower() == 'C':
+                unit_suffix = 'pA'
+            else: # Stimulus
+                unit_suffix = ''
+            final_label_text = "mean: {:.3f} {}".format(np.mean(Y), unit_suffix)
+        elif func == 'std':
+            final_label_text = "std: {:.3f}".format(np.std(Y))
+        elif func == 'rms':
+            final_label_text = "rms: {:.3f}".format(rms(Y))
+        elif func == 'series resistance':
+            Vs = zData.Stimulus[layout[1]]
+            Is = zData.Current[layout[1]]
+            series_resistance, tau, adjrsquare = spk_vclamp_series_resistance(Is, Vs, ts)
+            final_label_text = "R series: {:.3f} MOhm\nadjrsquare: {:.3f}".format(series_resistance, adjrsquare)
+        else: # custom function
+            pass
+        functionReportBox.setText(final_label_text.strip())
 
     # </editor-fold>
 

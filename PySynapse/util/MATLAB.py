@@ -27,7 +27,7 @@ def getfield(struct, *args): # layered /serial indexing
         return(None)
 
 def ind2sub(ind, size, order='C'):
-    """MATLAB's ind2usb
+    """MATLAB's ind2sub
     order: in 'C' order by default"""
     return(np.unravel_index(ind, size, order=order))
 
@@ -48,9 +48,9 @@ def getconsecutiveindex(t, N=1):
     """
     x = np.diff(t) == 1
     f = np.where(np.concatenate(([False], x))!=np.concatenate((x, [False])))[0]
-    f = np.reshape(f, (2, -1))
+    f = np.reshape(f, (-1, 2))
     # filter for at least N consecutvie
-    f = f[np.diff(f, n=1, axis=1).T[0] > N, :]
+    f = f[np.diff(f, n=1, axis=1).T[0] >= N, :]
     return(f)
 
 def consecutivenum2str(t, N=1):
@@ -253,19 +253,38 @@ def nextpow2(n):
     m_i = np.ceil(m_f)
     return(m_i)
 
-def isempty(m):
+def isempty(m, singleton=True):
     """Return true if:
     a). an empty string
     b). a list of length zero
     c). a tuple of length zero
     d). a numpy array of length zero
     e). a singleton that is not None
+    
+    if singleton is true: treat np.ndarray as a single object, and return 
+    false only when the ndarray is an empty array
     """
-    if isinstance(m, (list, tuple, str, np.ndarray)):
+    if isinstance(m, (list, tuple, str)):
         if len(m) == 0:
             return True
         else:
             return all([not x for x in m])
+    elif isinstance(m, np.ndarray):
+        if len(m) == 0:
+            return True
+        else:
+            if singleton:
+                return False
+            else: # matrix
+                K = np.empty_like(m, dtype=np.bool)
+                K_shape = np.shape(K)
+                for k in range(np.size(K)):
+                    ijk = np.unravel_index(k, K_shape, order='C')
+                    try:
+                       K[ijk] = True if m[ijk].size==0 else False
+                    except:
+                       K[ijk] = False
+                return K
     else:
         return True if m else False
 
@@ -387,6 +406,7 @@ def cell2array(C):
     return np.array([c[0][0] for c in C])
 
 def cell2list_b(C):
+    """From loaded MATLAB cell to Python's list"""
     n, m = C.shape
     K = np.zeros((n,m))
     K = K.tolist()
@@ -400,6 +420,7 @@ def cell2list_b(C):
     return K 
 
 def list2df(K):
+    """From Python's list to panadas' data frame"""
     headers = K[0]
     df = {}
     for n, h in enumerate(headers):
@@ -408,7 +429,6 @@ def list2df(K):
     df = pd.DataFrame(data=df, columns=headers)
     
     return df
-
 
 def sort_nicely( l ):
     """ Sort the given list of strings in the way that humans expect."""
@@ -532,10 +552,49 @@ def medfilt1(x, N):
         result[idx] = l[mididx]
     
     return result
+
+
+def goodness_of_fit(xdata, ydata, popt, pcov, f0):
+    """Calculate goodness of fit from curve_fit
+    popt, pcov: returend by curve_fit
+    f0: function used for fitting
+    p0: initial value used
+    """
+    yfit = f0(xdata, *popt)
+    SSE = np.sum((yfit - ydata)**2)
+    RMSE = np.sqrt(SSE/len(yfit))
+    SS_total = np.poly1d(np.polyfit(xdata, ydata, 1))
+    SS_total = np.sum((SS_total(xdata) - ydata)**2)
+    R_sq = 1.0 - SSE / SS_total
+    R_sq_adj = 1.0 - (SSE/(len(xdata)-len(popt))) / (SS_total/(len(xdata)-1))# Adjusted R_sq
+    gof = {'SSE': SSE, 'RMSE': RMSE, 'SS_total':SS_total, 'rsquare': R_sq, 'adjrsquare': R_sq_adj}
     
+    return gof
+
+
+def serr(X, axis=0, *args, **kwargs):
+    return np.std(X, axis=0, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
+
+
+def frequency_modulated_sine(f0, f, duration, ts, phase=0):
+    """Return the frequency modulated sinosoidal wave
+    f0: starting frequency [Hz]
+    f: ending frequency [Hz]
+    duration: duration of the wave [Sec]
+    ts: sampling rate of wave [sec]
+    phase: phase at the start of the wave, between [0, pi]
+    """
+    
+    nu = np.linspace(f0, f, int(duration / ts) + 1)
+    t = np.arange(0, duration+ts, ts)
+    Y = np.sin(2 * np.pi * nu * t + phase)
+    return t, Y
+    
+   
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
 #   A = ['a','b','a','c','a','b','c']
 #    C, IA, IC = uniquerows(A)
-    C = CellArray((2,3))
+    t, Y = frequency_modulated_sine(f0=0, f=10, duration=10, ts=0.0001, phase=0)
+    plt.plot(t, Y)

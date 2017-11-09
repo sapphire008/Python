@@ -232,7 +232,7 @@ class Settings(QtGui.QWidget):
         
         annotation_label = QtGui.QLabel('Annotation')
         annotation_comboBox = QtGui.QComboBox()
-        ann_comboList = ['Simple', 'Full', 'None']
+        ann_comboList = ['Label Only', 'Simple', 'Full', 'None']
         annotation_comboBox.addItems(ann_comboList)
         annotation_comboBox.setCurrentIndex(ann_comboList.index(self.options['annotation']))
         self.settingDict['annotation'] = annotation_comboBox

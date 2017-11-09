@@ -15,12 +15,6 @@ Script structure
 
 * `resources`: icons, fonts, etc.
 
-**Planned features of Scope window**
-* ~~Curve fitting~~
-* ~~Extracellular spike detection~~
-* ~~Trace subtraction, average, ... arithmetic manipulation~~
-* Annotation for on display and figure export
-
 **Planned features of Mirage window**
 * Display a stack as movie
 * Display the Maximum Pixel Intensity image
@@ -35,21 +29,16 @@ Script structure
     - matplotlib: for exporting figures
 
 2. To-dos:
-    - ~~Icons in file browser~~
-    - ~~Table view model for sequence listing~~
-      - ~~allow update of table columns via menu bar Episodes --> columns --> checklist --> update button~~
-      - ~~columns are header information of the data~~
-    - ~~pyqtgraph for traces~~
-    - ~~View layout configuration: channels x streams of data to display~~
-    - ~~Range selection / cursor tool~~: for event detection and data analyses
-      * ~~Initial and end values, end - initial difference~~
+    - "**Function**" toolbox: apply a function to selected region or the entire trace
       * max, min, average, median, std
-      * ~~EPSP, IPSP, EPSC, IPSC, action potentials~~, extracellular spikes
-      * ~~exponential / double exponential curve fitting~~
     - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
-    - ~~Average trace display~~
     - Integrate Ben's clipboard program to make .ini files (Export .ini file)
     - Fix ttl markers when changing cell. Add notes on the table regarding ttl information.
+    - Export matplotlib figure to Bokeh for more interactive display.
+## Update Sep 6, 2017
+* Added trace "**Filter**" tool
+* Fixed bugs in "**Arithmetic**" tool
+* Fixed bugs in "**Annotation**" tool and implemented more functions
 
 ## Update Apr 11, 2017
 * Fixed bug when exporting figures, scalebar labels are being drawn twice
