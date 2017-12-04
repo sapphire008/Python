@@ -348,7 +348,7 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
     return final_notes
 # %%
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300, fig_size=None,
-               adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple', 
+               adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple',  showInitVal=True,
                setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
@@ -397,24 +397,23 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
             else:
                 ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw initial value
-            InitVal = "{0:0.0f}".format(Y[0])      
-            if m[0] == 'Voltage':
-                InitVal += 'mV'
-            elif m[0] == 'Current':
-                InitVal += 'pA'
-            elif m[0] == 'Stimulus':
-                if stimReflectCurrent:
+            if showInitVal:
+                InitVal = "{0:0.0f}".format(Y[0])
+                if m[0] == 'Voltage':
+                    InitVal += 'mV'
+                elif m[0] == 'Current':
                     InitVal += 'pA'
-                else:
-                    InitVal = ''
-                
-            if m[1] not in channels:
-                channels.append(m[1])
-            
-            #kkks = viewRange[m][0][1]-viewRange[m][0][0]
-            #set_trace()
-            ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
-        
+                elif m[0] == 'Stimulus':
+                    if stimReflectCurrent:
+                        InitVal += 'pA'
+                    else:
+                        InitVal = ''
+
+                ax[c].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+
+        if m[1] not in channels:
+            channels.append(m[1])
+
         if annotation.lower() != 'none':
             final_notes = writeEpisodeNote(zData, viewRange[m][0], channels=channels, mode=annotation)
             # Draw more annotations
@@ -470,7 +469,7 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
 def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300,
                            fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10,
                            adjustFigW=True, adjustFigH=True, trimH=(None,None),
-                           annotation='Simple', setFont='default', fontSize=10,
+                           annotation='Simple', showInitVal=True, setFont='default', fontSize=10,
                            linewidth=1.0, monoStim=False, stimReflectCurrent=True):
     """Export traces arranged horizontally.
     Good for an experiments acquired over multiple episodes.
@@ -521,7 +520,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
             else:
                 ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw the initial value, only for the first plot
-            if n == 0:
+            if n == 0 and showInitVal:
                 InitVal = "{0:0.0f}".format(Y[0])
                 if m[0] == 'Voltage':
                     InitVal += 'mV'
@@ -596,7 +595,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
     
 def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists=None, dpi=300,
                       fig_size=None, adjustFigH=True, adjustFigW=True, nullRange=None, 
-                      annotation='Simple', setFont='default',gridSpec='Vertical', 
+                      annotation='Simple', setFont='default',gridSpec='Vertical', showInitVal=True,
                       scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False,
                       stimReflectCurrent=True):
     "Export Multiple episodes arranged in a grid; default vertically""" 
@@ -663,18 +662,19 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
             # View range
             viewRange_dict[(row,col)] = list(m)+list(viewRange[m])
             # Draw initial value
-            InitVal = "{0:0.0f}".format(Y[0])      
-            if m[0] == 'Voltage':
-                InitVal += 'mV'
-            elif m[0] == 'Current':
-                InitVal += 'pA'
-            elif m[0] == 'Stimulus':
-                if stimReflectCurrent:
+            if showInitVal:
+                InitVal = "{0:0.0f}".format(Y[0])
+                if m[0] == 'Voltage':
+                    InitVal += 'mV'
+                elif m[0] == 'Current':
                     InitVal += 'pA'
-                else:
-                    InitVal = ''
-            
-            ax[ind].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
+                elif m[0] == 'Stimulus':
+                    if stimReflectCurrent:
+                        InitVal += 'pA'
+                    else:
+                        InitVal = ''
+
+                ax[ind].text(X[0]-0.03*(viewRange[m][0][1]-viewRange[m][0][0]),  Y[0]-1, InitVal, ha='right', va='center', color=colorfy[n%len(colorfy)])
 
             if m[1] not in channels:
                 channels.append(m[1])

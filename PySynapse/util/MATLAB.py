@@ -573,7 +573,7 @@ def goodness_of_fit(xdata, ydata, popt, pcov, f0):
 
 
 def serr(X, axis=0, *args, **kwargs):
-    return np.std(X, axis=0, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
+    return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
 
 
 def frequency_modulated_sine(f0, f, duration, ts, phase=0):

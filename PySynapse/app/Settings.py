@@ -247,6 +247,11 @@ class Settings(QtGui.QWidget):
         SRC_checkbox.setToolTip('If checked, stimulus will be shifted to baseline current level')
         SRC_checkbox.setCheckState(2 if self.options['stimReflectCurrent'] else 0)
         self.settingDict['stimReflectCurrent'] = SRC_checkbox
+
+        showInitVal = QtGui.QCheckBox("Show Initial Value")
+        showInitVal.setToolTip("Display the initial value at the beginning of the trace")
+        showInitVal.setCheckState(2 if self.options['showInitVal'] else 0)
+        self.settingDict['showInitVal'] = showInitVal
         
         saveDir_label = QtGui.QLabel('Path')
         saveDir_text = QtGui.QLineEdit(self.options['saveDir'])
@@ -268,6 +273,7 @@ class Settings(QtGui.QWidget):
         output_groupBox.layout().addWidget(fontSize_text, 2, 3, 1, 1)
         output_groupBox.layout().addWidget(SRC_label, 3, 0, 1, 1)
         output_groupBox.layout().addWidget(SRC_checkbox, 3, 1, 1, 1)
+        output_groupBox.layout().addWidget(showInitVal, 3, 2, 1, 1)
         output_groupBox.layout().addWidget(saveDir_label, 4, 0, 1, 1)
         output_groupBox.layout().addWidget(saveDir_text, 4, 1, 1, 3)
             

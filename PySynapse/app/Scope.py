@@ -1021,20 +1021,20 @@ class ScopeWindow(QtGui.QMainWindow):
         if arrangement == 'overlap':
             PlotTraces(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
-                       dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],
+                       dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'], showInitVal=options['showInitVal'],
                        setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                        stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement == 'concatenate':
             PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
-                                 adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'],
+                                 adjustFigW= options['figSizeWMulN'],adjustFigH= options['figSizeHMulN'], annotation=options['annotation'], showInitVal=options['showInitVal'],
                                  setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
                                  stimReflectCurrent=options['stimReflectCurrent'])
         elif arrangement in ['vertical', 'horizontal', 'channels x episodes', 'episodes x channels']:
             PlotTracesAsGrids(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
                                  nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'],
-                                 scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'],
+                                 scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'], showInitVal=options['showInitVal'],
                                  stimReflectCurrent=options['stimReflectCurrent'])
         else:
             raise(ValueError('Unrecognized arragement:{}'.format(arrangement)))

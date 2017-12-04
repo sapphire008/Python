@@ -1120,9 +1120,14 @@ class Toolbox(QtGui.QWidget):
             minDistLabel.setToolTip("Minimum distance between detected APs")
             minDistTextEdit = QtGui.QLineEdit("1")
             minDistUnitLabel = QtGui.QLabel("ms")
+            threshLabel = QtGui.QLabel("Threshold")
+            threshLabel.setToolTip("Finds peaks that are at least greater than both adjacent samples by the threshold, TH. TH is a real-valued scalar greater than or equal to zero. The default value of TH is zero.")
+            threshTextEdit = QtGui.QLineEdit("0")
+            threshTextUnitLabel = QtGui.QLabel("mV")
             self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit,
                             (3,2): minHeightUnitLabel, (4,0):minDistLabel,
-                            (4,1): minDistTextEdit, (4,2): minDistUnitLabel}
+                            (4,1): minDistTextEdit, (4,2): minDistUnitLabel,
+                            (5,0): threshLabel, (5,1): threshTextEdit, (5,2): threshTextUnitLabel}
         elif event in ['EPSP', 'IPSP', 'EPSC','IPSC']:
             ampLabel = QtGui.QLabel("Amplitude")
             ampLabel.setToolTip("Minimum amplitude of the event")
@@ -1192,7 +1197,8 @@ class Toolbox(QtGui.QWidget):
         if event == 'Action Potential':
             msh = float(self.EDsettingTable[(3,1)].text())
             msd = float(self.EDsettingTable[(4,1)].text())
-            self.detectAPs(detectReportBox, drawEvents, msh, msd)
+            thresh = float(self.EDsettingTable[(5,1)].text())
+            self.detectAPs(detectReportBox, drawEvents, msh, msd, thresh)
         elif event in ['EPSP', 'IPSP', 'EPSC', 'IPSC']:
             amp = float(self.EDsettingTable[(3,1)].text())
             riseTime = float(self.EDsettingTable[(4,1)].text())
@@ -1225,7 +1231,7 @@ class Toolbox(QtGui.QWidget):
             self.friend.removeEvent(info=[evt], which_layout=which_layout)
             self.detectedEvents.remove(evt)
 
-    def detectAPs(self, detectReportBox, drawEvent=False, msh=-10, msd=1):
+    def detectAPs(self, detectReportBox, drawEvent=False, msh=-10, msd=1, thresh=0):
         """detectAPs(detectReportBox, drawEvent, 'additional settings',...)"""
         if not self.friend.index or len(self.friend.index)>1:
             detectReportBox.setText("Can only detect spikes in one episode at a time")
@@ -1239,7 +1245,7 @@ class Toolbox(QtGui.QWidget):
         final_label_text = ""
         for c, Vs in zData.Voltage.items():
             Vs = spk_window(Vs, ts, selectedWindow, t0=0)
-            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd)
+            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd, threshold=thresh)
             final_label_text = final_label_text + c + " : \n"
             final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
             final_label_text = final_label_text + "  mean ISI: "
