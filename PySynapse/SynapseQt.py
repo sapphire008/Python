@@ -676,11 +676,11 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         ind = pd.DataFrame([[int(k) for k in re.findall('\d+', m)] \
                                     for m in epi_sort])
         ind = ind.sort_values([0,1], ascending=[1,1]).index.tolist()
-        df = df.reindex_axis(ind, axis=0)
+        df = df.reindex(ind, axis=0)
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list') # data information
         self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
-        df = df.reindex_axis(self.tableview.headers, axis=1)
+        df = df.reindex(self.tableview.headers, axis=1)
         self.tableview.model = EpisodeTableModel(df)
         self.tableview.setModel(self.tableview.model)
         self.tableview.verticalHeader().hide()

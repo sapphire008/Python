@@ -105,14 +105,25 @@ def svg2eps_ai(source_file, target_file, \
     os.remove(tmp_f)
 
 def svg2eps_inkscape(source_file, target_file, \
-                     inkscape_path='"C:\\Program Files\\Inkscape\\inkscape.exe"'):
+                     inkscape_path='"D:\\Edward\\Software\\inkscape-0.91-1-win64\\inkscape.exe"'):
     """Use inkscape to convert svg to eps"""
     # cmd = "inkscape in.svg -E out.eps --export-ignore-filters --export-ps-level=3"
     cmd = inkscape_path+" "+source_file+" --export-eps="+target_file +" --export-ignore-filters --export-ps-level=3"
-    print(cmd)
+    print(cmd) # Problem: text was not kept as text, but converted into paths
     pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     #subprocess.check_call([inkscape_path, source_file, '-E', target_file])
     print(pro.stdout)
+    
+#def svg2eps_cloudconvert(source_file, target_file):
+#    import cloudconvert
+#    api = cloudconvert.Api('5PGyLT7eAn0yLbnBU3G-7j1JLFWTfcnFUk6x7k_lhuwzioGwqO7bVQ-lJNunsDkrr9fL1JDdjdVog6iDZ31yIw')
+#    process = api.convert({"input": "upload",
+#                           "file": open('R:/temp.svg', 'rb'),
+#                           "inputformat": "svg",
+#                           "outputformat": "eps",
+#                           })
+#    process.wait()
+#    process.download()
 
 
 

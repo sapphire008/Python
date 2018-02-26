@@ -8,6 +8,7 @@ Python implemented MATLAB utilities
 """
 
 import numpy as np
+import scipy as sp
 from skimage.draw import polygon
 import re
 import glob
@@ -38,19 +39,22 @@ def sub2ind(sub, size, order='C'):
     return(np.ravel_multi_index(sub, dims=size, order=order))
 
 
-def getconsecutiveindex(t, N=1):
+def getconsecutiveindex(t, N=1, interval=True):
     """Given a sorted array of integers, find the start and the end of
     consecutive blocks
     E.g. t = [-1, 1,2,3,4,5, 7, 9,10,11,12,13, 15],
     return [1,5; 7,11]
     t: the sorted array of integers
     N: filter for at least N consecutive. Default 1
+    interval: if True, we are filtering by N consecutive intervals instead of
+    N consecutive numbers
+    
     """
     x = np.diff(t) == 1
     f = np.where(np.concatenate(([False], x))!=np.concatenate((x, [False])))[0]
     f = np.reshape(f, (-1, 2))
     # filter for at least N consecutvie
-    f = f[np.diff(f, n=1, axis=1).T[0] >= N, :]
+    f = f[(int(not(interval))+np.diff(f, n=1, axis=1).T[0]) >= N, :]
     return(f)
 
 def consecutivenum2str(t, N=1):
@@ -403,10 +407,75 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
 
 def cell2array(C):
     """Helpful when reading MATLAB .mat files containing cellarray"""
-    return np.array([c[0][0] for c in C])
+    n, m = C.shape
+    K = np.zeros((n,m))
+    K = K.tolist()
+    for i in range(n):
+        for j in range(m):
+            tmp = C[i][j]
+            if tmp.shape == (1,1):
+                tmp = tmp[0][0]
+            elif tmp.shape == (1,):
+                tmp = tmp[0]
+            elif tmp.shape[0] == 1 or tmp.shape[1] == 1:
+                tmp = tmp.flatten()
+            K[i][j] = tmp
+    return K
+
+def cell2df(C):
+    """Take a step further than cell2array to convert cell array just read from
+    MATLAB's .mat file into a pandas DataFrame
+    """
+    df = cell2array(C)
+    df = pd.DataFrame(df[1:], columns=df[0])
+    return df
+
+
+def dict2df(mydict, colnames=None, addindex=False):
+    """ Converting a dictionary into a Pandas data frame. Example:
+    df = dict2df(mydict, colnames=['Drug', 'BifTime'], addindex=True)
+    Converting 
+    mydict ={'ChR2': np.asarray([25, 725, 225, 175, 825, 1075, 825, 125, 325, 875, 325, 575, 1325, 725]),
+             'Terfenadine': np.asarray([725, 275, 175, 675, 525, 775]),
+             'XE991': np.asarray([175, 75, 75, 125, 125]), 
+             'NS8593': np.asarray([25, 25, 25, 75, 75, 75, 75])}
+    
+    into a data frame:
+        
+    index           Drug        BifTime   
+    0               ChR2          25
+    1               ChR2          725
+    2               ChR2          225
+         ...........................
+    0            Terfnadine       725
+    1            Terfenadine      275
+         ...........................
+         ...........................
+    0              NS8593         25
+         ...........................
+    
+    colnames: column names of [key, values]
+    addindex: add a column called "index" as the first column
+    
+    """
+    df = pd.DataFrame.from_dict(mydict, orient='index').transpose()
+    df['index'] = df.index
+    df = pd.melt(df, id_vars=["index"])
+    if not addindex:
+        df = df.drop(["index"], axis=1)
+    # Get rid of NaNs
+    df = df.loc[~np.isnan(df['value'])]
+    df = df.reset_index(drop=True)
+    if colnames is not None:
+        df.columns = (["index"] if addindex else [] )+ list(colnames)
+        
+    return df
 
 def cell2list_b(C):
-    """From loaded MATLAB cell to Python's list"""
+    """From loaded MATLAB cell to Python's list
+    This assumes each element of the table has only 1 elemtns.
+    Legacy: use cell2array for more general purposes.
+    """
     n, m = C.shape
     K = np.zeros((n,m))
     K = K.tolist()
@@ -438,6 +507,7 @@ def sort_nicely( l ):
     return l
 
 def sortrows(A, col=None):
+    """Return sorted A, and index, such that A_old[index] = A_new"""
     A = np.asarray(A)
     if not ismatrix(A):
         if isrow(A):
@@ -570,6 +640,31 @@ def goodness_of_fit(xdata, ydata, popt, pcov, f0):
     gof = {'SSE': SSE, 'RMSE': RMSE, 'SS_total':SS_total, 'rsquare': R_sq, 'adjrsquare': R_sq_adj}
     
     return gof
+
+def compare_goodness_of_fit(popt1, pcov1, popt2, pcov2, num_data_points, param_name=None, index=None):
+    """Perform a t-test on a pair of fitted curves"""
+    nvars = len(popt1)
+    pcov1, pcov2 = np.sqrt(np.diag(pcov1)), np.sqrt(np.diag(pcov2))
+    if index is not None:
+        popt1, popt2 = popt1[index], popt2[index]
+        pcov1, pcov2 = pcov1[index], popt2[index]
+    
+    
+    T, df, P = [[]]*nvars, [[]]*nvars, [[]]*nvars
+    for n, t1, v1, t2, v2 in enumerate(zip(popt1, pcov1, popt2, pcov2)):
+        T[n]= (t1-t2) / np.sqrt(v1^2 + v2^2)
+        df[n] = (num_data_points-nvars)*2
+        P[n] = sp.stats.t.cdf(T, df=df)
+        
+    nvars = len(popt1) # update  for later looping
+        
+    if param_name is None:
+        param_name = ['param_{:d}'.format(d) for d in range(nvars)]
+        
+    for n in range(nvars):
+        print("{}: T = {:.4f}, df = {:d}, p = {:.4f}\n".format(param_name[n], T[n], df[n], P[n]))
+    
+    return T, df, P
 
 
 def serr(X, axis=0, *args, **kwargs):

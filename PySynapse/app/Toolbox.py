@@ -1417,9 +1417,9 @@ class Toolbox(QtGui.QWidget):
         applyButton = QtGui.QPushButton("Apply")
         # Select from a list of pre-existing tools, or enter a custom function
         functionComboBox = QtGui.QComboBox()
-        functionComboBox.addItems(['mean', 'std', 'rms', 'series resistance', 'custom'])
+        functionComboBox.addItems(['mean', 'std', 'diff', 'rms', 'series resistance', 'Rin', 'Rin2']) #  'custom'
         # Summary box
-        functionReportBox = QtGui.QLabel("Apply Function Results")
+        functionReportBox = QtGui.QLabel("Apply a function")
         functionReportBox.setStyleSheet("background-color: white")
         functionReportBox.setWordWrap(True)
         # Arrange the widget
@@ -1438,26 +1438,44 @@ class Toolbox(QtGui.QWidget):
     def setAFSettingWidgetFrame(self, widgetFrame, functionReportBox, func):
         # Remove everything at and below the setting rows: rigid setting
         widgetFrame = self.removeFromWidget(widgetFrame, reportBox=functionReportBox, row=2)
-        self.getFASettingTable(func)
+        self.getFASettingTable(func, functionReportBox)
         for key, val in self.FASettingTable.items():
             widgetFrame.layout().addWidget(val, key[0], key[1], 1, 3)
         # Report box
         widgetFrame.layout().addWidget(functionReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
+        if func == 'Rin':
+            functionReportBox.setText("Calculate Rin from negative pulse in the trace")
+        elif func == 'Rin2':
+            functionReportBox.setText("Calculate Rin from two episodes")
+        elif func == 'series resistance':
+            functionReportBox.setText("Calculate series resistance from current trace in voltage clamp")
+        elif func ==' diff':
+            functionReportBox.setText("Calculate the average difference between two trace")
+        else:
+            functionReportBox.setText("Apply a function")
 
-    def getFASettingTable(self, func='mean'):
+    def getFASettingTable(self, func='mean', functionReportBox=None):
         """Return a table for settings of each function to be applied"""
-        if func =='custom':
+        if func == "Rin":
+            useCurrent_checkBox = QtGui.QCheckBox("Use current instead")
+            useCurrent_checkBox.setToolTip("Check to use current to calculate input resistance instead")
+            windowSize_label = QtGui.QLabel("Window (ms)")
+            windowSize_textbox = QtGui.QLineEdit("25")
+            self.FASettingTable = {(2,0):useCurrent_checkBox, (3,0):windowSize_label, (4,0):windowSize_textbox}
+
+        elif func =='custom':
             customFuncTextEdit = QtGui.QLineEdit()
             customFuncTextEdit.setPlaceholderText("Custom Function")
             customFuncTextEdit.setToolTip("Enter a custom function to be applied")
             self.FASettingTable = {(2,0):customFuncTextEdit}
+
         else:
             self.FASettingTable = {}
 
 
-    def applyFunction(self, func='mean', functionReportBox=None):
-        if not self.friend.index or len(self.friend.index)>1:
-            functionReportBox.setText("Can only apply function to one episode at a time")
+    def applyFunction(self, func='mean', functionReportBox=None, *args, **kwargs):
+        if not self.friend.index:
+            functionReportBox.setText("Select episode to apply function to")
             return
         layout = self.friend.layout[0] # Apply only onto the trace in the first / top layout
         zData = self.friend.episodes['Data'][self.friend.index[-1]]
@@ -1476,16 +1494,66 @@ class Toolbox(QtGui.QWidget):
                 unit_suffix = 'pA'
             else: # Stimulus
                 unit_suffix = ''
-            final_label_text = "mean: {:.3f} {}".format(np.mean(Y), unit_suffix)
+            final_label_text = "mean: {:.9f} {}".format(np.mean(Y), unit_suffix)
         elif func == 'std':
-            final_label_text = "std: {:.3f}".format(np.std(Y))
+            final_label_text = "std: {:.9f}".format(np.std(Y))
         elif func == 'rms':
-            final_label_text = "rms: {:.3f}".format(rms(Y))
+            final_label_text = "rms: {:.9f}".format(rms(Y))
         elif func == 'series resistance':
             Vs = zData.Stimulus[layout[1]]
             Is = zData.Current[layout[1]]
             series_resistance, tau, adjrsquare = spk_vclamp_series_resistance(Is, Vs, ts)
-            final_label_text = "R series: {:.3f} MOhm\nadjrsquare: {:.3f}".format(series_resistance, adjrsquare)
+            final_label_text = "R series: {:.3f} MOhm\nadjrsquare: {:.9f}".format(series_resistance, adjrsquare)
+        elif func == 'Rin': # Calculate Rin with negative step
+            if not self.friend.viewRegionOn:
+                final_label_text = "Select a region to calculate Rin"
+            else:
+                useCurrent = self.FASettingTable[(2,0)].isChecked()
+                window_size = str2numeric(self.FASettingTable[(4,0)].text())
+
+                V1 = np.mean(spk_window(zData.Voltage[layout[1]], ts, self.friend.selectedRange[0] + window_size * np.asarray([-1,1])))
+                V2 = np.mean(spk_window(zData.Voltage[layout[1]], ts, self.friend.selectedRange[1] + window_size * np.asarray([-1,1])))
+
+                if useCurrent:
+                    S1 = np.mean(spk_window(zData.Current[layout[1]], ts, self.friend.selectedRange[0] + window_size * np.asarray([-1,1])))
+                    S2 = np.mean(spk_window(zData.Current[layout[1]], ts, self.friend.selectedRange[1] + window_size * np.asarray([-1,1])))
+                else:
+                    S1 = np.mean(spk_window(zData.Stimulus[layout[1]], ts, self.friend.selectedRange[0] + window_size * np.asarray([-1,1])))
+                    S2 = np.mean(spk_window(zData.Stimulus[layout[1]], ts, self.friend.selectedRange[1] + window_size * np.asarray([-1,1])))
+
+                Rin = (V2-V1)/(S2-S1)*1000
+                final_label_text = "Rin = {:.9f} MOhm;".format(Rin)
+        elif func == 'Rin2': # Calculating for 2 episodes with holding current change
+            if not self.friend.viewRegionOn:
+                final_label_text = "Select a region to calculate Rin"
+            elif len(self.friend.index)<2:
+                final_label_text = "Select two episodes to calculate Rin"
+            else:
+                V1 = np.mean(spk_window(zData.Voltage[layout[1]], ts, self.friend.selectedRange))
+                S1 = np.mean(spk_window(zData.Current[layout[1]], ts, self.friend.selectedRange))
+
+                zData2 = self.friend.episodes['Data'][self.friend.index[-2]]
+                V2 = np.mean(spk_window(zData2.Voltage[layout[1]], ts, self.friend.selectedRange))
+                S2 = np.mean(spk_window(zData2.Current[layout[1]], ts, self.friend.selectedRange))
+
+                Rin = (V2 - V1) / (S2 - S1) * 1000
+                final_label_text = "Rin = {:.5f} MOhm;".format(Rin)
+
+        elif func == 'diff': # Calculating average difference between two episodes
+            if len(self.friend.index)<2:
+                final_label_text = "Select two episodes to calculate diff"
+            else:
+                zData1 = self.friend.episodes['Data'][self.friend.index[-1]]
+                zData2 = self.friend.episodes['Data'][self.friend.index[-2]]
+
+                Y1 = getattr(zData1, layout[0])[layout[1]]
+                Y2 = getattr(zData2, layout[0])[layout[1]]
+                if self.friend.viewRegionOn:
+                    Y1 = spk_window(Y1, ts, self.friend.selectedRange)
+                    Y2 = spk_window(Y2, ts, self.friend.selectedRange)
+
+                final_label_text = 'Diff = {:.9f}'.format(np.mean(Y1) - np.mean(Y2))
+
         else: # custom function
             pass
         functionReportBox.setText(final_label_text.strip())

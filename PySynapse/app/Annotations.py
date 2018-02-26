@@ -116,7 +116,7 @@ class AnnotationSetting(QtGui.QDialog):
         fill_checkbox = QtGui.QCheckBox('Fill')
         fill_checkbox.setCheckState(self.parseArtist(field='fill', default=0, return_type=bool))
         fc_label = QtGui.QLabel('Fill Color')
-        fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='w', return_type=str))
+        fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
         fc_text.setToolTip('Single letter or hex value of the color')
         fa_label = QtGui.QLabel('Fill Alpha')
         fa_text = QtGui.QLineEdit(self.parseArtist(field='fillalpha', default='100', return_type=str))

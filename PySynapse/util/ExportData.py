@@ -27,7 +27,7 @@ from pdb import set_trace
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 sys.path.append(os.path.join(__location__, '..')) # for debug only
 from util.spk_util import *
-from util.svg2eps_ai import svg2eps_ai
+from util.svg2eps import *
 
 # %%
 # Helper functions

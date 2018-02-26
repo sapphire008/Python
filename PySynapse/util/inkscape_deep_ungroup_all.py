@@ -13,7 +13,7 @@ https://github.com/nikitakit/svg2sif/blob/master/synfig_prepare.py#L370
 for an example how to do the transform of parent to children.
 """
 __version__ = "0.2"  # Works but in terms of maturity, still unsure
-sys.path.append("C:/Program Files/Inkscape/share/extensions")
+sys.path.append("D:/Edward/Software/inkscape-0.91-1-win64/share/extensions")
 #inkscape_path='"C:\\Program Files\\Inkscape\\inkscape.exe"'
 
 from inkex import addNS
