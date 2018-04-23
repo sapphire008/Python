@@ -25,6 +25,7 @@ import pandas as pd
 # sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
 # sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
 from util.ImportData import NeuroData
+from util.spk_util import *
 from app.Scope import ScopeWindow
 from app.Settings import *
 
@@ -392,12 +393,13 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
                 'Drug Level':[],
                 'Drug Name': [],
                 'Drug Time': [],
-                'Comment': [],
+                'Comment': []
                 })
             # load episode info
             for d in sequence[n]['Dirs']:
                 # zData = readDatFile(d, readTraceData = False)
                 zData = NeuroData(d, old=True, infoOnly=True)
+
                 sequence[n]['Time'].append(zData.Protocol.WCtimeStr)
                 sequence[n]['Sampling Rate'].append(zData.Protocol.msPerPoint)
                 sequence[n]['Duration'].append(int(zData.Protocol.sweepWindow))
@@ -533,8 +535,8 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TableviewDelegate(self.tableview))
-        self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs']
-        self.tableview.hiddenColumnList = [4, 5, 7] # Drug Name, Drug Time, Dirs
+        self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs', 'Stimulus', 'StimDuration']
+        self.tableview.hiddenColumnList = [4, 5, 7, 8, 9] # Drug Name, Drug Time, Dirs
         self.tableview.horizontalHeader().setStretchLastSection(True)
         # self.tableview.setShowGrid(False)
         self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")

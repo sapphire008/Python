@@ -80,6 +80,8 @@ class ScopeWindow(QtGui.QMainWindow):
         self.layout =[['Voltage', 'A', 0, 0]] if not layout else layout# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
         # range of axes
         self.viewMode = 'keep'
+        # freeze view range
+        self.freezeView = False
         # Recording view Range
         self.viewRange = dict()
         # Null the baseline
@@ -227,6 +229,11 @@ class ScopeWindow(QtGui.QMainWindow):
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
         keepPrev.triggered.connect(lambda: self.toggleKeepPrev(keepPrev.isChecked()))
         viewMenu.addAction(keepPrev)
+        # view: freeze view range
+        freezeView = QtGui.QAction("Freeze View", self, checkable=True, checked=False)
+        freezeView.setStatusTip('Freeze view between items')
+        freezeView.triggered.connect(lambda: self.toggleFreezeView(freezeView.isChecked()))
+        viewMenu.addAction(freezeView)
         # View: show toolbox
         viewMenu.addAction(self.dockWidget.toggleViewAction())
 
@@ -317,7 +324,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # print(self.index)
         if not bool_old_episode:
             self.reissueArtists() # artists have been cleared. Add it back
-            self.setDataViewRange(viewMode='reset')
+            self.setDataViewRange(viewMode='keep' if self.freezeView else 'reset')
         else:
             self.setDataViewRange(viewMode='keep')
 
@@ -573,7 +580,10 @@ class ScopeWindow(QtGui.QMainWindow):
         # TODO: The new plot will likely change the view
 
         # Set the proper view range
-        self.setDataViewRange('keep')
+        if self.freezeView:
+            self.setDataViewRange('keep')
+        else:
+            self.setDataViewRange('reset')
         # Redraw the artists
         self.reissueArtists()
         # Force the new subplot to start with default view range
@@ -631,6 +641,9 @@ class ScopeWindow(QtGui.QMainWindow):
     def toggleKeepPrev(self, checked):
         self.keepOther = checked
 
+    def toggleFreezeView(self, checked):
+        self.freezeView = checked
+
     def setDisplayTheme(self, theme='whiteboard'):
         self.theme = {'blackboard':{'background':'k', 'pen':'w'}, \
                  'whiteboard':{'background':'w', 'pen':'k'}\
@@ -681,7 +694,7 @@ class ScopeWindow(QtGui.QMainWindow):
             elif self.viewMode == 'keep':
                 # Update current viewRange
                 self.viewRange[l[0], l[1]] = p.viewRange()
-                # no chnage in viewRange, but still link the views
+                # no change in viewRange, but still link the views
             elif self.viewMode == 'reset':
                 if p.viewRange() != self.viewRange[l[0], l[1]]:
                     X, Y = self.viewRange[l[0], l[1]]
@@ -690,9 +703,9 @@ class ScopeWindow(QtGui.QMainWindow):
                     self.viewMode = 'keep'
             elif self.viewMode == 'manual':
                 if xRange is not None:
-                    p.setXRange(xRange)
+                    p.setXRange(xRange[n])
                 if yRange is not None:
-                    p.setYRange(yRange)
+                    p.setYRange(yRange[n])
             else:
                 raise(TypeError('Unrecognized view mode'))
 

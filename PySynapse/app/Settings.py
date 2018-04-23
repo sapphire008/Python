@@ -226,9 +226,12 @@ class Settings(QtGui.QWidget):
         fontName_label = QtGui.QLabel('Font Name')
         fontName_text = QtGui.QLineEdit(self.options['fontName'])
         self.settingDict['fontName'] = fontName_text
-        fontSize_label = QtGui.QLabel('Font Size')
+        fontSize_label = QtGui.QLabel('Label Font Size')
         fontSize_text = QtGui.QLineEdit(str(self.options['fontSize']))
         self.settingDict['fontSize'] = fontSize_text
+        #annotfontSize_label = QtGui.QLabel('Annotation Font Size')
+        #annotfontSize_text = QtGui.QLineEdit(str(self.options['annotfontSize']))
+        #self.settingDict['annotfontSize'] = annotfontSize_text
         
         annotation_label = QtGui.QLabel('Annotation')
         annotation_comboBox = QtGui.QComboBox()
@@ -242,8 +245,7 @@ class Settings(QtGui.QWidget):
         monostim_checkbox.setCheckState(2 if self.options['monoStim'] else 0)
         self.settingDict['monoStim'] = monostim_checkbox
 
-        SRC_label = QtGui.QLabel('Stim=Current') # stim reflecting current
-        SRC_checkbox = QtGui.QCheckBox()
+        SRC_checkbox = QtGui.QCheckBox('Stim=Current')
         SRC_checkbox.setToolTip('If checked, stimulus will be shifted to baseline current level')
         SRC_checkbox.setCheckState(2 if self.options['stimReflectCurrent'] else 0)
         self.settingDict['stimReflectCurrent'] = SRC_checkbox
@@ -259,21 +261,22 @@ class Settings(QtGui.QWidget):
         
         output_groupBox = QtGui.QGroupBox('Output')
         output_groupBox.setLayout(QtGui.QGridLayout())
-
+        
         output_groupBox.layout().addWidget(annotation_label, 0, 0, 1, 1)
         output_groupBox.layout().addWidget(annotation_comboBox, 0, 1, 1, 1)
-        output_groupBox.layout().addWidget(monostim_checkbox, 0, 2, 1, 2)
-        output_groupBox.layout().addWidget(dpi_label, 1, 0, 1, 1)
-        output_groupBox.layout().addWidget(dpi_text, 1, 1, 1, 1)
-        output_groupBox.layout().addWidget(linewidth_label, 1, 2, 1, 1)
-        output_groupBox.layout().addWidget(linewidth_text, 1, 3, 1, 1)
-        output_groupBox.layout().addWidget(fontName_label, 2, 0, 1, 1)
-        output_groupBox.layout().addWidget(fontName_text, 2, 1, 1, 1)
-        output_groupBox.layout().addWidget(fontSize_label, 2, 2, 1, 1)
-        output_groupBox.layout().addWidget(fontSize_text, 2, 3, 1, 1)
-        output_groupBox.layout().addWidget(SRC_label, 3, 0, 1, 1)
-        output_groupBox.layout().addWidget(SRC_checkbox, 3, 1, 1, 1)
-        output_groupBox.layout().addWidget(showInitVal, 3, 2, 1, 1)
+        #output_groupBox.layout().addWidget(annotfontSize_label, 0, 2, 1, 1)
+        #output_groupBox.layout().addWidget(annotfontSize_text, 0, 3, 1, 1)
+        output_groupBox.layout().addWidget(fontName_label, 1, 0, 1, 1)
+        output_groupBox.layout().addWidget(fontName_text, 1, 1, 1, 1)
+        output_groupBox.layout().addWidget(fontSize_label, 1, 2, 1, 1)
+        output_groupBox.layout().addWidget(fontSize_text, 1, 3, 1, 1)
+        output_groupBox.layout().addWidget(dpi_label, 2, 0, 1, 1)
+        output_groupBox.layout().addWidget(dpi_text, 2, 1, 1, 1)
+        output_groupBox.layout().addWidget(linewidth_label, 2, 2, 1, 1)
+        output_groupBox.layout().addWidget(linewidth_text, 2, 3, 1, 1)
+        output_groupBox.layout().addWidget(SRC_checkbox, 3, 0, 1, 1)
+        output_groupBox.layout().addWidget(showInitVal, 3, 1, 1, 1)
+        output_groupBox.layout().addWidget(monostim_checkbox, 3, 2, 1, 2)
         output_groupBox.layout().addWidget(saveDir_label, 4, 0, 1, 1)
         output_groupBox.layout().addWidget(saveDir_text, 4, 1, 1, 3)
             

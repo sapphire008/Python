@@ -222,11 +222,11 @@ class NeuroData(object):
                     "{:0.0f}".format(data[7]) + " ms)"
             if data[14]:
                 if data[17] != 0:
-                    pulse += "PulseA " + "{:0.0f}".format(data[17]) + " "
+                    pulse += "PulseA " + "{:0.0f}".format(data[17]) + " [{:0.0f},{:0.0f}]".format(data[15], data[16]) + ";"
                 if data[20] !=  0:
-                    pulse += "PulseB " + "{:0.0f}".format(data[20]) + " "
+                    pulse += "PulseB " + "{:0.0f}".format(data[20]) + " [{:0.0f},{:0.0f}]".format(data[18], data[19]) + ";"
                 if data[23] != 0:
-                    pulse += "PulseC " + "{:0.0f}".format(data[23]) + " "
+                    pulse += "PulseC " + "{:0.0f}".format(data[23]) + " [{:0.0f},{:0.0f}]".format(data[21], data[22]) + ";"
             if len(step) > 0 or len(pulse) > 0:
                 result = "DAC" + str(chanNum) + ": "
                 if len(step) > 0:

@@ -530,7 +530,7 @@ def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0,
     return R_series, tau, rsquare
 
 
-def spk_get_stim(Ss, ts):
+def spk_get_stim(Ss, ts, longest_row=True, decimals=0):
     """Serve as an example on how to extract the strongest 
     and longest stimulus given the stimulus trace
     
@@ -539,14 +539,51 @@ def spk_get_stim(Ss, ts):
         ts: sampling rate [seconds]
     Returns [start, end, intensity]
     """
-    stim = np.where(Ss == np.max(Ss))[0]
+    stim_amp = np.max(Ss)
+    stim = np.where(Ss == stim_amp)[0]
     consec_index = getconsecutiveindex(stim)
     # Get the longest stimulus
-    longest_row = np.argmax(np.diff(consec_index, axis=1))
-    stim = stim[consec_index[longest_row, :]]
-    stim = np.round(ind2time(stim, ts))
-    stim = np.concatenate((stim, np.asarray([np.max(Ss)])), axis=0)
+    if longest_row:
+        longest_row = np.argmax(np.diff(consec_index, axis=1))
+        stim = stim[consec_index[longest_row, :]]
+        stim = np.round(ind2time(stim, ts), decimals=decimals)
+        stim = np.concatenate((stim, np.asarray([stim_amp])), axis=0)
+    else: # can have multiple stims
+        tmp_stim = np.empty((consec_index.shape[0], consec_index.shape[1]))
+        for r in range(consec_index.shape[0]):
+            tmp_stim[r, :] = np.round(ind2time(stim[consec_index[r,:]], ts), decimals=decimals)
+            
+        stim = np.c_[tmp_stim, stim_amp*np.ones((consec_index.shape[0], 1))]
+        
+                    
     return stim
+
+
+def spk_get_rin(Vs, ts, neg=[], Ss=None, base_win=[-100, 0], rin_win=[-100,0], base_func=np.mean, rin_func=np.mean, relative_rin_win_end=True):
+    """
+    Vs: voltage [mV]
+    ts: sampling interval [ms]
+    neg: a window of the Rin negative step [start, end (,intensity)], either size 2 or 3. If size 2, Ss argument must be specified
+    Ss: time series of the same length as Vs. Needed when len(neg)==2
+    base_win: baseline window
+    rin_win: Rin window
+    base_func: function applied to the base_win to extract the number. Default np.mean
+    rin_func: function applied to the rin_win. Default np.mean
+    relative_rin_win_end: If True: base_win is relative to neg[0], and rin_win to neg[1]
+    """
+    if len(neg) == 3:
+        Rin =(rin_func(spk_window(Vs, ts, rin_win + neg[1])) - base_func(spk_window(Vs, ts, base_win + neg[0]))) / neg[2] * 1000
+    elif len(neg) == 2: 
+        if Ss is None:
+            raise(Exception("Stimulus intensity is not specified"))
+        
+        Rin = (rin_func(spk_window(Vs, ts, rin_win + neg[1])) - base_func(spk_window(Vs, ts, base_win + neg[0]))) /  \
+               (np.mean(spk_window(Ss, ts, rin_win + neg[1])) - np.mean(spk_window(Ss, ts, base_win + neg[0]))) * 1000
+    else:
+        raise(Exception("Length of neg must be at least 2"))
+        
+    return Rin
+        
 
 # %%
 def spk_time_distance(spike_time, method="victor&purpura", *args, **kwargs):

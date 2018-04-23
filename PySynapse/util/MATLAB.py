@@ -684,7 +684,11 @@ def frequency_modulated_sine(f0, f, duration, ts, phase=0):
     t = np.arange(0, duration+ts, ts)
     Y = np.sin(2 * np.pi * nu * t + phase)
     return t, Y
-    
+
+
+def softmax(X):
+  exps = np.exp(X)
+  return exps / np.sum(exps)
    
 
 if __name__ == '__main__':
