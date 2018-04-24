@@ -261,7 +261,7 @@ class Settings(QtGui.QWidget):
         
         output_groupBox = QtGui.QGroupBox('Output')
         output_groupBox.setLayout(QtGui.QGridLayout())
-        
+
         output_groupBox.layout().addWidget(annotation_label, 0, 0, 1, 1)
         output_groupBox.layout().addWidget(annotation_comboBox, 0, 1, 1, 1)
         #output_groupBox.layout().addWidget(annotfontSize_label, 0, 2, 1, 1)

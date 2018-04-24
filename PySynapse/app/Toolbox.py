@@ -510,7 +510,7 @@ class Toolbox(QtGui.QWidget):
 
     def getArtists(self):
         """Return a dictionary of artists from annotationTable"""
-        artist_dict = {}
+        artist_dict = OrderedDict()
         # Annottion table
         for r in range(self.annotation_table.rowCount()):
             item = self.annotation_table.item(r, 0)
@@ -1233,38 +1233,38 @@ class Toolbox(QtGui.QWidget):
 
     def detectAPs(self, detectReportBox, drawEvent=False, msh=-10, msd=1, thresh=0):
         """detectAPs(detectReportBox, drawEvent, 'additional settings',...)"""
-        if not self.friend.index or len(self.friend.index)>1:
-            detectReportBox.setText("Can only detect spikes in one episode at a time")
-
-        zData = self.friend.episodes['Data'][self.friend.index[-1]]
-        ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
             selectedWindow = self.friend.selectedRange
         else:
             selectedWindow = [None, None]
         final_label_text = ""
-        for c, Vs in zData.Voltage.items():
-            Vs = spk_window(Vs, ts, selectedWindow, t0=0)
-            num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd, threshold=thresh)
-            final_label_text = final_label_text + c + " : \n"
-            final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
-            final_label_text = final_label_text + "  mean ISI: "
-            final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
-            final_label_text += "\n"
-            # Draw event markers
-            if drawEvent:
-                if selectedWindow[0] is not None:
-                    spike_time += selectedWindow[0]
-                eventArtist = self.friend.drawEvent(spike_time, which_layout = ['Voltage', c], info=[self.detectedEvents[-1]])
-                self.eventArtist.append(eventArtist)
+        iteration = 0
+        for i in self.friend.index:
+            zData = self.friend.episodes['Data'][i]
+            ts = zData.Protocol.msPerPoint
+            for c, Vs in zData.Voltage.items(): # iterate over channels
+                Vs = spk_window(Vs, ts, selectedWindow, t0=0)
+                num_spikes, spike_time, spike_heights = spk_count(Vs, ts, msh=msh, msd=msd, threshold=thresh)
+                if len(self.friend.index)>0:
+                    final_label_text = final_label_text + os.path.basename(self.friend.episodes['Dirs'][i]) + "\n"
+                final_label_text = final_label_text + c + " : \n"
+                final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
+                final_label_text = final_label_text + "  mean ISI: "
+                final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
+                final_label_text += "\n"
+                # Draw event markers
+                if drawEvent:
+                    if selectedWindow[0] is not None:
+                        spike_time += selectedWindow[0]
+                    # find out the layout
+                    which_layout = self.friend.layout[self.friend.indexStreamChannel('Voltage', c)]
+                    color = self.friend._usedColors[iteration] if self.friend.colorfy else 'r'
+                    eventArtist = self.friend.drawEvent(spike_time, which_layout = which_layout, info=[self.detectedEvents[-1]], color=color, iteration=iteration)
+                    iteration = iteration + 1
+                    self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     def detectPSPs(self, detectReportBox, drawEvent=False, event='EPSP', riseTime=1, decayTime=4, amp=1, step=20, criterion='se', thresh=3.0):
-        if not self.friend.index or len(self.friend.index)>1:
-            detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
-
-        zData = self.friend.episodes['Data'][self.friend.index[-1]]
-        ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
             selectedWindow = self.friend.selectedRange
         else:
@@ -1275,51 +1275,66 @@ class Toolbox(QtGui.QWidget):
         else: # ['EPSC', 'IPSC']
             stream = 'Current'
 
-        # Get events
-        for c, S in getattr(zData, stream).items():
-            S = spk_window(S, ts, selectedWindow, t0=0)
-            event_time, pks, _, _ = detectPSP_template_matching(S, ts, event=event, \
-                                            w=200, tau_RISE=riseTime, tau_DECAY=decayTime, \
-                                            mph=amp, step=step, criterion=criterion, thresh=thresh)
-            final_label_text = final_label_text + c + ": \n"
-            final_label_text = final_label_text + "  # " + event + ": " + str(len(event_time)) +  "\n"
-            final_label_text += "  mean IEI: "
-            final_label_text += "{:0.2f}".format(np.mean(np.diff(event_time))) if len(event_time)>1 else "NaN"
-            final_label_text += "\n"
-            # Draw event markers
-            if drawEvent:
-                if selectedWindow[0] is not None:
-                    event_time += selectedWindow[0]
-                eventArtist = self.friend.drawEvent(event_time, which_layout = [stream, c], info=[self.detectedEvents[-1]])
-                self.eventArtist.append(eventArtist)
+        iteration = 0
+        for i in self.friend.index:
+            zData = self.friend.episodes['Data'][i]
+            ts = zData.Protocol.msPerPoint
+            # Get events
+            for c, S in getattr(zData, stream).items():
+                S = spk_window(S, ts, selectedWindow, t0=0)
+                event_time, pks, _, _ = detectPSP_template_matching(S, ts, event=event, \
+                                                w=200, tau_RISE=riseTime, tau_DECAY=decayTime, \
+                                                mph=amp, step=step, criterion=criterion, thresh=thresh)
+                if len(self.friend.index)>0:
+                    final_label_text = final_label_text + os.path.basename(self.friend.episodes['Dirs'][i]) + "\n"
+                final_label_text = final_label_text + c + ": \n"
+                final_label_text = final_label_text + "  # " + event + ": " + str(len(event_time)) +  "\n"
+                final_label_text += "  mean IEI: "
+                final_label_text += "{:0.2f}".format(np.mean(np.diff(event_time))) if len(event_time)>1 else "NaN"
+                final_label_text += "\n"
+                # Draw event markers
+                if drawEvent:
+                    if selectedWindow[0] is not None:
+                        event_time += selectedWindow[0]
+
+                    # find out the layout
+                    which_layout = self.friend.layout[self.friend.indexStreamChannel(stream, c)]
+                    color = self.friend._usedColors[iteration] if self.friend.colorfy else 'r'
+                    eventArtist = self.friend.drawEvent(event_time, which_layout = which_layout, info=[self.detectedEvents[-1]], color=color, iteration=iteration)
+                    iteration = iteration + 1
+                    self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     def detectCellAttachedSpikes(self, detectReportBox, drawEvent=False, msh=30, msd=10, basefilt=20, maxsh=300):
-        if not self.friend.index or len(self.friend.index)>1:
-            detectReportBox.setTexxt("Can only detect spikes in one episode at a time")
-
-        zData = self.friend.episodes['Data'][self.friend.index[-1]]
-        ts = zData.Protocol.msPerPoint
         if self.friend.viewRegionOn:
             selectedWindow = self.friend.selectedRange
         else:
             selectedWindow = [None, None]
+
         final_label_text = ""
-        for c, Is in zData.Current.items():
-            Is = spk_window(Is, ts, selectedWindow, t0=0)
-            num_spikes, spike_time, spike_heights = detectSpikes_cell_attached(Is, ts, msh=msh, msd=msd, \
-                                                                               basefilt=basefilt, maxsh=maxsh, removebase=False)
-            final_label_text = final_label_text + c + " : \n"
-            final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
-            final_label_text = final_label_text + "  mean ISI: "
-            final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
-            final_label_text += "\n"
-            # Draw event markers
-            if drawEvent:
-                if selectedWindow[0] is not None:
-                    spike_time += selectedWindow[0]
-                eventArtist = self.friend.drawEvent(spike_time, which_layout = ['Current', c], info=[self.detectedEvents[-1]])
-                self.eventArtist.append(eventArtist)
+        iteration = 0
+        for i in self.friend.index:
+            zData = self.friend.episodes['Data'][i]
+            ts = zData.Protocol.msPerPoint
+            for c, Is in zData.Current.items():
+                Is = spk_window(Is, ts, selectedWindow, t0=0)
+                num_spikes, spike_time, spike_heights = detectSpikes_cell_attached(Is, ts, msh=msh, msd=msd, \
+                                                                                   basefilt=basefilt, maxsh=maxsh, removebase=False)
+                final_label_text = final_label_text + c + " : \n"
+                final_label_text = final_label_text + "  # spikes: " + str(num_spikes) + "\n"
+                final_label_text = final_label_text + "  mean ISI: "
+                final_label_text += "{:0.2f}".format(np.mean(np.diff(spike_time))) if len(spike_time)>1 else "NaN"
+                final_label_text += "\n"
+                # Draw event markers
+                if drawEvent:
+                    if selectedWindow[0] is not None:
+                        spike_time += selectedWindow[0]
+
+                    which_layout = self.friend.layout[self.friend.indexStreamChannel('Current', c)]
+                    color = self.friend._usedColors[iteration] if self.friend.colorfy else 'r'
+                    eventArtist = self.friend.drawEvent(spike_time, which_layout = which_layout, color=color, info=[self.detectedEvents[-1]], iteration=iteration)
+                    iteration = iteration + 1
+                    self.eventArtist.append(eventArtist)
         detectReportBox.setText(final_label_text[:-1])
 
     # </editor-fold>

@@ -401,7 +401,7 @@ class ScopeWindow(QtGui.QMainWindow):
                     p1.removeItem(a)
 
 
-    def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='bottom', iteration=0):
+    def drawEvent(self, eventTime, which_layout, info=None, color='r', linesize=None, drawat='top', iteration=0):
         """Draw events occurring at specific times"""
         p = None
         for l in self.layout:
@@ -416,9 +416,9 @@ class ScopeWindow(QtGui.QMainWindow):
         # set_trace()
         yRange = p.viewRange()[1]
         if linesize is None:
-            linesize = abs((yRange[1]-yRange[0]) / 15.0)
+            linesize = abs((yRange[1]-yRange[0]) / 20.0)
         if drawat == 'bottom': # Stacked backwards
-            ypos_0, ypos_1 = yRange[0] + iteration * linesize * 1.35, yRange[0] + linesize - iteration * linesize * 1.35
+            ypos_0, ypos_1 = yRange[0] + iteration * linesize * 1.35, yRange[0] + linesize + iteration * linesize * 1.35
         else: # top
             ypos_0, ypos_1 = yRange[1] - iteration * linesize * 1.35, yRange[1] - linesize - iteration * linesize * 1.35
 
@@ -427,7 +427,7 @@ class ScopeWindow(QtGui.QMainWindow):
         for t in eventTime:
             p.plot(x=[t,t], y=[ypos_0, ypos_1], pen=color, name=pname)
 
-        eventArtist = {'eventTime': eventTime, 'y': [ypos_0, ypos_1], 'layout': which_layout, 'name': pname,
+        eventArtist = {'eventTime': eventTime, 'y': [ypos_0, ypos_1], 'layout': which_layout, 'name': pname+str(iteration),
                                'linecolor': color, 'type': 'event'}
 
         return eventArtist

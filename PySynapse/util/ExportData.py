@@ -275,7 +275,6 @@ def DrawAnnotationArtists(artist_dict, axs):
     # TODO
     for key, artist in artist_dict.items():
         # Find out which axis to draw on
-        # set_trace()
         ax = axs[artist['layout'][2]]
         if isinstance(ax, list):
             ax = ax[artist['layout'][3]]
@@ -306,7 +305,11 @@ def DrawAnnotationArtists(artist_dict, axs):
                                                  solid_capstyle='butt')
             ax.add_artist(mpl_artist)
         elif artist['type'] == 'event':
-            set_trace()
+            for et in artist['eventTime']:
+                mpl_artist = matplotlib.lines.Line2D([et, et], artist['y'], color=artist['linecolor'],
+                                                     linewidth=0.5669291338582677, solid_joinstyle='bevel',
+                                                     solid_capstyle='butt')
+                ax.add_artist(mpl_artist)
             pass
         elif artist['type'] == 'ttl':
             pass

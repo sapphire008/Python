@@ -17,6 +17,8 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 sys.path.append(os.path.join(__location__, '..')) # for debug only
 from util.MATLAB import *
 
+from collections import OrderedDict
+
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
