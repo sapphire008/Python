@@ -228,13 +228,13 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         def scalebarlabel(x, unitstr):
             x = int(x)
             if unitstr.lower()[0] == 'm':
-                return(str(x)+unitstr if x<1000 else str(int(x/1000))+
-                    unitstr.replace('m',''))
+                return(str(x)+" " + unitstr if x<1000 else str(int(x/1000))+ " " +
+                        unitstr.replace('m',''))
             elif unitstr.lower()[0] == 'p':
-                return(str(x)+unitstr if x<1000 else str(int(x/1000))+
-                    unitstr.replace('p','n'))
+                return(str(x)+" "+ unitstr if x<1000 else str(int(x/1000))+ " " +
+                        unitstr.replace('p','n'))
             else: # no prefix
-                return(str(x)+unitstr)
+                return(str(x)+" " + unitstr)
 
         ax.set_axis_off() # turn off axis
         X = np.ptp(ax.get_xlim()) if xscale is None else xscale
@@ -243,6 +243,8 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         X, Y = roundto125(X/5), roundto125(Y/(5 if Y<1200 else 10))
         # Parse scale bar labels
         xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
+        print(xlab)
+        print(xunit)
         # Get color of the scalebar
         if color is None:
             color = ax.get_lines()[0]
@@ -259,8 +261,8 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         if fontsize is None:
             fontsize = ax.yaxis.get_major_ticks()[2].label.get_fontsize()
         scalebarBox = AuxTransformBox(ax.transData)
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((0,0),X, 0, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
-        scalebarBox.add_artist(matplotlib.patches.Rectangle((X,0),0,Y, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((0, 0), X, 0, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting')) #TODO capstyle
+        scalebarBox.add_artist(matplotlib.patches.Rectangle((X, 0), 0, Y, fc="none", edgecolor='k', linewidth=linewidth, joinstyle='miter', capstyle='projecting'))
         scalebarBox.add_artist(matplotlib.text.Text(X/2, -Y/20, xlab, va='top', ha='center', color='k'))
         scalebarBox.add_artist(matplotlib.text.Text(X+X/20, Y/2, ylab, va='center', ha='left', color='k'))
         anchored_box = AnchoredOffsetbox(loc=loc, pad=-9, child=scalebarBox, frameon=False, bbox_to_anchor=bbox_to_anchor)
@@ -305,12 +307,17 @@ def DrawAnnotationArtists(artist_dict, axs):
                                                  solid_capstyle='butt')
             ax.add_artist(mpl_artist)
         elif artist['type'] == 'event':
+            ax.text(float(artist['eventTime'][0] - 0.1 * np.diff(ax.get_xlim())),
+                    float(np.mean(artist['y'])),
+                    '{:d} APs'.format(len(artist['eventTime'])),
+                    color=artist['linecolor'], va='center', ha='left')
+
             for et in artist['eventTime']:
                 mpl_artist = matplotlib.lines.Line2D([et, et], artist['y'], color=artist['linecolor'],
                                                      linewidth=0.5669291338582677, solid_joinstyle='bevel',
                                                      solid_capstyle='butt')
                 ax.add_artist(mpl_artist)
-            pass
+
         elif artist['type'] == 'ttl':
             pass
         else:
@@ -403,12 +410,12 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
             if showInitVal:
                 InitVal = "{0:0.0f}".format(Y[0])
                 if m[0] == 'Voltage':
-                    InitVal += 'mV'
+                    InitVal += ' mV'
                 elif m[0] == 'Current':
                     InitVal += 'pA'
                 elif m[0] == 'Stimulus':
                     if stimReflectCurrent:
-                        InitVal += 'pA'
+                        InitVal += ' pA'
                     else:
                         InitVal = ''
 
@@ -526,12 +533,12 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
             if n == 0 and showInitVal:
                 InitVal = "{0:0.0f}".format(Y[0])
                 if m[0] == 'Voltage':
-                    InitVal += 'mV'
+                    InitVal += ' mV'
                 elif m[0] == 'Current':
-                    InitVal += 'pA'
+                    InitVal += ' pA'
                 elif m[0] == 'Stimulus':
                     if stimReflectCurrent:
-                        InitVal += 'pA'
+                        InitVal += ' pA'
                     else:
                         InitVal = ''
 
@@ -668,12 +675,12 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
             if showInitVal:
                 InitVal = "{0:0.0f}".format(Y[0])
                 if m[0] == 'Voltage':
-                    InitVal += 'mV'
+                    InitVal += ' mV'
                 elif m[0] == 'Current':
-                    InitVal += 'pA'
+                    InitVal += ' pA'
                 elif m[0] == 'Stimulus':
                     if stimReflectCurrent:
-                        InitVal += 'pA'
+                        InitVal += ' pA'
                     else:
                         InitVal = ''
 

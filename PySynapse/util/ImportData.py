@@ -304,6 +304,8 @@ class NeuroData(object):
 def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
     """Wrapper function to load NeuroData, assuming the data structure we have
     implemented in get_cellpath"""
+    if isinstance(cellname, (list, tuple, np.ndarray)):
+        cellname = ".".join(cellname)
     cell_path = os.path.join(basedir, get_cellpath(cellname))
     zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
     return zData
@@ -626,14 +628,14 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     """Infer full path of the cell given cell label (without file extension)
     e.g. Neocortex A.09Sep15.S1.E13 should yield
     ./2015/09.September/Data 9 Sep 15/Neocortex A.09sep15.S1.E13.dat"""
-    cell_label = cell_label.strip('.dat')
+    cell_label = cell_label.replace('.dat', '')
 
     if episode[0] != '.':
         episode = '.'+episode
 
     dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_label)
 
-    if not dinfo:
+    if not dinfo: # no episode
         dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+)', cell_label)
     else:
         episode = ''
@@ -656,6 +658,17 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     data_folder = os.path.join(year_dir, month_dir, data_folder, cell_label+episode+'.dat')
     data_folder = data_folder.replace('\\','/')
     return data_folder
+
+def separate_cell_episode(cell_name):
+    """Convert full name of the file, e.g. 'NeocortexChRNBM E.27Jul17.S1.E10.dat', 
+    into tuple 'NeocortexChRNBM E.27Jul17', 'S1.E10' 
+    """
+    dinfo = re.findall('([\w\s-]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_name)[0]
+     
+    cell_label = dinfo[0]+"."+"".join(dinfo[1:4])
+    episode_label = "S{}.E{}".format(dinfo[-2], dinfo[-1])
+     
+    return cell_label, episode_label
 
 
 class ROI(object):

@@ -22,7 +22,8 @@ from pdb import set_trace
 # Global variables
 __version__ = "Scope Window 0.4"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+# ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+# '#1f77b4'
 old = True # load old data format
 
 import numpy as np
@@ -41,6 +42,8 @@ from util.ExportData import *
 from util.MATLAB import *
 from app.Settings import *
 from app.Toolbox import *
+
+colors = readini(os.path.join(__location__,'../resources/config.ini'))['colors']
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8

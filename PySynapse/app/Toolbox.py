@@ -10,7 +10,7 @@ Methods that call self.friend assumes that the Scope window is already running (
 
 # Global variables
 old = True # load old data format
-colors = ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
+# colors = readini(os.path.join(__location__,'../resources/config.ini'))['colors']
 ignoreFirstTTL = True # Ignore the first set of TTL Data when parsing TTL pulse protocols
 
 from app.AccordionWidget import AccordionWidget

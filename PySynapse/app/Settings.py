@@ -45,10 +45,16 @@ def readini(iniPath):
         for line in f:
             if line[0] == '#': # skip comment line
                 continue
-            elif '#' in line: # get rid of inline comments
+            elif "#" in line and "'#" not in line and '"#' not in line: # get rid of inline comments
                 line = line.split('#')[0]
+            elif "#" in line and ("'#" in line or '"#' in line): # has both comments and hex vlaues
+                line = line.rsplit('#', 1)[0] # assume the comments in the last hash
             # Separate the line by '='
             key, val = [k.strip() for k in line.split('=')]
+            # Check if the current line has a list
+            if "[" in val and "]" in val:
+                val = val[val.find("[")+1:val.find("]")].strip()
+                val = [v.replace("'","").replace('"','').strip() for v in val.split(",")]
             # check if val is numeric string
             try:
                 val = str2numeric(val)
@@ -76,8 +82,12 @@ def writeini(iniPath, options):
             if line[0] == '#' or line.strip() == '':
                 print(line, end='')
                 continue
-            elif '#' in line: # temporarily store inline comments before writing
+            elif '#' in line and "'#" not in line and '"#' not in line: # temporarily store inline comments before writing
                 params, comments = line.split('#')
+                params = params.strip()
+                comments = '#'+comments
+            elif "#" in line and ("'#" in line or '"#' in line): # has both comments and hex vlaues
+                params, comments = line.rsplit('#', 1) # assume the comments in the last hash
                 params = params.strip()
                 comments = '#'+comments
             else:
@@ -87,7 +97,7 @@ def writeini(iniPath, options):
             for k, v in options.items():
                 if k == params.split('=')[0].strip():
                     writeStr = '{} = {} {}'.format(k, str(v), comments).strip()
-                    print(writeStr)
+                    # print(writeStr)
                     break
 
 # ------------ Settings widget ---------------------------------------------------
