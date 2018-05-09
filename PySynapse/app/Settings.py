@@ -45,14 +45,19 @@ def readini(iniPath):
         for line in f:
             if line[0] == '#': # skip comment line
                 continue
-            elif "#" in line and "'#" not in line and '"#' not in line: # get rid of inline comments
-                line = line.split('#')[0]
-            elif "#" in line and ("'#" in line or '"#' in line): # has both comments and hex vlaues
-                line = line.rsplit('#', 1)[0] # assume the comments in the last hash
+            elif "#" in line: # has both comments and hex vlaues
+                params, comments = line.rsplit('#', 1) # try and see if the comments in the last hash
+                if ("]" in comments and "[" in params) or \
+                        (")" in comments and "(" in params) or \
+                        ("}" in comments and "{" in params) :
+                    pass # don't split if the line has more hash, has grouping elements
+                else:
+                    line = params
+
             # Separate the line by '='
             key, val = [k.strip() for k in line.split('=')]
             # Check if the current line has a list
-            if "[" in val and "]" in val:
+            if "[" in val and "]" in val: # remove the brackets
                 val = val[val.find("[")+1:val.find("]")].strip()
                 val = [v.replace("'","").replace('"','').strip() for v in val.split(",")]
             # check if val is numeric string
@@ -72,32 +77,34 @@ def readini(iniPath):
     
     if not f.closed:
         f.close()
-        
+
     return options
     
 def writeini(iniPath, options):
     """Write the config.ini to save the current settings"""
     with fileinput.input(iniPath, inplace=True) as f:
         for line in f:
-            if line[0] == '#' or line.strip() == '':
-                print(line, end='')
+            if line[0] == '#' or line.strip() == '': # comment or empty line
+                print(line, end='') # this actually writes the line to the file
                 continue
-            elif '#' in line and "'#" not in line and '"#' not in line: # temporarily store inline comments before writing
-                params, comments = line.split('#')
-                params = params.strip()
-                comments = '#'+comments
-            elif "#" in line and ("'#" in line or '"#' in line): # has both comments and hex vlaues
-                params, comments = line.rsplit('#', 1) # assume the comments in the last hash
-                params = params.strip()
-                comments = '#'+comments
-            else:
+            elif "#" in line:
+                params, comments = line.rsplit('#', 1) # try and see the comments in the last hash
+                if ("]" in comments and "[" in params) or \
+                        (")" in comments and "(" in params) or \
+                        ("}" in comments and "{" in params) :
+                    # don't split if the line has more hash, has grouping elements
+                    params, comments = line.strip(), ''
+                else:
+                    params = params.strip()
+                    comments = '#'+comments
+            else: # no comments
                 params, comments = line.strip(), ''
             
             # parse which key of the option dictionary in the current params
             for k, v in options.items():
                 if k == params.split('=')[0].strip():
                     writeStr = '{} = {} {}'.format(k, str(v), comments).strip()
-                    # print(writeStr)
+                    print(writeStr) # this actually writes the line to the file
                     break
 
 # ------------ Settings widget ---------------------------------------------------

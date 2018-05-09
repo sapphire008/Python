@@ -243,8 +243,6 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
         X, Y = roundto125(X/5), roundto125(Y/(5 if Y<1200 else 10))
         # Parse scale bar labels
         xlab, ylab = scalebarlabel(X, xunit), scalebarlabel(Y, yunit)
-        print(xlab)
-        print(xunit)
         # Get color of the scalebar
         if color is None:
             color = ax.get_lines()[0]
