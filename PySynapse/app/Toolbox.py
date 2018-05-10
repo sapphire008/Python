@@ -511,14 +511,15 @@ class Toolbox(QtGui.QWidget):
     def getArtists(self):
         """Return a dictionary of artists from annotationTable"""
         artist_dict = OrderedDict()
-        # Annottion table
+        # Annotation table
         for r in range(self.annotation_table.rowCount()):
             item = self.annotation_table.item(r, 0)
             # Get annotation artist
-            if isstrnum(item._artistProp):
-                artist_dict[item._artistProp['name']] = str2numeric(item._artistProp)
-            else:
-                artist_dict[item._artistProp['name']] = item._artistProp
+            for k, v in item._artistProp.items():
+                if isstrnum(v):
+                    item._artistProp[k] = str2numeric(v)
+
+            artist_dict[item._artistProp['name']] = item._artistProp
         # fitted curve
         if hasattr(self, 'fittedCurve'):
             artist_dict['fit'] = self.fittedCurve
