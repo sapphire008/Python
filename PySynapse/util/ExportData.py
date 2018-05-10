@@ -280,8 +280,8 @@ def DrawAnnotationArtists(artist_dict, axs):
             ax = ax[artist['layout'][3]]
         if artist['type'] == 'box':
             mpl_artist = matplotlib.patches.Rectangle((artist['x0'], artist['y0']), artist['width'], artist['height'],
-                                                      ec=artist['linecolor'],# if artist['line'] else 'none',
-                                                      linewidth=artist['linewidth'], linestyle=artist['linestyle'],
+                                                      ec=artist['linecolor'] if artist['line'] else 'none',
+                                                      linewidth=artist['linewidth'] if artist['line'] else None, linestyle=artist['linestyle'],
                                                       fc=artist['fillcolor'],fill=artist['fill'],
                                                       joinstyle='miter',capstyle='projecting')
             #set_trace()

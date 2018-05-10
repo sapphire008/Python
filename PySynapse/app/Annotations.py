@@ -11,6 +11,7 @@ import sys
 import os
 import fileinput
 from PyQt4 import QtCore, QtGui
+from app.ColorComboBox import ColorDropDownCombobox
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -113,12 +114,14 @@ class AnnotationSetting(QtGui.QDialog):
         ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='-', return_type=str))
         ls_text.setToolTip('"-" (default), "--", "-.", ":"')
         lc_label = QtGui.QLabel('Line Color')
-        lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
+        lc_text = ColorDropDownCombobox(default=self.parseArtist(field='linecolor', default='k', return_type=str))
+        #lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
         lc_text.setToolTip('Single letter or hex value of the color')
         fill_checkbox = QtGui.QCheckBox('Fill')
         fill_checkbox.setCheckState(self.parseArtist(field='fill', default=0, return_type=bool))
         fc_label = QtGui.QLabel('Fill Color')
-        fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
+        fc_text = ColorDropDownCombobox(default=self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
+        # fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
         fc_text.setToolTip('Single letter or hex value of the color')
         fa_label = QtGui.QLabel('Fill Alpha')
         fa_text = QtGui.QLineEdit(self.parseArtist(field='fillalpha', default='100', return_type=str))
@@ -187,7 +190,8 @@ class AnnotationSetting(QtGui.QDialog):
         ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='--', return_type=str))
         ls_text.setToolTip('"-" (default), "--", "-.", ":"')
         lc_label = QtGui.QLabel('Line Color')
-        lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
+        lc_text = ColorDropDownCombobox(default=self.parseArtist(field='linecolor', default='k', return_type=str))
+        # lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
         lc_text.setToolTip('Single letter or hex value of the color')
 
         # make a dictionary of hte vlaues
