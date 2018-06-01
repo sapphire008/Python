@@ -70,7 +70,7 @@ exportFigures_AI_CS6(sourceFile="{format_source_file}", targetFile="{format_targ
 
 
 def svg2eps_ai(source_file, target_file, \
-               illustrator_path="D:/Edward/Software/AdobeIllustratorCS6(64bit)Portable/Support Files/Contents/Windows/Illustrator.exe",\
+               illustrator_path="D:/Edward/Software/Adobe Illustrator CS6/Support Files/Contents/Windows/Illustrator.exe",\
                jsx_file_str = jsx_file_str_AI_CS6, DEBUG=False):
     """Use Adobe Illustrator to convert svg to eps"""
     # Change the strings
@@ -131,7 +131,7 @@ def svg2eps_inkscape(source_file, target_file, \
 if __name__ == '__main__':
     source_file = '"R:\\temp.svg"'
     target_file = '"R:\\temp.eps"'
-    illustrator_path="C:/Program Files/Adobe/Adobe Illustrator CS6 (64 Bit)/Support Files/Contents/Windows/Illustrator.exe"
+    illustrator_path="D:/Edward/Software/Adobe Illustrator CS6/Support Files/Contents/Windows/Illustrator.exe"
     javascript_path="D:\\Edward\\Documents\\Assignments\\Scripts\\Python\\PySynapse\\util\\ExportDocsAdobeIllustrator.jsx"
     # svg2eps_ai(source_file, target_file)
     svg2eps_inkscape(source_file, target_file)

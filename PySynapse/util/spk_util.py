@@ -292,7 +292,6 @@ def spk_firing_rate(Vs, ts, method='gaussian', debug=False, sigma=300., n=5,
 
     return(R)
 
-
 def stationary_gaussian_kernel(ts, sigma=300., n=5):
     """Make gaussian kernel
     ts: sampling rate [ms]
@@ -709,8 +708,18 @@ def spkd_victor_purpura_interval(tli, tlj, cost=0, tsamp=2000):
         scr[i+1, nj] = np.min([scr[i, nj]+1,  scr[i+1, nj-1]+1,  scr[i, nj-1]+cost*dist])
     
     return scr[ni, nj]
-    
 
+
+# %% Simultaions
+def spk_make_epsp_train(event_time, duration=10000, ts=0.1, 
+                        alpha_dict={'duration':1000, 'amplitude':150, 'tau1':50, 'tau2':100}):    
+    alpha_dict['ts'] = ts
+    
+    T = np.arange(0, duration+ts, ts)
+    R = spk_dirac(ts=ts, dur=[0, duration], phi=event_time, h=1., collapse=True)
+    epsp = alpha(**alpha_dict)
+    epsp_train = sg.convolve(R, epsp, mode="full")[:len(T)] # faster
+    return epsp_train
 
 # %%
 if __name__ == '__main__':

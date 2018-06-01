@@ -326,7 +326,15 @@ def iscol(v):
 
 def isvector(v):
     v = np.asarray(v)
-    return True if len(v.shape) == 1 or v.shape[0] == 1 or v.shape[1] == 1 else False
+    if len(v.shape)==0:
+        return False
+    elif len(v.shape)==1:
+        return True
+    else: # len(v.shape) > 1:
+        if v.shape[0] == 1 or v.shape[1] == 1:
+            return True
+        else:
+            return False
 
 def ismatrix(v):
     v = np.asarray(v)
@@ -685,11 +693,9 @@ def frequency_modulated_sine(f0, f, duration, ts, phase=0):
     Y = np.sin(2 * np.pi * nu * t + phase)
     return t, Y
 
-
 def softmax(X):
   exps = np.exp(X)
   return exps / np.sum(exps)
-
 
 def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete', decimals = 1, length = 100, fill = '█'):
     """
@@ -727,6 +733,49 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
     # Print New Line on Complete
     if iteration >= total: 
         print()
+        
+def alpha(duration=400, amplitude=150, tau1=50, tau2=100, ts=0.1, force="positive"):
+    """Returns a double exponential alpha function given parameters"""
+    T = np.arange(0, duration+ts, ts)
+    A = np.exp(-T/tau2) - np.exp(-T/tau1)
+    if tau2==tau1:
+        return np.zeros_like(T)
+    elif force == "positive" and tau2<=tau1:
+        # this will get us an alpha function with negative amp
+        return np.zeros_like(T)
+    elif force=="negative" and tau2>=tau1:
+        # this will get us an alpha function with positive amp
+        return np.zeros_like(T)
+            
+    A = A / np.max(np.abs(A)) * amplitude
+    return A
+
+def alphag(duration=400, amplitude=150, tau=100, ts=0.1):
+    """Returns a single exponential alpha function given parameters"""
+    T = np.arange(0, duration+ts, ts)
+    G = (T/tau) * np.exp(1 - T/tau)
+    G = G / np.max(np.abs(G)) * amplitude
+    return G
+
+def get_alpha_duration(A, ts=0.1, thresh=0.95):
+    """Find duration of alpha function curve, when the value falls below a 
+    threshold fraction (e.g. 0.95 or about 3 taus) of the amplitude"""
+    amplitude = np.max(A)
+    amplitude_ind = np.argmax(A)
+    index = np.where(A <= ((1.-thresh) * amplitude))[0]
+    index = index[index > amplitude_ind]
+    if not isempty(index):
+        return index[0]*ts
+    else:
+        return None # beyond the scope of the curve. Cannot calculate
+        
+
+def exists(obj):
+    if obj in locals() or obj in globals():
+        return True
+    else:
+        return False
+    
    
 
 if __name__ == '__main__':

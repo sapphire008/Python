@@ -212,7 +212,8 @@ def AdjustText(txt, ax=None):
 def roundto125(x, r=np.array([1,2,5,10])): # helper static function
         """5ms, 10ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, etc.
         5mV, 10mV, 20mV, etc.
-        5pA, 10pA, 20pA, 50pA, etc."""
+        5pA, 10pA, 20pA, 50pA, etc.
+        """
         p = int(np.floor(np.log10(x))) # power of 10
         y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
         return(y*(10**p))

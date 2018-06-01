@@ -24,7 +24,7 @@ import pandas as pd
 
 # sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/PySynapse')
 # sys.path.append('D:/Edward/Docuemnts/Assignments/Scripts/Python/generic')
-from util.ImportData import NeuroData
+from util.ImportData import NeuroData, get_cellpath
 from util.spk_util import *
 from app.Scope import ScopeWindow
 from app.Settings import *
@@ -490,6 +490,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.setDataBrowserTreeView(startpath=startpath)
         self.hideScopeToolbox = hideScopeToolbox
         self.scopeLayout = layout
+        self.startpath=startpath
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -535,8 +536,6 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TableviewDelegate(self.tableview))
-        self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs', 'Stimulus', 'StimDuration']
-        self.tableview.hiddenColumnList = [4, 5, 7, 8, 9] # Drug Name, Drug Time, Dirs
         self.tableview.horizontalHeader().setStretchLastSection(True)
         # self.tableview.setShowGrid(False)
         self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")
@@ -561,8 +560,14 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
     # ---------------- Additional main window behaviors -----------------------
     def setMenuBarItems(self):
-         # File Menu
+        # File Menu
         fileMenu = self.menubar.addMenu('&File')
+
+        # File: Load csv
+        loadCSVAction = QtGui.QAction('Load CSV', self)
+        loadCSVAction.setStatusTip('Load a database table from a .csv file')
+        loadCSVAction.triggered.connect(self.loadCSV)
+        fileMenu.addAction(loadCSVAction)
         
         # File: Refresh. Refresh currently selected item/directory
         refreshAction = QtGui.QAction('Refresh', self)
@@ -610,7 +615,35 @@ class Synapse_MainWindow(QtGui.QMainWindow):
             self.tableview.hideColumn(column)
             action.setChecked(False)
             self.tableview.hiddenColumnList.append(column)
-            
+
+    def loadCSV(self):
+        #raise(NotImplementedError())
+        # Opens up the file explorer
+        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '/')
+        rename_dict = {"Cell":"Name", "Episode":"Epi", "SweepWindow":"Duration","Drug":"Drug Name","DrugTime":"Drug Time","WCTime":"Time", "StimDescription":"Comment"}
+        df = pd.read_csv(filename)
+        drop_columns = np.setdiff1d(df.columns.tolist(), list(rename_dict.keys()))
+        df = df.drop(drop_columns, axis=1).rename(columns=rename_dict)
+        df["Sampling Rate"] = 0.1
+        df["Drug Level"] = 0
+        df["Drug Name"] = ["" if np.isnan(dn) else dn for dn in df["Drug Name"]]
+        df["Time"] = [NeuroData.epiTime(ttt) for ttt in df["Time"]]
+        df["Drug Time"] = [NeuroData.epiTime(ttt) for ttt in df["Drug Time"]]
+        # TODO: Tentitative path
+        df["Dirs"] = [os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/") for cb, ep in zip(df["Name"], df["Epi"])]
+        self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
+        df = df.reindex(["Name", "Epi", "Time", "Duration", "Drug Name", "Drug Time", "Comment"], axis=1) # drop columns not to be displayed
+        # Populate the loaded data unto the table widget
+        self.tableview.headers = df.columns.tolist()
+        self.tableview.model = EpisodeTableModel(df)
+        self.tableview.setModel(self.tableview.model)
+        self.tableview.verticalHeader().hide()
+        # Show all columns
+        for cc in range(len(self.tableview.headers)):
+            self.tableview.showColumn(cc)
+
+        self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
+
     def refreshCurrentBranch(self):
         # Get parent index
         index = self.treeview.selectionModel().currentIndex()
@@ -671,6 +704,8 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def setEpisodeListTableView(self, sequence=None):
         if not sequence:
             return # do nothing if there is no sequence information
+        self.tableview.headers = ['Epi', 'Time', 'Duration', 'Drug Level', 'Drug Name', 'Drug Time', 'Comment','Dirs', 'Stimulus', 'StimDuration']
+        self.tableview.hiddenColumnList = [4, 5, 7, 8, 9] # Drug Name, Drug Time, Dirs
         # Render the data frame from sequence
         df = pd.DataFrame.from_dict(sequence)
         # sort the data frame by 'Epi' column
@@ -680,7 +715,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         ind = ind.sort_values([0,1], ascending=[1,1]).index.tolist()
         df = df.reindex(ind, axis=0)
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list') # data information
-        self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
+        # self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
         df = df.reindex(self.tableview.headers, axis=1)
         self.tableview.model = EpisodeTableModel(df)

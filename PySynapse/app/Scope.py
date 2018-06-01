@@ -314,7 +314,7 @@ class ScopeWindow(QtGui.QMainWindow):
             
         # Remove episodes
         for j in index_remove:
-            self.removeEpisode(info=(self.episodes['Name'], self.episodes['Epi'][j]))
+            self.removeEpisode(info=(self.episodes['Name'][j], self.episodes['Epi'][j]))
 
         # Insert new episodes
         for i in index_insert:
@@ -322,7 +322,7 @@ class ScopeWindow(QtGui.QMainWindow):
                 self.episodes['Data'][i] = NeuroData(dataFile=self.episodes['Dirs'][i], old=old, infoOnly=False, getTime=True)
             self._loaded_array.append(i)
             # Draw the episode
-            self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'], self.episodes['Epi'][i], i))
+            self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'][i], self.episodes['Epi'][i], i))
 
         # print(self.index)
         if not bool_old_episode:
@@ -578,7 +578,7 @@ class ScopeWindow(QtGui.QMainWindow):
         # Plot this new data stream
         for n, i in enumerate(self.index):
             zData = self.episodes['Data'][i]
-            self.drawEpisode(zData, info=(self.episodes['Name'], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
+            self.drawEpisode(zData, info=(self.episodes['Name'][i], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
 
         # TODO: The new plot will likely change the view
 
