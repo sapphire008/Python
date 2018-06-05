@@ -1,4 +1,4 @@
-# README for new Synapse written in Python 3 ##
+# PySynapse
 
 ![](./resources/ui_designer/synapse_showcase.gif)
 
