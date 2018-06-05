@@ -305,7 +305,7 @@ def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *ar
     """Wrapper function to load NeuroData, assuming the data structure we have
     implemented in get_cellpath"""
     if isinstance(cellname, (list, tuple, np.ndarray)):
-        cellname = ".".join(cellname)
+        cellname = ".".join(list(cellname))
     cell_path = os.path.join(basedir, get_cellpath(cellname))
     zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
     return zData

@@ -564,10 +564,10 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         fileMenu = self.menubar.addMenu('&File')
 
         # File: Load csv
-        loadCSVAction = QtGui.QAction('Load CSV', self)
-        loadCSVAction.setStatusTip('Load a database table from a .csv file')
-        loadCSVAction.triggered.connect(self.loadCSV)
-        fileMenu.addAction(loadCSVAction)
+        loadDBAction = QtGui.QAction('Load Database', self)
+        loadDBAction.setStatusTip('Load a database table from a .csv, .xlsx, or .xls file')
+        loadDBAction.triggered.connect(self.loadDatabase)
+        fileMenu.addAction(loadDBAction)
         
         # File: Refresh. Refresh currently selected item/directory
         refreshAction = QtGui.QAction('Refresh', self)
@@ -616,12 +616,20 @@ class Synapse_MainWindow(QtGui.QMainWindow):
             action.setChecked(False)
             self.tableview.hiddenColumnList.append(column)
 
-    def loadCSV(self):
+    def loadDatabase(self):
         #raise(NotImplementedError())
         # Opens up the file explorer
-        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '/')
+        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '/', 'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)')#
         rename_dict = {"Cell":"Name", "Episode":"Epi", "SweepWindow":"Duration","Drug":"Drug Name","DrugTime":"Drug Time","WCTime":"Time", "StimDescription":"Comment"}
-        df = pd.read_csv(filename)
+        if ".csv" in filename:
+            df = pd.read_csv(filename)
+        elif ".xlsx" in filename or "xls" in filename:
+            df = pd.read_excel(filename)
+        else:
+            return
+        col_lower = [c.lower() for c in df.columns.tolist()]
+        if "show" in col_lower:
+            df = df.loc[df.iloc[:, col_lower.index("show")],:]
         drop_columns = np.setdiff1d(df.columns.tolist(), list(rename_dict.keys()))
         df = df.drop(drop_columns, axis=1).rename(columns=rename_dict)
         df["Sampling Rate"] = 0.1

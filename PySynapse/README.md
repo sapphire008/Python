@@ -1,5 +1,8 @@
 # README for new Synapse written in Python 3 ##
-Script structure
+
+![](./resources/ui_designer/synapse_showcase.gif)
+
+## Script structure
 
 * `SynapseQt.py`: main window
 * `app`: other apps / windows
@@ -11,7 +14,6 @@ Script structure
 * `util`: utility functions
   - `util/ImportData`: data reading utilities
   - `util/ExportData`: export figures
-  - `util/Database`: database function (To be implemented)
 
 * `resources`: icons, fonts, etc.
 
@@ -29,12 +31,14 @@ Script structure
     - matplotlib: for exporting figures
 
 2. To-dos:
-    - "**Function**" toolbox: apply a function to selected region or the entire trace
-      * max, min, average, median, std
-    - Indexing / annotation system. Load all the meta info of the data files into a database. Allow the user to search for keywords or key values.
     - Integrate Ben's clipboard program to make .ini files (Export .ini file)
-    - Fix ttl markers when changing cell. Add notes on the table regarding ttl information.
     - Export matplotlib figure to Bokeh for more interactive display.
+
+## Update Jun 4, 2018
+* Fixed some bugs
+* Added utility to read .csv file, e.g. exported from SQL database query
+* Added utility to show detected events, along with exporting the drawn ticks of events to figures
+
 ## Update Sep 6, 2017
 * Added trace "**Filter**" tool
 * Fixed bugs in "**Arithmetic**" tool
