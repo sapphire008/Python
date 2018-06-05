@@ -1,5 +1,7 @@
 # PySynapse
 
+An interactive utility for electrophyiological data analyses.
+
 ![](./resources/ui_designer/synapse_showcase.gif)
 
 ## Script structure
