@@ -10,7 +10,7 @@ Adding annotations to display as well as export
 import sys
 import os
 import fileinput
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from app.ColorComboBox import ColorDropDownCombobox
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -30,12 +30,12 @@ except AttributeError:
 try:
     _encoding = QtGui.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
-class AnnotationSetting(QtGui.QDialog):
+class AnnotationSetting(QtWidgets.QDialog):
     # Class variable
     ann_obj = ['box',  # [x1, y1, x2, y2, linewidth, linestyle, color]
                'line',  # [x1, y1, x2, y2, linewidth, linestyle, color]
@@ -54,7 +54,7 @@ class AnnotationSetting(QtGui.QDialog):
             self.type = artist['type']
         self.artist = dict() if artist is None else artist
         self.settingDict = dict()
-        self.setLayout(QtGui.QVBoxLayout())
+        self.setLayout(QtWidgets.QVBoxLayout())
 
         # Call the corresponding setting windows to get annotation object properties
         if self.type == 'box':
@@ -70,13 +70,13 @@ class AnnotationSetting(QtGui.QDialog):
             raise(NotImplementedError("'{}' annotation object has not been implemented yet".format(self.type)))
         
         # buttons for saving the settings and exiting the settings window
-        OK_button = QtGui.QPushButton('OK')
+        OK_button = QtWidgets.QPushButton('OK')
         OK_button.setDefault(True)
         OK_button.clicked.connect(lambda: self.updateSettings(closeWidget=True))
-        Cancel_button = QtGui.QPushButton('Cancel')
+        Cancel_button = QtWidgets.QPushButton('Cancel')
         Cancel_button.clicked.connect(self.close)
-        self.buttonGroup = QtGui.QGroupBox()
-        self.buttonGroup.setLayout(QtGui.QHBoxLayout())
+        self.buttonGroup = QtWidgets.QGroupBox()
+        self.buttonGroup.setLayout(QtWidgets.QHBoxLayout())
         self.buttonGroup.layout().addWidget(OK_button, 0)
         self.buttonGroup.layout().addWidget(Cancel_button, 0)
 
@@ -84,48 +84,48 @@ class AnnotationSetting(QtGui.QDialog):
         self.layout().addWidget(self.buttonGroup)
 
     def initialTypeSelectionDialog(self, current_index=0):
-        selected_item, ok = QtGui.QInputDialog.getItem(self, "Select annotation object type",
+        selected_item, ok = QtWidgets.QInputDialog.getItem(self, "Select annotation object type",
                                               "annotation objects", self.ann_obj, current_index, False)
         self.type = selected_item
 
     def boxSettings(self):
         """return a dictionary of the box annotation artist"""
-        widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QGridLayout())
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        widgetFrame = QtWidgets.QFrame()
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("boxSettingsWidgetFrame"))
 
         # Settings for a box
-        x0_label = QtGui.QLabel('X0')
-        x0_text = QtGui.QLineEdit(self.parseArtist(field='x0', default='0', return_type=str))
-        y0_label = QtGui.QLabel('Y0')
-        y0_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
-        w_label = QtGui.QLabel('Width')
-        w_text = QtGui.QLineEdit(self.parseArtist(field='width', default='500', return_type=str))
-        h_label = QtGui.QLabel('Height')
-        h_text = QtGui.QLineEdit(self.parseArtist(field='height', default='10', return_type=str))
-        line_checkbox = QtGui.QCheckBox('Line')
+        x0_label = QtWidgets.QLabel('X0')
+        x0_text = QtWidgets.QLineEdit(self.parseArtist(field='x0', default='0', return_type=str))
+        y0_label = QtWidgets.QLabel('Y0')
+        y0_text = QtWidgets.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
+        w_label = QtWidgets.QLabel('Width')
+        w_text = QtWidgets.QLineEdit(self.parseArtist(field='width', default='500', return_type=str))
+        h_label = QtWidgets.QLabel('Height')
+        h_text = QtWidgets.QLineEdit(self.parseArtist(field='height', default='10', return_type=str))
+        line_checkbox = QtWidgets.QCheckBox('Line')
         line_checkbox.setCheckState(self.parseArtist(field='line', default=2, return_type=bool))
-        lw_label = QtGui.QLabel('Line Width')
-        lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
-        ls_label = QtGui.QLabel('Line Style')
-        ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='-', return_type=str))
+        lw_label = QtWidgets.QLabel('Line Width')
+        lw_text = QtWidgets.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
+        ls_label = QtWidgets.QLabel('Line Style')
+        ls_text = QtWidgets.QLineEdit(self.parseArtist(field='linestyle', default='-', return_type=str))
         ls_text.setToolTip('"-" (default), "--", "-.", ":"')
-        lc_label = QtGui.QLabel('Line Color')
+        lc_label = QtWidgets.QLabel('Line Color')
         lc_text = ColorDropDownCombobox(default=self.parseArtist(field='linecolor', default='k', return_type=str))
-        #lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
+        #lc_text = QtWidgets.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str)) # single letters or hex string
         lc_text.setToolTip('Single letter or hex value of the color')
-        fill_checkbox = QtGui.QCheckBox('Fill')
+        fill_checkbox = QtWidgets.QCheckBox('Fill')
         fill_checkbox.setCheckState(self.parseArtist(field='fill', default=0, return_type=bool))
-        fc_label = QtGui.QLabel('Fill Color')
+        fc_label = QtWidgets.QLabel('Fill Color')
         fc_text = ColorDropDownCombobox(default=self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
-        # fc_text = QtGui.QLineEdit(self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
+        # fc_text = QtWidgets.QLineEdit(self.parseArtist(field='fillcolor', default='#1f77b4', return_type=str))
         fc_text.setToolTip('Single letter or hex value of the color')
-        fa_label = QtGui.QLabel('Fill Alpha')
-        fa_text = QtGui.QLineEdit(self.parseArtist(field='fillalpha', default='100', return_type=str))
-        fa_suffix_label = QtGui.QLabel('%')
+        fa_label = QtWidgets.QLabel('Fill Alpha')
+        fa_text = QtWidgets.QLineEdit(self.parseArtist(field='fillalpha', default='100', return_type=str))
+        fa_suffix_label = QtWidgets.QLabel('%')
 
         # Make a dictionary of the values
         self.settingDict['x0'] = x0_text
@@ -167,31 +167,31 @@ class AnnotationSetting(QtGui.QDialog):
         return widgetFrame
 
     def lineSettings(self):
-        widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QGridLayout())
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        widgetFrame = QtWidgets.QFrame()
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("lineSettingsWidgetFrame"))
 
         # Settings for a line
-        x0_label = QtGui.QLabel('X0')
-        x0_text = QtGui.QLineEdit(self.parseArtist(field='x0', default='0', return_type=str))
-        y0_label = QtGui.QLabel('Y0')
-        y0_text = QtGui.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
-        x1_label = QtGui.QLabel('X1')
-        x1_text = QtGui.QLineEdit(self.parseArtist(field='x1', default='1000', return_type=str))
-        y1_label = QtGui.QLabel('Y1')
-        y1_text = QtGui.QLineEdit(self.parseArtist(field='y1', default='0', return_type=str))
+        x0_label = QtWidgets.QLabel('X0')
+        x0_text = QtWidgets.QLineEdit(self.parseArtist(field='x0', default='0', return_type=str))
+        y0_label = QtWidgets.QLabel('Y0')
+        y0_text = QtWidgets.QLineEdit(self.parseArtist(field='y0', default='0', return_type=str))
+        x1_label = QtWidgets.QLabel('X1')
+        x1_text = QtWidgets.QLineEdit(self.parseArtist(field='x1', default='1000', return_type=str))
+        y1_label = QtWidgets.QLabel('Y1')
+        y1_text = QtWidgets.QLineEdit(self.parseArtist(field='y1', default='0', return_type=str))
 
-        lw_label = QtGui.QLabel('Line Width')
-        lw_text = QtGui.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
-        ls_label = QtGui.QLabel('Line Style')
-        ls_text = QtGui.QLineEdit(self.parseArtist(field='linestyle', default='--', return_type=str))
+        lw_label = QtWidgets.QLabel('Line Width')
+        lw_text = QtWidgets.QLineEdit(self.parseArtist(field='linewidth', default='0.5669291338582677', return_type=str))
+        ls_label = QtWidgets.QLabel('Line Style')
+        ls_text = QtWidgets.QLineEdit(self.parseArtist(field='linestyle', default='--', return_type=str))
         ls_text.setToolTip('"-" (default), "--", "-.", ":"')
-        lc_label = QtGui.QLabel('Line Color')
+        lc_label = QtWidgets.QLabel('Line Color')
         lc_text = ColorDropDownCombobox(default=self.parseArtist(field='linecolor', default='k', return_type=str))
-        # lc_text = QtGui.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
+        # lc_text = QtWidgets.QLineEdit(self.parseArtist(field='linecolor', default='k', return_type=str))  # single letters or hex string
         lc_text.setToolTip('Single letter or hex value of the color')
 
         # make a dictionary of hte vlaues
@@ -223,19 +223,19 @@ class AnnotationSetting(QtGui.QDialog):
 
     def ttlSettings(self):
         """return a dictionary of the TTL annotation artist"""
-        widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QGridLayout())
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        widgetFrame = QtWidgets.QFrame()
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("ttlSettingsWidgetFrame"))
 
         # Settings for TTL
-        pulse2step_checkbox = QtGui.QCheckBox('Convert Pulse to Step')
+        pulse2step_checkbox = QtWidgets.QCheckBox('Convert Pulse to Step')
         pulse2step_checkbox.setCheckState(2)
         pulse2step_checkbox.setToolTip("Draw a block of short pulses as a continuous step")
 
-        realpulse_checkbox = QtGui.QCheckBox('Draw Real Pulse Width')
+        realpulse_checkbox = QtWidgets.QCheckBox('Draw Real Pulse Width')
         realpulse_checkbox.setCheckState(2)
         realpulse_checkbox.setToolTip('If unchecked, pulses will be represented as a vertial line only')
 
@@ -269,7 +269,7 @@ class AnnotationSetting(QtGui.QDialog):
 
         for k in keys:
             if self.artist[k] == '':
-                msg = QtGui.QMessageBox()
+                msg = QtWidgets.QMessageBox()
                 msg.setWindowTitle("Error")
                 msg.setText("'{}' argument cannot be empty when drawing a '{}'".format(k, self.type))
                 msg.exec_()
@@ -278,13 +278,13 @@ class AnnotationSetting(QtGui.QDialog):
 
     def updateSettings(self, closeWidget=False):
         for k, v in self.settingDict.items():
-            if isinstance(v, QtGui.QComboBox):
+            if isinstance(v, QtWidgets.QComboBox):
                 val = v.currentText()
-            elif isinstance(v, QtGui.QLineEdit):
+            elif isinstance(v, QtWidgets.QLineEdit):
                 val = v.text()
-            elif isinstance(v, QtGui.QCheckBox):
+            elif isinstance(v, QtWidgets.QCheckBox):
                 val = True if v.checkState() > 0 else False
-            elif isinstance(v, QtGui.QSpinBox):
+            elif isinstance(v, QtWidgets.QSpinBox):
                 val = v.value()
             else:
                 raise (TypeError('Unrecognized type of setting item'))
@@ -323,7 +323,7 @@ if __name__ == '__main__':
     #            else:
     #                print(line, end='')
 
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     ex = AnnotationSetting()
     ex.show()
     if ex.exec_():

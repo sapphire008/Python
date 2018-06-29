@@ -15,9 +15,10 @@ of the need for a pixmap and used QPolygon instead.
 
 from: http://pastebin.com/mZ04q16h
 """
-from PyQt4.QtCore import Qt, QRect, QMimeData, pyqtSignal, pyqtProperty, QEvent, QPoint
-from PyQt4.QtGui import QDrag, QPixmap, QScrollArea, QGroupBox, QVBoxLayout, QPainter, QPalette, QPen
-from PyQt4.QtGui import QWidget, QCursor, QApplication, QColor, QPolygon, QBrush
+from PyQt5.QtCore import Qt, QRect, QMimeData, pyqtSignal, pyqtProperty, QEvent, QPoint
+from PyQt5.QtGui import QDrag, QPixmap, QPainter, QPalette, QPen
+from PyQt5.QtGui import QCursor, QColor, QPolygon, QBrush
+from PyQt5.QtWidgets import QWidget, QApplication, QScrollArea, QGroupBox, QVBoxLayout
 
 class AccordionItem(QGroupBox):
     def __init__( self, accordion, title, widget ):

@@ -20,7 +20,7 @@ import collections
 from pdb import set_trace
 
 # Global variables
-__version__ = "Scope Window 0.4"
+__version__ = "Scope Window 0.5"
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 # ['#1f77b4','#ff7f0e', '#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'] # tableau10, or odd of tableau20
 # '#1f77b4'
@@ -29,7 +29,7 @@ old = True # load old data format
 import numpy as np
 import pandas as pd
 
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 
 import pyqtgraph as pg
 from pyqtgraph import GraphicsLayoutWidget
@@ -54,12 +54,12 @@ except AttributeError:
 try:
     _encoding = QtGui.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
-class ScopeWindow(QtGui.QMainWindow):
+class ScopeWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None, partner=None, maxepisodes=30, layout=None, hideDock=True):
         super(ScopeWindow, self).__init__(parent)
         self.episodes = None
@@ -114,13 +114,13 @@ class ScopeWindow(QtGui.QMainWindow):
         MainWindow.setObjectName(_fromUtf8("Scope Window"))
         MainWindow.resize(1200, 600)
         MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/activity.png'))
-        self.centralwidget = QtGui.QWidget(MainWindow)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
 
         # Graphics layout
-        self.horizontalLayout = QtGui.QHBoxLayout(self.centralwidget)
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
-        self.graphicsLayout = QtGui.QHBoxLayout()
+        self.graphicsLayout = QtWidgets.QHBoxLayout()
         self.graphicsLayout.setObjectName(_fromUtf8("graphicsLayout"))
         self.graphicsView = GraphicsLayoutWidget(self.centralwidget)
         self.graphicsView.setObjectName(_fromUtf8("graphicsView"))
@@ -130,19 +130,19 @@ class ScopeWindow(QtGui.QMainWindow):
         MainWindow.setCentralWidget(self.centralwidget)
 
         # Side panel layout: initialize as a list view
-        self.dockWidget = QtGui.QDockWidget("Toolbox", self)
+        self.dockWidget = QtWidgets.QDockWidget("Toolbox", self)
         self.dockWidget.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.dockWidget.setObjectName(_fromUtf8("dockwidget"))
         if self.hideDock:
             self.dockWidget.hide() # keep the dock hidden by default
         # Dock content, containing widgets
-        self.dockWidgetContents = QtGui.QWidget()
+        self.dockWidgetContents = QtWidgets.QWidget()
         self.dockWidgetContents.setObjectName(_fromUtf8("dockWidgetContents"))
         # Layout of the dock content
-        self.dockLayout = QtGui.QVBoxLayout(self.dockWidgetContents)
+        self.dockLayout = QtWidgets.QVBoxLayout(self.dockWidgetContents)
         self.dockLayout.setObjectName(_fromUtf8("dockLayout"))
         # listview
-        # self.listView = QtGui.QListView(self.dockWidgetContents)
+        # self.listView = QtWidgets.QListView(self.dockWidgetContents)
         self.dockPanel = Toolbox(self.dockWidgetContents, self)
         # self.listView.setObjectName(_fromUtf8("listView"))
         self.dockPanel.setObjectName(_fromUtf8("dockPanel"))
@@ -153,13 +153,13 @@ class ScopeWindow(QtGui.QMainWindow):
         # Add the dock to the MainWindow
         MainWindow.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.dockWidget)
 
-        self.menubar = QtGui.QMenuBar(MainWindow)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1225, 26))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.setMenuBarItems()
         MainWindow.setMenuBar(self.menubar)
 
-        self.statusbar = QtGui.QStatusBar(MainWindow)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
         MainWindow.setStatusBar(self.statusbar)
 
@@ -172,24 +172,24 @@ class ScopeWindow(QtGui.QMainWindow):
         fileMenu = self.menubar.addMenu('&File')
         # File: Export
         exportMenu = fileMenu.addMenu('&Export')
-        exportWithScaleBarAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export with scalebar', self)
+        exportWithScaleBarAction = QtWidgets.QAction(QtGui.QIcon('export.png'), 'Export with scalebar', self)
         exportWithScaleBarAction.setShortcut('Alt+E')
         exportWithScaleBarAction.setStatusTip('Export with scalebar')
         exportWithScaleBarAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='overlap'))
         exportMenu.addAction(exportWithScaleBarAction)
 
-        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export grid arrangement', self)
+        exportVerticalAction = QtWidgets.QAction(QtGui.QIcon('export.png'), 'Export grid arrangement', self)
         exportVerticalAction.setStatusTip('Export the selected episodes in a vertical arrangement')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='vertical'))
         exportMenu.addAction(exportVerticalAction)
 
-        exportVerticalAction = QtGui.QAction(QtGui.QIcon('export.png'), 'Export concatenated arrangement', self)
+        exportVerticalAction = QtWidgets.QAction(QtGui.QIcon('export.png'), 'Export concatenated arrangement', self)
         exportVerticalAction.setStatusTip('Export the selected episodes in arrangement concatenated over time.')
         exportVerticalAction.triggered.connect(lambda: self.exportWithScalebar(arrangement='concatenate'))
         exportMenu.addAction(exportVerticalAction)
 
         # File: Settings
-        settingsAction = QtGui.QAction("Settings", self)
+        settingsAction = QtWidgets.QAction("Settings", self)
         settingsAction.setStatusTip('Configure settings of PySynapse')
         settingsAction.triggered.connect(self.openSettingsWindow)
         fileMenu.addAction(settingsAction)
@@ -197,43 +197,43 @@ class ScopeWindow(QtGui.QMainWindow):
         # View Menu
         viewMenu = self.menubar.addMenu('&View')
         # View: Default view range
-        defaultViewAction = QtGui.QAction('Default Range', self)
+        defaultViewAction = QtWidgets.QAction('Default Range', self)
         defaultViewAction.setShortcut('Alt+D')
         defaultViewAction.setStatusTip('Reset view to default range')
         defaultViewAction.triggered.connect(lambda: self.setDataViewRange(viewMode='default'))
         viewMenu.addAction(defaultViewAction)
         # View: Colorfy
-        colorfyAction = QtGui.QAction('Color code traces', self, checkable=True, checked=False)
+        colorfyAction = QtWidgets.QAction('Color code traces', self, checkable=True, checked=False)
         colorfyAction.setShortcut('Alt+C')
         colorfyAction.setStatusTip('Toggle between color coded traces and black traces')
         colorfyAction.triggered.connect(lambda: self.toggleTraceColors(colorfyAction.isChecked()))
         viewMenu.addAction(colorfyAction)
 
         # View: view region
-        viewRegionAction = QtGui.QAction('Region Selection', self, checkable=True, checked=False)
+        viewRegionAction = QtWidgets.QAction('Region Selection', self, checkable=True, checked=False)
         viewRegionAction.setShortcut('Alt+R')
         viewRegionAction.setStatusTip('Show view region selection')
         viewRegionAction.triggered.connect(lambda: self.toggleRegionSelection(viewRegionAction.isChecked()))
         viewMenu.addAction(viewRegionAction)
         # View: data cursor
-        dataCursorAction = QtGui.QAction('Data cursor', self, checkable=True, checked=False)
+        dataCursorAction = QtWidgets.QAction('Data cursor', self, checkable=True, checked=False)
         dataCursorAction.setShortcut('Alt+T')
         dataCursorAction.setStatusTip('Show data cursor on the traces')
         dataCursorAction.triggered.connect(lambda: self.toggleDataCursor(dataCursorAction.isChecked()))
         viewMenu.addAction(dataCursorAction)
         # View: crosshair
-        crosshairAction = QtGui.QAction('Crosshair', self, checkable=True, checked=False)
+        crosshairAction = QtWidgets.QAction('Crosshair', self, checkable=True, checked=False)
         crosshairAction.setShortcut('Alt+X')
         crosshairAction.setStatusTip('Show crosshair on the plots')
         crosshairAction.triggered.connect(lambda: self.toggleCrosshair(crosshairAction.isChecked()))
         viewMenu.addAction(crosshairAction)
         # View: Keep previous
-        keepPrev = QtGui.QAction('Keep previous', self, checkable=True, checked=False)
+        keepPrev = QtWidgets.QAction('Keep previous', self, checkable=True, checked=False)
         keepPrev.setStatusTip('Keep traces from other data set on the scope window')
         keepPrev.triggered.connect(lambda: self.toggleKeepPrev(keepPrev.isChecked()))
         viewMenu.addAction(keepPrev)
         # view: freeze view range
-        freezeView = QtGui.QAction("Freeze View", self, checkable=True, checked=False)
+        freezeView = QtWidgets.QAction("Freeze View", self, checkable=True, checked=False)
         freezeView.setStatusTip('Freeze view between items')
         freezeView.triggered.connect(lambda: self.toggleFreezeView(freezeView.isChecked()))
         viewMenu.addAction(freezeView)
@@ -398,7 +398,7 @@ class ScopeWindow(QtGui.QMainWindow):
                         current_pen = a.opts['pen']
                         if isinstance(current_pen, str):
                             self._usedColors.remove(current_pen)
-                        else: # Assume it is PyQt4.QtGui.QPen
+                        else: # Assume it is PyQt5.QtGui.QPen
                             self._usedColors.remove(current_pen.color().name())
                     # Remove the actual trace
                     p1.removeItem(a)
@@ -489,7 +489,7 @@ class ScopeWindow(QtGui.QMainWindow):
             return pen
         # Add the artist
         if artist['type'] == 'box':
-            roi = QtGui.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
+            roi = QtWidgets.QGraphicsRectItem(float(artist['x0']), float(artist['y0']), \
                                         float(artist['width']), float(artist['height']))
             if artist['fill']:
                 roi.setBrush(pg.mkBrush(artist['fillcolor']))
@@ -499,7 +499,7 @@ class ScopeWindow(QtGui.QMainWindow):
                 pen = setPenStyle(pen, artist['linestyle'])
                 roi.setPen(pen)
         elif artist['type'] == 'line':
-            roi = QtGui.QGraphicsLineItem(float(artist['x0']), float(artist['y0']), \
+            roi = QtWidgets.QGraphicsLineItem(float(artist['x0']), float(artist['y0']), \
                                           float(artist['x1']), float(artist['y1']))
             pen = pg.mkPen(artist['linecolor'])
             pen.setWidth(float(artist['linewidth']))
@@ -1116,7 +1116,7 @@ if __name__ == '__main__' and not run_example:
              'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E24.dat']}
 
     index = [0]
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Stimulus', 'A', 1, 0]])
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)

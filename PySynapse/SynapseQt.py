@@ -33,10 +33,10 @@ import sip
 sip.setapi('QVariant', 2)
 
 # Routines for Qt import errors
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 #from pyqtgraph.Qt import QtGui, QtCore
 try:
-    from PyQt4.QtCore import QString
+    from PyQt5.QtCore import QString
 except ImportError:
     QString = str
 
@@ -49,14 +49,14 @@ except AttributeError:
 try:
     _encoding = QtGui.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
 # Set some global variables
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-__version__ = "PySynapse 0.3"
+__version__ = "PySynapse 0.4"
 
 # Custom helper functions
 def sort_nicely(l):
@@ -451,16 +451,16 @@ class EpisodeTableModel(QtCore.QAbstractTableModel):
 
 
 # Episode Tableview delegate for selection and highlighting
-class TableviewDelegate(QtGui.QItemDelegate):
+class TableviewDelegate(QtWidgets.QItemDelegate):
     def __init__(self, parent=None, *args):
-        QtGui.QItemDelegate.__init__(self, parent, *args)
+        QtWidgets.QItemDelegate.__init__(self, parent, *args)
 
     def paint(self, painter, option, index):
         # print('here painter delegates')
         painter.save()
         # set background color
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        if (option.state & QtGui.QStyle.State_Selected):
+        if (option.state & QtWidgets.QStyle.State_Selected):
             grid_color = QtGui.QColor(31,119,180,225)
             text_color = QtCore.Qt.white
         else:
@@ -479,7 +479,7 @@ class TableviewDelegate(QtGui.QItemDelegate):
         painter.restore()
 
 # %%
-class Synapse_MainWindow(QtGui.QMainWindow):
+class Synapse_MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None, startpath=None, hideScopeToolbox=True, layout=None):
         super(Synapse_MainWindow, self).__init__(parent)
         # Set up the GUI window
@@ -495,14 +495,14 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         # Set up basic layout of the main window
         MainWindow.setObjectName(_fromUtf8("Synpase TreeView"))
         MainWindow.resize(1000, 500)
-        self.centralwidget = QtGui.QWidget(MainWindow)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
-        self.horizontalLayout = QtGui.QHBoxLayout(self.centralwidget)
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
 
         # Set splitter for two panels
-        self.splitter = QtGui.QSplitter(self.centralwidget)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Preferred)
+        self.splitter = QtWidgets.QSplitter(self.centralwidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
@@ -511,28 +511,28 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         self.splitter.setObjectName(_fromUtf8("splitter"))
 
         # Set treeview
-        self.treeview = QtGui.QTreeView(self.splitter)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
+        self.treeview = QtWidgets.QTreeView(self.splitter)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.treeview.sizePolicy().hasHeightForWidth())
         self.treeview.setSizePolicy(sizePolicy)
         # self.treeview.setTextElideMode(QtCore.Qt.ElideNone)
-        self.treeview.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.treeview.header().setResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.treeview.header().setStretchLastSection(False)
         self.treeview.setObjectName(_fromUtf8("treeview"))
 
         # Set up Episode list table view
-        self.tableview = QtGui.QTableView(self.splitter)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        self.tableview = QtWidgets.QTableView(self.splitter)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(3)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.tableview.sizePolicy().hasHeightForWidth())
         self.tableview.setSizePolicy(sizePolicy)
         self.tableview.setObjectName(_fromUtf8("tableview"))
         # additional tableview customizations
-        self.tableview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
-        self.tableview.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tableview.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.tableview.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TableviewDelegate(self.tableview))
         self.tableview.horizontalHeader().setStretchLastSection(True)
         # self.tableview.setShowGrid(False)
@@ -541,14 +541,14 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         MainWindow.setCentralWidget(self.centralwidget)
 
         # Set up menu bar
-        self.menubar = QtGui.QMenuBar(MainWindow)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 638, 100))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.setMenuBarItems() # call function to set menubar
         MainWindow.setMenuBar(self.menubar)
 
         # Set up status bar
-        self.statusbar = QtGui.QStatusBar(MainWindow)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
         MainWindow.setStatusBar(self.statusbar)
 
@@ -562,26 +562,26 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         fileMenu = self.menubar.addMenu('&File')
 
         # File: Load csv
-        loadDBAction = QtGui.QAction('Load Database', self)
+        loadDBAction = QtWidgets.QAction('Load Database', self)
         loadDBAction.setStatusTip('Load a database table from a .csv, .xlsx, or .xls file')
         loadDBAction.triggered.connect(self.loadDatabase)
         fileMenu.addAction(loadDBAction)
         
         # File: Refresh. Refresh currently selected item/directory
-        refreshAction = QtGui.QAction('Refresh', self)
+        refreshAction = QtWidgets.QAction('Refresh', self)
         refreshAction.setShortcut('F5')
         refreshAction.setStatusTip('Refresh currently selected item / directory')
         refreshAction.triggered.connect(self.refreshCurrentBranch)
         fileMenu.addAction(refreshAction)
         
         # File: Settings
-        settingsAction = QtGui.QAction("Settings", self)
+        settingsAction = QtWidgets.QAction("Settings", self)
         settingsAction.setStatusTip('Configure settings of PySynapse')
         settingsAction.triggered.connect(self.openSettingsWindow)
         fileMenu.addAction(settingsAction)
         
         # File: Exit
-        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'),'Exit', self)
+        exitAction = QtWidgets.QAction(QtGui.QIcon('exit.png'),'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Synapse')
         exitAction.triggered.connect(self.close)
@@ -592,15 +592,15 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
         # View: Column
         columnMenu = viewMenu.addMenu('&Additional Columns')
-        drugNameAction = QtGui.QAction('Drug Name', self, checkable=True, checked=False)
+        drugNameAction = QtWidgets.QAction('Drug Name', self, checkable=True, checked=False)
         drugNameAction.triggered.connect(lambda: self.toggleTableViewColumnAction(4, drugNameAction))
         columnMenu.addAction(drugNameAction)
 
-        drugTimeAction = QtGui.QAction('Drug Time', self, checkable=True, checked=False)
+        drugTimeAction = QtWidgets.QAction('Drug Time', self, checkable=True, checked=False)
         drugTimeAction.triggered.connect(lambda: self.toggleTableViewColumnAction(5, drugTimeAction))
         columnMenu.addAction(drugTimeAction)
 
-        dirsAction = QtGui.QAction('Directory', self, checkable=True, checked=False)
+        dirsAction = QtWidgets.QAction('Directory', self, checkable=True, checked=False)
         dirsAction.triggered.connect(lambda: self.toggleTableViewColumnAction(7, dirsAction))
         columnMenu.addAction(dirsAction)
 
@@ -617,7 +617,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     def loadDatabase(self):
         #raise(NotImplementedError())
         # Opens up the file explorer
-        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '/', 'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)')#
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', '/', 'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)')#
         rename_dict = {"Cell":"Name", "Episode":"Epi", "SweepWindow":"Duration","Drug":"Drug Name","DrugTime":"Drug Time","WCTime":"Time", "StimDescription":"Comment"}
         if ".csv" in filename:
             df = pd.read_csv(filename)
@@ -668,10 +668,10 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         """Override default behavior when closing the main window"""
         return
         #quit_msg = "Are you sure you want to exit the program?"
-        #reply = QtGui.QMessageBox.question(self, 'Message', quit_msg,
-        #                                   QtGui.QMessageBox.Yes,
-        #                                   QtGui.QMessageBox.No)
-        #if reply == QtGui.QMessageBox.Yes:
+        #reply = QtWidgets.QMessageBox.question(self, 'Message', quit_msg,
+        #                                   QtWidgets.QMessageBox.Yes,
+        #                                   QtWidgets.QMessageBox.No)
+        #if reply == QtWidgets.QMessageBox.Yes:
         #    event.accept()
         #else:
         #    event.ignore()
@@ -689,7 +689,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
     # ---------------- Data browser behaviors ---------------------------------
     def setDataBrowserTreeView(self, startpath=None):
         # Set file system as model of the tree view
-        # self.treeview.model = QtGui.QFileSystemModel()
+        # self.treeview.model = QtWidgets.QFileSystemModel()
         self.treeview.model = FileSystemTreeModel(path=startpath)
         self.treeview.setModel(self.treeview.model)
         # Set behavior upon clicked
@@ -703,7 +703,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         node = self.treeview.model.getNode(index)
         # Check if the item clicked is sequence instead of a folder / file
         if node.type == "sequence":
-            # populuate the table view on the other panel
+            # populate the table view on the other panel
             self.setEpisodeListTableView(node.info)
         
     # --------------- Episode list behaviors ----------------------------------
@@ -731,13 +731,15 @@ class Synapse_MainWindow(QtGui.QMainWindow):
         for c in self.tableview.hiddenColumnList: # Drug Name, Drug Time, Dirs
             self.tableview.setColumnHidden(c, True)
         # Set behavior upon selection
+        print('before selection changed connection')
         self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
         # self.tableview.clicked.connect(self.onItemSelected)
 
-    @QtCore.pyqtSlot(QtCore.QModelIndex)
+    @QtCore.pyqtSlot(QtCore.QItemSelection, QtCore.QItemSelection)
     def onItemSelected(self, selected, deselected):
         """Executed when an episode in the tableview is clicked"""
         # Get the information of last selected item
+        print('connected on item selected')
         if not selected and not deselected:
             return
         try:
@@ -768,7 +770,7 @@ class Synapse_MainWindow(QtGui.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     # w = Synapse_MainWindow()
     w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False, layout=[['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]])

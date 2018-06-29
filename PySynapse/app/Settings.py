@@ -13,7 +13,7 @@ Read and write ./resouces/config.ini text file
 import sys
 import os
 import fileinput
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -30,10 +30,10 @@ except AttributeError:
 try:
     _encoding = QtGui.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
 # <editor-fold desc="Global Settings">
 # ------------ Read and write the settings file ----------------------------------
@@ -108,7 +108,7 @@ def writeini(iniPath, options):
                     break
 
 # ------------ Settings widget ---------------------------------------------------
-class Settings(QtGui.QWidget):
+class Settings(QtWidgets.QWidget):
     def __init__(self, parent=None, iniPath=None):
         super(Settings, self).__init__(parent)
         self.setWindowTitle("Settings")
@@ -122,23 +122,23 @@ class Settings(QtGui.QWidget):
         self.options = readini(iniPath=self.iniPath)
         self.settingDict = {} # map between field name and objects that stores the setting
         # Set up the GUI
-        self.setLayout(QtGui.QVBoxLayout())
-        self.tabWidget = QtGui.QTabWidget()
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.tabWidget = QtWidgets.QTabWidget()
 
         # Adding tabs
         self.tabWidget.addTab(self.exportTraceTabUI(),"Export")        
         self.tabWidget.addTab(self.viewTabUI(), 'View')
 
         # buttons for saving the settings and exiting the settings window
-        OK_button = QtGui.QPushButton('OK')
+        OK_button = QtWidgets.QPushButton('OK')
         OK_button.setDefault(True)
         OK_button.clicked.connect(lambda: self.updateSettings(closeWidget=True))
-        Apply_button = QtGui.QPushButton('Apply')
+        Apply_button = QtWidgets.QPushButton('Apply')
         Apply_button.clicked.connect(lambda: self.updateSettings(closeWidget=False))
-        Cancel_button = QtGui.QPushButton('Cancel')
+        Cancel_button = QtWidgets.QPushButton('Cancel')
         Cancel_button.clicked.connect(self.close)
-        self.buttonGroup = QtGui.QGroupBox()
-        self.buttonGroup.setLayout(QtGui.QHBoxLayout())
+        self.buttonGroup = QtWidgets.QGroupBox()
+        self.buttonGroup.setLayout(QtWidgets.QHBoxLayout())
         self.buttonGroup.layout().addWidget(OK_button, 0)
         self.buttonGroup.layout().addWidget(Apply_button, 0)
         self.buttonGroup.layout().addWidget(Cancel_button, 0)
@@ -148,33 +148,33 @@ class Settings(QtGui.QWidget):
 
     #--------------- Set up the GUI ----------------------------------------------
     def exportTraceTabUI(self):
-        widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QVBoxLayout())
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        widgetFrame = QtWidgets.QFrame()
+        widgetFrame.setLayout(QtWidgets.QVBoxLayout())
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("ExportTraceWidgetFrame"))
 
         # %% Size
-        fig_size_W_label = QtGui.QLabel('Width (inches)')
-        fig_size_W_text = QtGui.QLineEdit(str(self.options['figSizeW']))
+        fig_size_W_label = QtWidgets.QLabel('Width (inches)')
+        fig_size_W_text = QtWidgets.QLineEdit(str(self.options['figSizeW']))
         self.settingDict['figSizeW'] = fig_size_W_text
-        fig_size_W_checkBox = QtGui.QCheckBox('Dynamically Adjust Width')
+        fig_size_W_checkBox = QtWidgets.QCheckBox('Dynamically Adjust Width')
         fig_size_W_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes')
         fig_size_W_checkBox.setCheckState(2 if self.options['figSizeWMulN'] else 0)
         self.settingDict['figSizeWMulN'] = fig_size_W_checkBox
         
-        fig_size_H_label = QtGui.QLabel('Height (inches)')
-        fig_size_H_text = QtGui.QLineEdit(str(self.options['figSizeH']))
+        fig_size_H_label = QtWidgets.QLabel('Height (inches)')
+        fig_size_H_text = QtWidgets.QLineEdit(str(self.options['figSizeH']))
         self.settingDict['figSizeH'] = fig_size_H_text
-        fig_size_H_checkBox = QtGui.QCheckBox('Dynamically Adjust Height')
+        fig_size_H_checkBox = QtWidgets.QCheckBox('Dynamically Adjust Height')
         fig_size_H_checkBox.setToolTip('Dynamically adjust the width of the figure when exporting multiple episodes')
         fig_size_H_checkBox.setCheckState(2 if self.options['figSizeHMulN'] else 0)
         self.settingDict['figSizeHMulN'] = fig_size_H_checkBox
 
 
-        size_groupBox = QtGui.QGroupBox("Size")
-        size_groupBox.setLayout(QtGui.QGridLayout())
+        size_groupBox = QtWidgets.QGroupBox("Size")
+        size_groupBox.setLayout(QtWidgets.QGridLayout())
         size_groupBox.layout().addWidget(fig_size_W_label, 0, 0, 1, 1)
         size_groupBox.layout().addWidget(fig_size_W_text, 0, 1, 1, 1)
         size_groupBox.layout().addWidget(fig_size_W_checkBox, 0, 2, 1, 2)
@@ -183,14 +183,14 @@ class Settings(QtGui.QWidget):
         size_groupBox.layout().addWidget(fig_size_H_checkBox, 1, 2, 1, 2)
 
         # %% Concatenated
-        hSpace_label = QtGui.QLabel('Horizontal Space')
+        hSpace_label = QtWidgets.QLabel('Horizontal Space')
         hSpace_label.setToolTip('Only relevant when concatenating series of traces')
-        hSpace_spinbox = QtGui.QSpinBox()
+        hSpace_spinbox = QtWidgets.QSpinBox()
         hSpace_spinbox.setValue(self.options['hFixedSpace'])
         hSpace_spinbox.setSuffix('%')
         hSpace_spinbox.setRange(0,100)
         hSpace_spinbox.setFixedWidth(50)
-        hSpace_comboBox = QtGui.QComboBox()
+        hSpace_comboBox = QtWidgets.QComboBox()
         hSpace_comboList = ['Fixed', 'Real Time']
         hSpace_comboBox.addItems(hSpace_comboList)
         hSpace_comboBox.setCurrentIndex(hSpace_comboList.index(self.options['hSpaceType']))
@@ -201,83 +201,83 @@ class Settings(QtGui.QWidget):
         # self.settingDict['hFixedSpace'] = hSpace_text
         self.settingDict['hFixedSpace'] = hSpace_spinbox
         
-        concat_groupBox = QtGui.QGroupBox('Concatenated')
-        concat_groupBox.setLayout(QtGui.QGridLayout())
+        concat_groupBox = QtWidgets.QGroupBox('Concatenated')
+        concat_groupBox.setLayout(QtWidgets.QGridLayout())
         concat_groupBox.layout().addWidget(hSpace_label, 0, 0, 1,1)
         concat_groupBox.layout().addWidget(hSpace_comboBox, 0, 1, 1,1)
         concat_groupBox.layout().addWidget(hSpace_spinbox, 0, 3, 1,1)
         
         # %% Gridspec options
-        gridSpec_label = QtGui.QLabel('Arrangement')
+        gridSpec_label = QtWidgets.QLabel('Arrangement')
         gridSpec_label.setToolTip('Only relevant when exporting series of traces in a grid layout')
-        gridSpec_comboBox = QtGui.QComboBox()
+        gridSpec_comboBox = QtWidgets.QComboBox()
         gridSpec_comboList = ['Vertically', 'Horizontally', 'Channels x Episodes', 'Episodes x Channels']
         gridSpec_comboBox.addItems(gridSpec_comboList)
         gridSpec_comboBox.setCurrentIndex(gridSpec_comboList.index(self.options['gridSpec']))
         self.settingDict['gridSpec'] = gridSpec_comboBox
         
-        scalebarAt_label = QtGui.QLabel('Scalebar Location')
+        scalebarAt_label = QtWidgets.QLabel('Scalebar Location')
         scalebarAt_label.setToolTip('Only relevant when exporting series of traces in a grid layout')
-        scalebarAt_comboBox = QtGui.QComboBox()
+        scalebarAt_comboBox = QtWidgets.QComboBox()
         scalebarAt_comboList = ['All', 'First','Last','None']
         scalebarAt_comboBox.addItems(scalebarAt_comboList)
         scalebarAt_comboBox.setCurrentIndex(scalebarAt_comboList.index(self.options['scalebarAt']))
         self.settingDict['scalebarAt'] = scalebarAt_comboBox
         
-        gridSpec_groupBox = QtGui.QGroupBox('Grid')
-        gridSpec_groupBox.setLayout(QtGui.QGridLayout())
+        gridSpec_groupBox = QtWidgets.QGroupBox('Grid')
+        gridSpec_groupBox.setLayout(QtWidgets.QGridLayout())
         gridSpec_groupBox.layout().addWidget(gridSpec_label, 0, 0, 1,1)
         gridSpec_groupBox.layout().addWidget(gridSpec_comboBox, 0, 1, 1, 1)
         gridSpec_groupBox.layout().addWidget(scalebarAt_label, 1, 0, 1,1)
         gridSpec_groupBox.layout().addWidget(scalebarAt_comboBox, 1,1, 1, 1)
         
         # %% output
-        dpi_label = QtGui.QLabel('DPI')
-        dpi_text = QtGui.QLineEdit(str(self.options['dpi']))
+        dpi_label = QtWidgets.QLabel('DPI')
+        dpi_text = QtWidgets.QLineEdit(str(self.options['dpi']))
         self.settingDict['dpi'] = dpi_text
 
-        linewidth_label = QtGui.QLabel('Linewidth')
-        linewidth_text = QtGui.QLineEdit(str(self.options['linewidth']))
+        linewidth_label = QtWidgets.QLabel('Linewidth')
+        linewidth_text = QtWidgets.QLineEdit(str(self.options['linewidth']))
         self.settingDict['linewidth'] = linewidth_text
         
-        fontName_label = QtGui.QLabel('Font Name')
-        fontName_text = QtGui.QLineEdit(self.options['fontName'])
+        fontName_label = QtWidgets.QLabel('Font Name')
+        fontName_text = QtWidgets.QLineEdit(self.options['fontName'])
         self.settingDict['fontName'] = fontName_text
-        fontSize_label = QtGui.QLabel('Label Font Size')
-        fontSize_text = QtGui.QLineEdit(str(self.options['fontSize']))
+        fontSize_label = QtWidgets.QLabel('Label Font Size')
+        fontSize_text = QtWidgets.QLineEdit(str(self.options['fontSize']))
         self.settingDict['fontSize'] = fontSize_text
-        #annotfontSize_label = QtGui.QLabel('Annotation Font Size')
-        #annotfontSize_text = QtGui.QLineEdit(str(self.options['annotfontSize']))
+        #annotfontSize_label = QtWidgets.QLabel('Annotation Font Size')
+        #annotfontSize_text = QtWidgets.QLineEdit(str(self.options['annotfontSize']))
         #self.settingDict['annotfontSize'] = annotfontSize_text
         
-        annotation_label = QtGui.QLabel('Annotation')
-        annotation_comboBox = QtGui.QComboBox()
+        annotation_label = QtWidgets.QLabel('Annotation')
+        annotation_comboBox = QtWidgets.QComboBox()
         ann_comboList = ['Label Only', 'Simple', 'Full', 'None']
         annotation_comboBox.addItems(ann_comboList)
         annotation_comboBox.setCurrentIndex(ann_comboList.index(self.options['annotation']))
         self.settingDict['annotation'] = annotation_comboBox
 
-        monostim_checkbox = QtGui.QCheckBox('Force monochrome stim')
+        monostim_checkbox = QtWidgets.QCheckBox('Force monochrome stim')
         monostim_checkbox.setToolTip('If checked, stimulus channel will not be color coded even when other channels are color coded')
         monostim_checkbox.setCheckState(2 if self.options['monoStim'] else 0)
         self.settingDict['monoStim'] = monostim_checkbox
 
-        SRC_checkbox = QtGui.QCheckBox('Stim=Current')
+        SRC_checkbox = QtWidgets.QCheckBox('Stim=Current')
         SRC_checkbox.setToolTip('If checked, stimulus will be shifted to baseline current level')
         SRC_checkbox.setCheckState(2 if self.options['stimReflectCurrent'] else 0)
         self.settingDict['stimReflectCurrent'] = SRC_checkbox
 
-        showInitVal = QtGui.QCheckBox("Show Initial Value")
+        showInitVal = QtWidgets.QCheckBox("Show Initial Value")
         showInitVal.setToolTip("Display the initial value at the beginning of the trace")
         showInitVal.setCheckState(2 if self.options['showInitVal'] else 0)
         self.settingDict['showInitVal'] = showInitVal
         
-        saveDir_label = QtGui.QLabel('Path')
-        saveDir_text = QtGui.QLineEdit(self.options['saveDir'])
+        saveDir_label = QtWidgets.QLabel('Path')
+        saveDir_text = QtWidgets.QLineEdit(self.options['saveDir'])
         self.settingDict['saveDir'] = saveDir_text
         
-        output_groupBox = QtGui.QGroupBox('Output')
-        output_groupBox.setLayout(QtGui.QGridLayout())
+        output_groupBox = QtWidgets.QGroupBox('Output')
+        output_groupBox.setLayout(QtWidgets.QGridLayout())
 
         output_groupBox.layout().addWidget(annotation_label, 0, 0, 1, 1)
         output_groupBox.layout().addWidget(annotation_comboBox, 0, 1, 1, 1)
@@ -308,29 +308,29 @@ class Settings(QtGui.QWidget):
         return widgetFrame
 
     def viewTabUI(self):
-        widgetFrame = QtGui.QFrame()
-        widgetFrame.setLayout(QtGui.QVBoxLayout())
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        widgetFrame = QtWidgets.QFrame()
+        widgetFrame.setLayout(QtWidgets.QVBoxLayout())
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         widgetFrame.setSizePolicy(sizePolicy)
         widgetFrame.setObjectName(_fromUtf8("ViewWidgetFrame"))
 
         # Default View Range
-        stream_label = QtGui.QLabel("Stream")
-        min_label = QtGui.QLabel("Min")
-        max_label = QtGui.QLabel("Max")
-        time_label = QtGui.QLabel('Time')
-        time_min_text = QtGui.QLineEdit(str(self.options['timeRangeMin']))
-        time_max_text = QtGui.QLineEdit(str(self.options['timeRangeMax']))
-        volt_label = QtGui.QLabel("Voltage")
-        volt_min_text = QtGui.QLineEdit(str(self.options['voltRangeMin']))
-        volt_max_text = QtGui.QLineEdit(str(self.options['voltRangeMax']))
-        cur_label = QtGui.QLabel("Current")
-        cur_min_text = QtGui.QLineEdit(str(self.options['curRangeMin']))
-        cur_max_text = QtGui.QLineEdit(str(self.options['curRangeMax']))
-        stim_label = QtGui.QLabel("Stimulus")
-        stim_min_text = QtGui.QLineEdit(str(self.options['stimRangeMin']))
-        stim_max_text = QtGui.QLineEdit(str(self.options['stimRangeMax']))
+        stream_label = QtWidgets.QLabel("Stream")
+        min_label = QtWidgets.QLabel("Min")
+        max_label = QtWidgets.QLabel("Max")
+        time_label = QtWidgets.QLabel('Time')
+        time_min_text = QtWidgets.QLineEdit(str(self.options['timeRangeMin']))
+        time_max_text = QtWidgets.QLineEdit(str(self.options['timeRangeMax']))
+        volt_label = QtWidgets.QLabel("Voltage")
+        volt_min_text = QtWidgets.QLineEdit(str(self.options['voltRangeMin']))
+        volt_max_text = QtWidgets.QLineEdit(str(self.options['voltRangeMax']))
+        cur_label = QtWidgets.QLabel("Current")
+        cur_min_text = QtWidgets.QLineEdit(str(self.options['curRangeMin']))
+        cur_max_text = QtWidgets.QLineEdit(str(self.options['curRangeMax']))
+        stim_label = QtWidgets.QLabel("Stimulus")
+        stim_min_text = QtWidgets.QLineEdit(str(self.options['stimRangeMin']))
+        stim_max_text = QtWidgets.QLineEdit(str(self.options['stimRangeMax']))
 
         # Put objects into setting dictionary
         self.settingDict['timeRangeMin'] = time_min_text
@@ -343,8 +343,8 @@ class Settings(QtGui.QWidget):
         self.settingDict['stimRangeMax'] = stim_max_text
 
         # Add to the groupbox
-        view_groupBox = QtGui.QGroupBox('Default Range')
-        view_groupBox.setLayout(QtGui.QGridLayout())
+        view_groupBox = QtWidgets.QGroupBox('Default Range')
+        view_groupBox.setLayout(QtWidgets.QGridLayout())
         view_groupBox.layout().addWidget(stream_label, 0, 0, 1, 1)
         view_groupBox.layout().addWidget(min_label, 0, 1, 1, 1)
         view_groupBox.layout().addWidget(max_label, 0, 2, 1, 1)
@@ -369,13 +369,13 @@ class Settings(QtGui.QWidget):
 
     def updateSettings(self, closeWidget=False):
         for k, v in self.settingDict.items():
-            if isinstance(v, QtGui.QComboBox):
+            if isinstance(v, QtWidgets.QComboBox):
                 val = v.currentText()
-            elif isinstance(v, QtGui.QLineEdit):
+            elif isinstance(v, QtWidgets.QLineEdit):
                 val = v.text()
-            elif isinstance(v, QtGui.QCheckBox):
+            elif isinstance(v, QtWidgets.QCheckBox):
                 val = True if v.checkState()>0 else False
-            elif isinstance(v, QtGui.QSpinBox):
+            elif isinstance(v, QtWidgets.QSpinBox):
                 val = v.value()
             else:
                 raise(TypeError('Unrecognized type of setting item'))
@@ -410,7 +410,7 @@ if __name__ == '__main__':
 #            else:
 #                print(line, end='')
         
-   app = QtGui.QApplication(sys.argv)
+   app = QtWidgets.QApplication(sys.argv)
    ex = Settings()
    ex.show()
    sys.exit(app.exec_())

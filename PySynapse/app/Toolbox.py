@@ -32,13 +32,13 @@ except AttributeError:
 try:
     _encoding = QtGui.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
 
-class Toolbox(QtGui.QWidget):
+class Toolbox(QtWidgets.QWidget):
     """Collapsible dock widget that displays settings and analysis results for the Scope window
     """
     _widget_index = 0 # Keep track of position of the widget added
