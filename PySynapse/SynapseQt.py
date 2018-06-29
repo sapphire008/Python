@@ -35,7 +35,6 @@ sip.setapi('QVariant', 2)
 # Routines for Qt import errors
 from PyQt4 import QtGui, QtCore
 #from pyqtgraph.Qt import QtGui, QtCore
-
 try:
     from PyQt4.QtCore import QString
 except ImportError:
@@ -119,7 +118,6 @@ class Node(object):
         if self.parent is not None:
             return self.parent.children.index(self)
         return(0)
-
 
 class FileSystemTreeModel(QtCore.QAbstractItemModel):
     """Reimplement custom FileSystemModel"""

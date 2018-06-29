@@ -83,7 +83,7 @@ def spk_window(Vs, ts, Window, t0=0):
     dur = len(Vs)
     # Start / end indices
     def parse_window(x, none_allowed, min_allowed, max_allowed, func):
-        if x is None:
+        if x is None or np.isnan(x):
             x = none_allowed
         else:
             x = func(x) # apply the transformation

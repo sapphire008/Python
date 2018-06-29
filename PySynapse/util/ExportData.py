@@ -9,6 +9,8 @@ Data export utility of Synapse
 
 import sys
 import os
+import warnings
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import matplotlib
