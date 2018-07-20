@@ -731,7 +731,6 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         for c in self.tableview.hiddenColumnList: # Drug Name, Drug Time, Dirs
             self.tableview.setColumnHidden(c, True)
         # Set behavior upon selection
-        print('before selection changed connection')
         self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
         # self.tableview.clicked.connect(self.onItemSelected)
 
@@ -739,7 +738,6 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
     def onItemSelected(self, selected, deselected):
         """Executed when an episode in the tableview is clicked"""
         # Get the information of last selected item
-        print('connected on item selected')
         if not selected and not deselected:
             return
         try:

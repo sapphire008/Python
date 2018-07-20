@@ -498,6 +498,11 @@ class ScopeWindow(QtWidgets.QMainWindow):
                 pen.setWidth(float(artist['linewidth']))
                 pen = setPenStyle(pen, artist['linestyle'])
                 roi.setPen(pen)
+            else: # no line
+                pen = pg.mkPen()
+                pen.setWidth(0)
+                roi.setPen(pen)
+
         elif artist['type'] == 'line':
             roi = QtWidgets.QGraphicsLineItem(float(artist['x0']), float(artist['y0']), \
                                           float(artist['x1']), float(artist['y1']))
@@ -581,7 +586,6 @@ class ScopeWindow(QtWidgets.QMainWindow):
             self.drawEpisode(zData, info=(self.episodes['Name'][i], self.episodes['Epi'][i]), pen=self._usedColors[n] if self.colorfy else 'k', layout=[layout])
 
         # TODO: The new plot will likely change the view
-
         # Set the proper view range
         if self.freezeView:
             self.setDataViewRange('keep')
@@ -613,7 +617,6 @@ class ScopeWindow(QtWidgets.QMainWindow):
             return
         if old_layout == new_layout:
             return
-
         self.removeSubplot(old_layout, exact_match=False)
         self.addSubplot(new_layout, check_duplicates=False)
 
@@ -699,7 +702,8 @@ class ScopeWindow(QtWidgets.QMainWindow):
                 self.viewRange[l[0], l[1]] = p.viewRange()
                 # no change in viewRange, but still link the views
             elif self.viewMode == 'reset':
-                if p.viewRange() != self.viewRange[l[0], l[1]]:
+                self.getDataViewRange() # update the data view range of now
+                if p.viewRange() != self.viewRange[l[0], l[1]]: # TODO
                     X, Y = self.viewRange[l[0], l[1]]
                     p.setXRange(X[0], X[1], padding=0)
                     p.setYRange(Y[0], Y[1], padding=0)
@@ -1117,6 +1121,7 @@ if __name__ == '__main__' and not run_example:
 
     index = [0]
     app = QtWidgets.QApplication(sys.argv)
+    # app.setAttribte(QtCore.Qt.AA_Use96Dpi)
     w = ScopeWindow(hideDock=False, layout=[['Voltage', 'A', 0, 0],  ['Stimulus', 'A', 1, 0]])
     w.updateEpisodes(episodes=episodes, index=index)
     # w.toggleRegionSelection(checked=True)

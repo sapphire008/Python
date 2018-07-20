@@ -28,13 +28,17 @@ An interactive utility for electrophyiological data analyses.
 1. Dependencies:
     - numpy
     - pandas
-    - PyQt4
+    - PyQt5
     - pyqtgraph: for data display (trace and image)
     - matplotlib: for exporting figures
 
 2. To-dos:
     - Integrate Ben's clipboard program to make .ini files (Export .ini file)
     - Export matplotlib figure to Bokeh for more interactive display.
+
+## Update Jun 29, 2018
+* Now uses PyQt5
+* TODO: need to fix the problem with annotation square where the border of the box still shows even after unchecking the "line" option
 
 ## Update Jun 4, 2018
 * Fixed some bugs
