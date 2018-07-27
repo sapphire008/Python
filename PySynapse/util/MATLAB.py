@@ -472,7 +472,10 @@ def dict2df(mydict, colnames=None, addindex=False):
     if not addindex:
         df = df.drop(["index"], axis=1)
     # Get rid of NaNs
-    df = df.loc[~np.isnan(df['value'])]
+    try:
+        df = df.loc[~np.isnan(df['value'])]
+    except:
+        pass
     df = df.reset_index(drop=True)
     if colnames is not None:
         df.columns = (["index"] if addindex else [] )+ list(colnames)
@@ -506,6 +509,11 @@ def list2df(K):
     df = pd.DataFrame(data=df, columns=headers)
     
     return df
+
+
+def remap_dict_data_type(mapping, func_key=str, func_val=lambda x: x):
+    """Change the data type of keys and values of dictionary"""
+    return {func_key(k): func_val(v) for k,v in mapping.items()}
 
 def sort_nicely( l ):
     """ Sort the given list of strings in the way that humans expect."""
@@ -776,7 +784,138 @@ def exists(obj):
     else:
         return False
     
-   
+def spm_matrix_2d(P, order='T*R*Z*S'):
+    """
+    returns an affine transformation matrix
+    
+    Arguments:
+        * P[0]  - x translation
+        * P[1]  - y translation
+        * P[2]  - rotation (radians)
+        * P[3]  - x scaling
+        * P[4]  - y scaling
+        * P[5]  - affine
+        * order (optional): application order of transformations.
+    
+    Returns:
+        * A: affine transformation matrix
+    
+    To transform X = [x;y] coordinate, pad 1 at the end, 
+    i.e. X = [x; y; 1], then Y = A * X, where X, Y are 3 x n matrices
+    """
+    # Pad matrix in case only a subset is being specified
+    q  = np.array([0, 0, 0, 1, 1, 0])
+    P  = np.concatenate((P, q[(len(P)):]))
+    T   =  np.array([
+            [1,    0,      P[0]],
+            [0,    1,      P[1]],
+            [0,    0,      1]
+            ])
+    
+    R   =  np.array([
+            [np.cos(P[2]),   np.sin(P[2]),  0],
+            [-np.sin(P[2]),  np.cos(P[2]),  0],
+            [0,              0,             1]
+            ])
+
+    Z   =  np.array([
+            [P[3],    0,    0],
+            [0,      P[4],  0],
+            [0,       0,    1]
+            ])
+    
+    S   =  np.array([
+            [1,    P[5],    0],
+            [0 ,   1,       0],
+            [0,    0,       1]
+            ])
+    
+    order = order.replace('*', '@')
+    A = eval(order)
+     # Sanity check
+    if not isnumeric(A).all() or A.ndim != 2 or any(np.array(A.shape) != 3):
+        raise(ValueError('Order expression "{}" did not return a valid 3x3 matrix.'.format(order)))
+    
+    return A
+    
+def spm_matrix(P, order='T*R*Z*S'):
+    """
+    returns an affine transformation matrix
+    
+    Arguments:
+        * P[0]  - x translation
+        * P[1]  - y translation
+        * P[2]  - z translation
+        * P[3]  - x rotation about - {pitch} (radians)
+        * P[4]  - y rotation about - {roll}  (radians)
+        * P[5]  - z rotation about - {yaw}   (radians)
+        * P[6]  - x scaling
+        * P[7]  - y scaling
+        * P[8]  - z scaling
+        * P[9]  - x affine
+        * P[10] - y affine
+        * P[11] - z affine
+        * order (optional) application order of transformations.
+    
+    Returns:
+        * A: affine transformation matrix
+    
+    To transform X = [x;y;z] coordinate, pad 1 at the end, 
+    i.e. X = [x; y; z; 1], then Y = A * X, where X, Y are 4xn matrices
+    """
+    # Pad matrix in case only a subset is being specified
+    q  = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0])
+    P  = np.concatenate((P, q[(len(P)):]))
+    # Specify the matrices
+    T   =  np.array([
+            [1,    0,    0,    P[0]],
+            [0,    1,    0,    P[1]],
+            [0,    0,    1,    P[2]],
+            [0,    0,    0,    1   ]
+            ])
+    R1  =  np.array([
+            [1,    0,             0,             0],
+            [0,    np.cos(P[3]),  np.sin(P[3]),  0],
+            [0,   -np.sin(P[3]),  np.cos(P[3]),  0],
+            [0,    0,             0,             1]
+            ])
+
+    R2  =  np.array([
+            [np.cos(P[4]),  0,    np.sin(P[4]),  0],
+            [0,             1,    0,             0],
+            [-np.sin(P[4]), 0,    np.cos(P[4]),  0],
+            [0,             0,    0,             1]
+            ])
+
+    R3  =  np.array([
+            [np.cos(P[5]),  np.sin(P[5]),   0,   0],
+            [-np.sin(P[5]), np.cos(P[5]),   0,   0],
+            [0,             0,              1,   0],
+            [0,             0,              0,   1]
+            ])
+    R = R1 @ R2 @ R3
+    
+    Z   =  np.array([
+            [P[6],    0,    0,    0],
+            [0,      P[7],  0,    0],
+            [0,       0,    P[8], 0],
+            [0,       0,    0,    1]
+            ])
+    
+    S   =  np.array([
+            [1,    P[9],   P[10],  0],
+            [0,    1,      P[11],  0],
+            [0,    0,      1,      0],
+            [0,    0,      0,      1]
+            ])
+    
+    order = order.replace('*', '@')
+    A = eval(order)
+    # Sanity check
+    if not isnumeric(A).all() or A.ndim != 2 or any(np.array(A.shape) != 4):
+        raise(ValueError('Order expression "{}" did not return a valid 4x4 matrix.'.format(order)))
+    
+    return A
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])

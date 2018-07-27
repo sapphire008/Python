@@ -311,11 +311,10 @@ class ScopeWindow(QtWidgets.QMainWindow):
         self.index += index_insert
         for a in index_remove:
             self.index.remove(a)
-            
+
         # Remove episodes
         for j in index_remove:
             self.removeEpisode(info=(self.episodes['Name'][j], self.episodes['Epi'][j]))
-
         # Insert new episodes
         for i in index_insert:
             if not self.episodes['Data'][i]: # load if not already loaded
@@ -323,7 +322,6 @@ class ScopeWindow(QtWidgets.QMainWindow):
             self._loaded_array.append(i)
             # Draw the episode
             self.drawEpisode(self.episodes['Data'][i], info=(self.episodes['Name'][i], self.episodes['Epi'][i], i))
-
         # print(self.index)
         if not bool_old_episode:
             self.reissueArtists() # artists have been cleared. Add it back
@@ -399,7 +397,15 @@ class ScopeWindow(QtWidgets.QMainWindow):
                         if isinstance(current_pen, str):
                             self._usedColors.remove(current_pen)
                         else: # Assume it is PyQt5.QtGui.QPen
-                            self._usedColors.remove(current_pen.color().name())
+                            current_color = current_pen.color().name()
+                            if current_color in self._usedColors:
+                                self._usedColors.remove(current_color)
+                            else: # find matching colors
+                                primary_color_dict = {'#000000':'k', '#ff0000':'r', '#00ff00':'g', '#0000ff':'b'}
+                                try:
+                                    self._usedColors.remove(primary_color_dict[current_color])
+                                except:
+                                    pass # ignore this color
                     # Remove the actual trace
                     p1.removeItem(a)
 
@@ -416,7 +422,6 @@ class ScopeWindow(QtWidgets.QMainWindow):
             return
 
         # yRange = self.viewRange[l[0], l[1]][1]
-        # set_trace()
         yRange = p.viewRange()[1]
         if linesize is None:
             linesize = abs((yRange[1]-yRange[0]) / 20.0)
@@ -702,8 +707,9 @@ class ScopeWindow(QtWidgets.QMainWindow):
                 self.viewRange[l[0], l[1]] = p.viewRange()
                 # no change in viewRange, but still link the views
             elif self.viewMode == 'reset':
-                self.getDataViewRange() # update the data view range of now
-                if p.viewRange() != self.viewRange[l[0], l[1]]: # TODO
+                if (l[0], l[1]) not in self.viewRange.keys():
+                    self.getDataViewRange(layouts=[[l[0], l[1]]]) # update the data view range of now
+                if p.viewRange() != self.viewRange[l[0], l[1]]:
                     X, Y = self.viewRange[l[0], l[1]]
                     p.setXRange(X[0], X[1], padding=0)
                     p.setYRange(Y[0], Y[1], padding=0)
@@ -716,8 +722,10 @@ class ScopeWindow(QtWidgets.QMainWindow):
             else:
                 raise(TypeError('Unrecognized view mode'))
 
-    def getDataViewRange(self):
+    def getDataViewRange(self, layouts=None):
         for l in self.layout:
+            if layouts is not None and [l[0], l[1]] not in layouts:
+                continue # only update the specified layouts
             p = self.graphicsView.getItem(row=l[2], col=l[3])
             if p is None:
                 return
