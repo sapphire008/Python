@@ -66,6 +66,10 @@ def sort_nicely(l):
     l.sort( key=alphanum_key )
     return l
 
+def my_excepthook(type, value, tback):
+    """This helps prevent program crashing upon an uncaught exception"""
+    sys.__excepthook__(type, value, tback)
+
 # Custom File system
 class Node(object):
     """Reimplement Node object"""
@@ -768,6 +772,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
+    sys.excepthook = my_excepthook # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
     # w = Synapse_MainWindow()
     w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)

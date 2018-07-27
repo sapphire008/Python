@@ -44,6 +44,7 @@ from app.Settings import *
 from app.Toolbox import *
 
 colors = readini(os.path.join(__location__,'../resources/config.ini'))['colors']
+theme = readini(os.path.join(__location__,'../resources/config.ini'))['theme']
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -107,7 +108,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
         self.has_scalebar=False
         # Set up the GUI window
         self.setupUi(self)
-        self.setDisplayTheme()
+        self.setDisplayTheme(theme)
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -598,6 +599,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
             self.setDataViewRange('reset')
         # Redraw the artists
         self.reissueArtists()
+        self.setDisplayTheme(theme)
         # Force the new subplot to start with default view range
         # self.setDataViewRange(viewMode='default')
 
@@ -657,10 +659,19 @@ class ScopeWindow(QtWidgets.QMainWindow):
 
     def setDisplayTheme(self, theme='whiteboard'):
         self.theme = {'blackboard':{'background':'k', 'pen':'w'}, \
-                 'whiteboard':{'background':'w', 'pen':'k'}\
+                 'whiteboard':{'background':'w', 'pen':'k'},\
+                 'dark':{'background':'#999999', 'pen':'k', 'axis':'k'}
                 }.get(theme)
 
         self.graphicsView.setBackground(self.theme['background'])
+        if 'axis' in self.theme.keys(): # set axis color
+            try:
+                for n, l in enumerate(self.layout):
+                    p = self.graphicsView.getItem(row=l[2], col=l[3])
+                    for name in ['left', 'bottom']:
+                        p.getAxis(name).setPen(self.theme['axis'])
+            except:
+                pass
         # self.graphicsView.setForegroundBrush
         # change color / format of all objects
 
@@ -1051,7 +1062,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
                        dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'], showInitVal=options['showInitVal'],
                        setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
-                       stimReflectCurrent=options['stimReflectCurrent'])
+                       stimReflectCurrent=options['stimReflectCurrent'], plotStimOnce=options['plotStimOnce'])
         elif arrangement == 'concatenate':
             PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
@@ -1063,7 +1074,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']),adjustFigW=options['figSizeWMulN'],adjustFigH=options['figSizeHMulN'],
                                  nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'],setFont=options['fontName'], fontSize=options['fontSize'],
                                  scalebarAt=options['scalebarAt'], gridSpec=options['gridSpec'], linewidth=options['linewidth'], monoStim=options['monoStim'], showInitVal=options['showInitVal'],
-                                 stimReflectCurrent=options['stimReflectCurrent'])
+                                 stimReflectCurrent=options['stimReflectCurrent'], plotStimOnce=options['plotStimOnce'])
         else:
             raise(ValueError('Unrecognized arragement:{}'.format(arrangement)))
 

@@ -362,7 +362,8 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
 # %%
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300, fig_size=None,
                adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple',  showInitVal=True,
-               setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True):
+               setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True,
+               plotStimOnce=False, **kwargs):
     """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
@@ -407,8 +408,11 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
             # do the plot
             if m[0] in ['Voltage', 'Current'] or not monoStim:
                 ax[c].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
-            else:
-                ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
+            else: # Stimulus
+                if plotStimOnce and n > 0:
+                    pass
+                else:
+                    ax[c].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # Draw initial value
             if showInitVal:
                 InitVal = "{0:0.0f}".format(Y[0])
@@ -483,7 +487,7 @@ def PlotTracesConcatenated(df, index, viewRange, saveDir, colorfy=False, artists
                            fig_size=None, nullRange=None, hSpaceType='Fixed', hFixedSpace=0.10,
                            adjustFigW=True, adjustFigH=True, trimH=(None,None),
                            annotation='Simple', showInitVal=True, setFont='default', fontSize=10,
-                           linewidth=1.0, monoStim=False, stimReflectCurrent=True):
+                           linewidth=1.0, monoStim=False, stimReflectCurrent=True, **kwargs):
     """Export traces arranged horizontally.
     Good for an experiments acquired over multiple episodes.
     trimH: (t1, t2) trim off the beginning of first episode by t1 seconds, and the
@@ -610,7 +614,7 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
                       fig_size=None, adjustFigH=True, adjustFigW=True, nullRange=None, 
                       annotation='Simple', setFont='default',gridSpec='Vertical', showInitVal=True,
                       scalebarAt='all', fontSize=10, linewidth=1.0, monoStim=False,
-                      stimReflectCurrent=True):
+                      stimReflectCurrent=True, plotStimOnce=False, **kwargs):
     "Export Multiple episodes arranged in a grid; default vertically""" 
     if not colorfy:
         colorfy = ['k']
@@ -670,8 +674,11 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
             
             if m[0] in ['Voltage', 'Current'] or not monoStim:
                 ax[ind].plot(X, Y, color=colorfy[n%len(colorfy)], lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
-            else:
-                ax[ind].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
+            else: # Stimulus
+                if plotStimOnce and n > 0:
+                    pass
+                else:
+                    ax[ind].plot(X, Y, color='k', lw=linewidth, solid_joinstyle='bevel', solid_capstyle='butt')
             # View range
             viewRange_dict[(row,col)] = list(m)+list(viewRange[m])
             # Draw initial value

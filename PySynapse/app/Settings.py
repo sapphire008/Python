@@ -257,7 +257,7 @@ class Settings(QtWidgets.QWidget):
         annotation_comboBox.setCurrentIndex(ann_comboList.index(self.options['annotation']))
         self.settingDict['annotation'] = annotation_comboBox
 
-        monostim_checkbox = QtWidgets.QCheckBox('Force monochrome stim')
+        monostim_checkbox = QtWidgets.QCheckBox('Force Black Stim')
         monostim_checkbox.setToolTip('If checked, stimulus channel will not be color coded even when other channels are color coded')
         monostim_checkbox.setCheckState(2 if self.options['monoStim'] else 0)
         self.settingDict['monoStim'] = monostim_checkbox
@@ -271,6 +271,11 @@ class Settings(QtWidgets.QWidget):
         showInitVal.setToolTip("Display the initial value at the beginning of the trace")
         showInitVal.setCheckState(2 if self.options['showInitVal'] else 0)
         self.settingDict['showInitVal'] = showInitVal
+
+        plotStimOnce = QtWidgets.QCheckBox("Plot Stim Once")
+        plotStimOnce.setToolTip('Check this if stimulus are identical across different episodes')
+        plotStimOnce.setCheckState(2 if self.options['plotStimOnce'] else 0)
+        self.settingDict['plotStimOnce'] = plotStimOnce
         
         saveDir_label = QtWidgets.QLabel('Path')
         saveDir_text = QtWidgets.QLineEdit(self.options['saveDir'])
@@ -293,7 +298,8 @@ class Settings(QtWidgets.QWidget):
         output_groupBox.layout().addWidget(linewidth_text, 2, 3, 1, 1)
         output_groupBox.layout().addWidget(SRC_checkbox, 3, 0, 1, 1)
         output_groupBox.layout().addWidget(showInitVal, 3, 1, 1, 1)
-        output_groupBox.layout().addWidget(monostim_checkbox, 3, 2, 1, 2)
+        output_groupBox.layout().addWidget(monostim_checkbox, 3, 2, 1, 1)
+        output_groupBox.layout().addWidget(plotStimOnce, 3, 3, 1, 1)
         output_groupBox.layout().addWidget(saveDir_label, 4, 0, 1, 1)
         output_groupBox.layout().addWidget(saveDir_text, 4, 1, 1, 3)
             
