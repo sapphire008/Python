@@ -296,7 +296,6 @@ class Toolbox(QtWidgets.QWidget):
             return next(callback.v)
 
         # parse formula
-        # set_trace()
         if ";" in formula: # a list of formulas
             # separate each formula
             formula = formula.split(";")
@@ -345,6 +344,7 @@ class Toolbox(QtWidgets.QWidget):
             y_len = len(y[s,c]) # length of time series
 
             # Append the data to friend's episodes object
+            self.friend.episodes['Name'].append(self.friend.episodes['Name'][-1])
             self.friend.episodes['Duration'].append(ind2time(y_len-1,ts)[0])
             self.friend.episodes['Drug Time'].append('00:00')
             self.friend.episodes['Drug Name'].append('')
@@ -370,7 +370,7 @@ class Toolbox(QtWidgets.QWidget):
             zData.Time = np.arange(y_len) * ts
             zData.Protocol.msPerPoint = ts
             zData.Protocol.WCtimeStr = ""
-            zData.Protocol.readDataFrom = self.friend.episodes['Name'] + " " + f0
+            zData.Protocol.readDataFrom = self.friend.episodes['Name'][0] + " " + f0 + ".dat"
             zData.Protocol.numPoints = y_len
             zData.Protocol.acquireComment = 'PySynapse Arithmetic Data'
             self.friend.episodes['Data'].append(zData)

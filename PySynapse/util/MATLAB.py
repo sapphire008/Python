@@ -112,16 +112,16 @@ def str2numeric(lit):
         except ValueError:
             raise(ValueError('String must contain only numerics'))
 
-def str2num(lit):
+def str2num(lit, dlimiter=';'):
     """MATLAB behavior of str2num.
     str2num('1') --> 1
     str2num('[5,3,2]') --> [5,3,2]
     str2num('[5,3,2;2,3,1]') --> [[5,3,2],[3,2,1]]
     """
-    # Separate the string by semicolon ";"
-    lit = lit.split(";")
+    # Separate the string by semicolon ";" for each row
+    lit = lit.split(dlimiter)
     # Identify all numbers
-    lit = [re.findall(r"[-+]?\d*\.\d+|\d+", l) for l in lit]
+    lit = [re.findall(r"[+-]?\d+(?:\.\d+)?", l) for l in lit]
     # Convert to a list of numbers
     lit = [[str2numeric(a) for a in l] for l in lit]
     lit = lit[0] if len(lit)==1 else lit # squeeze for vectors
@@ -290,7 +290,7 @@ def isempty(m, singleton=True):
                        K[ijk] = False
                 return K
     else:
-        return True if m else False
+        return False if m else True
 
 def isnumber(obj):
     """Determine if the object is a single number"""
@@ -581,6 +581,9 @@ def midpoint(v):
 def SearchFiles(path, pattern, sortby='Name'):
     """sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
     P = glob.glob(os.path.join(path, pattern))
+    
+    if isempty(P):
+        return P, []
 
     N = [[]] * len(P)
     M = [[]] * len(P)
@@ -643,16 +646,16 @@ def medfilt1(x, N):
 def goodness_of_fit(xdata, ydata, popt, pcov, f0):
     """Calculate goodness of fit from curve_fit
     popt, pcov: returend by curve_fit
-    f0: function used for fitting
+    f0: function used for fitting f(x, a, b, c, ...)
     p0: initial value used
     """
     yfit = f0(xdata, *popt)
     SSE = np.sum((yfit - ydata)**2)
     RMSE = np.sqrt(SSE/len(yfit))
-    SS_total = np.poly1d(np.polyfit(xdata, ydata, 1))
-    SS_total = np.sum((SS_total(xdata) - ydata)**2)
+    SS_total = np.sum((ydata - np.mean(ydata))**2)
     R_sq = 1.0 - SSE / SS_total
-    R_sq_adj = 1.0 - (SSE/(len(xdata)-len(popt))) / (SS_total/(len(xdata)-1))# Adjusted R_sq
+    R_sq_adj = 1.0 - (SSE/(len(xdata)-1)) / (SS_total/(len(xdata)-len(popt)-1))# Adjusted R_sq
+    # R_sq_adj = 1-(1-R_sq)*(len(xdata-1))/(len(xdata)-len(popt)-1)
     gof = {'SSE': SSE, 'RMSE': RMSE, 'SS_total':SS_total, 'rsquare': R_sq, 'adjrsquare': R_sq_adj}
     
     return gof
@@ -683,8 +686,13 @@ def compare_goodness_of_fit(popt1, pcov1, popt2, pcov2, num_data_points, param_n
     return T, df, P
 
 
-def serr(X, axis=0, *args, **kwargs):
-    return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
+def serr(X, axis=0, toarray=False, *args, **kwargs):
+    try:
+        if toarray:
+            X = np.array(X)
+        return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
+    except Exception as err:
+        return []
 
 
 def frequency_modulated_sine(f0, f, duration, ts, phase=0):
@@ -776,9 +784,52 @@ def get_alpha_duration(A, ts=0.1, thresh=0.95):
         return index[0]*ts
     else:
         return None # beyond the scope of the curve. Cannot calculate
+    
+    
+def pairwise_diff(A, B):
+    """ Calculate the pair wise difference between each element of the 
+    two vectors of length N and M, respectively, and return a matrix of shape
+    M x N
+        * A: vector of length M
+        * B: vector of length N
+    """
+    A = np.asarray(A).flatten()[:, np.newaxis]
+    B = np.asarray(B).flatten()[np.newaxis,:]
+    return A-B
+    
+
+
         
+def gaussian_kernel(ts, sigma=300., n=5, normalize=False):
+    """Make gaussian kernel centered at 0
+    ts: sampling rate [ms]
+    n: use n standard deviations below and above 0 (mean).
+    sigma: standard deviation (width of Gaussian kernel) [ms].
+           During Up state, sigma = 10ms according to:
+           Neske, G.T., Patrick, S.L., Connor, B.W. Contributions of
+           Diverse Excitatory and Inhibitory Neurons to Recurrent Network
+           Activity in Cerebral Cortex. The Journal of Nueroscience.
+           35(3): 1089-1105 (2015). But this sd size may be too small for
+           other processes. So default is set to 300ms for a smoother
+           firing rate curve.
+    normalize: Default False
+        - 'area': normalize the area under the curve to be 1
+        - 'peak': normalize the peak of curve to be 1
+    """
+    t = np.arange(-n*sigma, n*sigma+ts, ts)
+    w = 1./(np.sqrt(2.*np.pi)*sigma)*np.exp(-t**2/(2.*sigma**2))
+    if normalize:
+        if normalize == 'peak':
+            w = w / np.max(w)
+        elif normalize == 'area':
+            w = w / np.sum(w)
+        else:
+            pass
+    return(t, w)
+
 
 def exists(obj):
+    """Check if a variable exists"""
     if obj in locals() or obj in globals():
         return True
     else:

@@ -130,28 +130,31 @@ def spk_average(Vs, ts=None, Window=None, axis=0, t0=0):
     return(Vs)
 
 
-def spk_count(Vs, ts, msh=-10.0, msd=1.0, **kwargs):
+def spk_count(Vs, ts, window=None, msh=-10.0, msd=1.0, **kwargs):
     """ Count the number of action potentials given a time series, using simple
         threshold based peak detection algorithm
     num_spikes, spike_time, spike_heights = spk_count(Vs, ts, **kwargs)
     Inputs:
-        Vs: voltage time series [mV].
-        ts: sampling rate [ms]
-        msh: minimum height of the spike. Default -10.0 [mV].
-        msd: minimum distances between detected spikes. Default 1.0 [ms].
+        * Vs: voltage time series [mV].
+        * ts: sampling rate [ms]
+        * msh: minimum height of the spike. Default -10.0 [mV].
+        * msd: minimum distances between detected spikes. Default 1.0 [ms].
+        * window: window the Vs trace first before counting the spike. 
+                Default None.
         **kwargs: optional inputs for "findpeaks"
 
     Note that min_spike_height needs to be in the same unit as Vs;
               min_spike_dist needs to be in the same unit as ts.
 
     Outputs:
-       num_spikes: number of spikes for each trial
-       spike_time: indices of the spike, returned as one cell array of time
+       * num_spikes: number of spikes for each trial
+       * spike_time: indices of the spike, returned as one cell array of time
                    vectors per trial
-       spike_heights: voltage of the spike [mV], returned as one cell array
+       * spike_heights: voltage of the spike [mV], returned as one cell array
                    of spike heights per trial
     """
-
+    if window is not None:
+        Vs = spk_window(Vs, ts, window)
     # find spikes
     if msd is not None:
         msd = float(msd) / float(ts)
@@ -162,6 +165,29 @@ def spk_count(Vs, ts, msh=-10.0, msd=1.0, **kwargs):
     spike_time = ind2time(ind, ts)
 
     return(num_spikes, spike_time, spike_heights)
+    
+def spk_bin(spk_times, stim=[0,2000], num_bins=40, cumulative=True):
+    """
+    Binning spikes given spike times
+        * spk_times: time of spikes
+        * stim: stimulus duration, or the window of which the spikes are binned from
+        * num_bins: number of bins given the duration of the window
+        * cumulative: cumulatively sum the spike count so far, default True
+    """
+    time_bins = np.linspace(0, stim[1]-stim[0], num_bins+1)
+    time_bins = np.c_[time_bins[:-1], time_bins[1:]]
+    time_bins = np.c_[time_bins.mean(axis=1), time_bins]
+    
+    spike_bins = np.zeros(time_bins.shape[0])
+    spk_times = spk_times - stim[0]
+    
+    for n, t in enumerate(time_bins):
+        spike_bins[n] = np.logical_and(spk_times >= time_bins[n, 1], spk_times < time_bins[n, 2]).sum(dtype=int)
+        
+    if cumulative:
+        spike_bins = np.cumsum(spike_bins, dtype=int)
+    
+    return spike_bins, time_bins
 
 def spk_filter(Vs, ts, Wn, N=6, btype='bandpass'):
     """Filter time series
@@ -203,6 +229,7 @@ def spk_dirac(ts=1., dur=1, phi=0., h=1., collapse=True):
              classic Dirac delta function. Input as a vector to return one
              Delta function for each phi.
         h: Height of the singularity (origin) where non-zero value occur.
+           This can be either a scalar or an array of the same size as phi.
            Deafult heigth is 1.
         collapse: [true|false] collaspe Dirac function with different phase
                   shifts by adding across phi (columns). Default is true.
@@ -293,7 +320,7 @@ def spk_firing_rate(Vs, ts, method='gaussian', debug=False, sigma=300., n=5,
     return(R)
 
 def stationary_gaussian_kernel(ts, sigma=300., n=5):
-    """Make gaussian kernel
+    """Make gaussian kernel centered at 0
     ts: sampling rate [ms]
     n: use n standard deviations below and above 0 (mean).
     sigma: standard deviation (width of Gaussian kernel) [ms].
