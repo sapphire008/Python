@@ -8,6 +8,8 @@
       <change beforePath="$PROJECT_DIR$/../Plots/simple/colorbasket.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Plots/simple/colorbasket.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../PySynapse/resources/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/../PySynapse/resources/config.ini" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../PySynapse/util/MATLAB.py" beforeDir="false" afterPath="$PROJECT_DIR$/../PySynapse/util/MATLAB.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Pycftool.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pycftool.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/2photon_util.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/ImportData.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Spikes/ImportData.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/MATLAB.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Spikes/MATLAB.py" afterDir="false" />
@@ -26,7 +28,7 @@
     <session id="-921675847">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="1" />
+          <entry key="project.closed" value="2" />
           <entry key="project.open.time.0" value="1" />
           <entry key="project.open.time.1" value="1" />
           <entry key="project.opened" value="2" />
@@ -34,12 +36,13 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="1303" />
+          <entry key="Python Console" value="138" />
+          <entry key="py" value="7571" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="1303" />
+          <entry key="Python" value="7709" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -59,18 +62,38 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Pycftool.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="111">
-              <caret line="126" column="24" lean-forward="true" selection-start-line="126" selection-start-column="24" selection-end-line="126" selection-end-column="24" />
+            <state relative-caret-position="-936">
+              <caret line="41" column="16" lean-forward="true" selection-start-line="41" selection-start-column="16" selection-end-line="41" selection-end-column="16" />
               <folding>
-                <element signature="e#2193#2248#0" />
+                <element signature="e#936#10709#0" />
                 <element signature="e#4700#4753#0" />
+                <element signature="e#5684#6297#0" />
+                <element signature="e#5749#6866#0" />
+                <element signature="e#7619#9303#0" />
+                <element signature="e#9381#9528#0" />
+                <element signature="e#9956#10107#0" />
+                <element signature="e#10156#10251#0" />
+                <element signature="e#10301#11135#0" />
+                <element signature="e#11229#11471#0" />
+                <element signature="e#10658#10662#0" />
+                <element signature="e#10718#10722#0" />
+                <element signature="e#11610#11857#0" />
+                <element signature="e#7909#8045#0" />
                 <element signature="e#6052#14491#0" />
                 <element signature="e#6052#6084#0" />
                 <element signature="e#8210#8241#0" />
                 <element signature="e#9222#9264#0" />
                 <element signature="e#11398#11431#0" />
                 <element signature="e#12396#12430#0" />
-                <marker date="1540915894424" expanded="true" signature="15205:15210" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="6496:6505" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="10109:10113" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="11135:11469" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="11560:11566" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="12091:12734" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="12752:12824" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="22026:22065" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="22101:22110" ph="..." />
+                <marker date="1540931696865" expanded="true" signature="22415:22426" ph="..." />
               </folding>
             </state>
           </provider>
@@ -82,6 +105,8 @@
     <findStrings>
       <find>self.gridLayout_2</find>
       <find>self.gridLayout</find>
+      <find>newfit</find>
+      <find>set_trace</find>
     </findStrings>
     <replaceStrings>
       <replace>gridLayoutTable</replace>
@@ -189,7 +214,7 @@
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32991204" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.32991204" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -197,7 +222,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" />
+      <window_info anchor="bottom" id="Python Console" order="10" weight="0.32991204" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -216,18 +241,38 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Pycftool.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="111">
-          <caret line="126" column="24" lean-forward="true" selection-start-line="126" selection-start-column="24" selection-end-line="126" selection-end-column="24" />
+        <state relative-caret-position="-936">
+          <caret line="41" column="16" lean-forward="true" selection-start-line="41" selection-start-column="16" selection-end-line="41" selection-end-column="16" />
           <folding>
-            <element signature="e#2193#2248#0" />
+            <element signature="e#936#10709#0" />
             <element signature="e#4700#4753#0" />
+            <element signature="e#5684#6297#0" />
+            <element signature="e#5749#6866#0" />
+            <element signature="e#7619#9303#0" />
+            <element signature="e#9381#9528#0" />
+            <element signature="e#9956#10107#0" />
+            <element signature="e#10156#10251#0" />
+            <element signature="e#10301#11135#0" />
+            <element signature="e#11229#11471#0" />
+            <element signature="e#10658#10662#0" />
+            <element signature="e#10718#10722#0" />
+            <element signature="e#11610#11857#0" />
+            <element signature="e#7909#8045#0" />
             <element signature="e#6052#14491#0" />
             <element signature="e#6052#6084#0" />
             <element signature="e#8210#8241#0" />
             <element signature="e#9222#9264#0" />
             <element signature="e#11398#11431#0" />
             <element signature="e#12396#12430#0" />
-            <marker date="1540915894424" expanded="true" signature="15205:15210" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="6496:6505" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="10109:10113" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="11135:11469" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="11560:11566" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="12091:12734" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="12752:12824" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="22026:22065" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="22101:22110" ph="..." />
+            <marker date="1540931696865" expanded="true" signature="22415:22426" ph="..." />
           </folding>
         </state>
       </provider>

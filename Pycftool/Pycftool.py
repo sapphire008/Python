@@ -9,6 +9,8 @@
 
 import os
 import sys
+import numpy as np
+from scipy.optimize import curve_fit
 from pdb import set_trace
 
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -51,8 +53,14 @@ _translate = QtCore.QCoreApplication.translate
 
 
 class cftool_MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, parent=None, startpath=None, hideScopeToolbox=True, layout=None):
+    def __init__(self, parent=None, vars=[locals(), globals()]):
         super(cftool_MainWindow, self).__init__(parent)
+        self.vars = self.filterVars(vars)
+        self.xdata = None
+        self.ydata = None
+        self.zdata = None
+        self.wdata = None
+        self.autofit = 2
         # Set up GUI window
         self.setupUi(self)
 
@@ -68,63 +76,40 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         self.gridLayoutMain = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayoutMain.setObjectName("gridLayoutMain")
 
-        # <editor-fold desc="Configure tabWidget Fit Settings">
         self.gridLayoutTab = QtWidgets.QGridLayout()
         self.gridLayoutTab.setObjectName("gridLayoutTab")
+
         # Initialize tab
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
+        self.tabWidget.setTabsClosable(True)
+        self.tabWidget.setMovable(True)
+        self.tabWidget.tabCloseRequested.connect(self.closeTab)
         self.tabWidget.setObjectName("tabWidget")
+
         # First tab
-        self.tab = QtWidgets.QWidget()
+        self.tab = QtWidgets.QWidget() # current tab
         self.tab.setObjectName("tab")
         self.tabWidget.addTab(self.tab, "")
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Untitled"))
-        # Second tab
-        self.tab_2 = QtWidgets.QWidget()
-        self.tab_2.setObjectName("tab_2")
-        self.tabWidget.addTab(self.tab_2, "")
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "+"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Untitled Fit 1"))
+        self.tabWidget.tabIndex = 1
+        # Initialize the content of the tab
+        self.initializeTabContents(self.tab)
 
-        # <editor-fold desc="Fits Settings">
-        self.gridLayoutFits = QtWidgets.QGridLayout(self.tab)
-        self.gridLayoutFits.setObjectName("gridLayoutFits")
-
-        ## Data
-        self.data_groupBox = QtWidgets.QGroupBox(self.tab)
-        self.data_groupBox.setTitle("")
-        self.data_groupBox.setObjectName("data_groupBox")
-        self.gridLayoutFits.addWidget(self.data_groupBox, 0, 0, 1, 1)
-
-        ## Method
-        self.method_groupBox = QtWidgets.QGroupBox(self.tab)
-        self.method_groupBox.setTitle("")
-        self.method_groupBox.setObjectName("method_groupBox")
-        self.gridLayoutFits.addWidget(self.method_groupBox, 0, 1, 1, 1)
-
-        ## AutoFit
-        self.autofit_groupBox = QtWidgets.QGroupBox(self.tab)
-        self.autofit_groupBox.setTitle("")
-        self.autofit_groupBox.setObjectName("autofit_groupBox")
-        self.gridLayoutFits.addWidget(self.autofit_groupBox, 0, 2, 1, 1)
-
-        ## Results
-        self.results_groupBox = QtWidgets.QGroupBox(self.tab)
-        self.results_groupBox.setObjectName("results_groupBox")
-        self.results_groupBox.setTitle(_translate("MainWindow", "Results"))
-        self.gridLayoutFits.addWidget(self.results_groupBox, 1, 0, 1, 1)
-
-        ## Display
-        self.display_groupBox = QtWidgets.QGroupBox(self.tab)
-        self.display_groupBox.setTitle("")
-        self.display_groupBox.setObjectName("display_groupBox")
-        self.gridLayoutFits.addWidget(self.display_groupBox, 1, 1, 1, 2)
-        # </editor-fold>
+        # Tab that will add another tab
+        self.tabButton = QtWidgets.QToolButton()
+        self.tabButton.setObjectName("tabButton")
+        self.tabButton.setText("+")
+        font = self.tabButton.font()
+        font.setBold(True)
+        self.tabButton.setFont(font)
+        self.tabWidget.setCornerWidget(self.tabButton)
+        self.tabButton.clicked.connect(lambda: self.newFit())
 
         # Adding the tab widget to the layout
         self.gridLayoutTab.addWidget(self.tabWidget, 0, 0, 1, 1)
         # Add the tab layout to the main layout
         self.gridLayoutMain.addLayout(self.gridLayoutTab, 0, 0, 1, 1)
-        # </editor-fold>
+
 
         # <editor-fold desc="Configure dockWidget Fit Table">
         # Table of fits dockWidget
@@ -168,6 +153,191 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def newFit(self, title=None):
+        """Insert a new tab"""
+        tab = QtWidgets.QWidget()   # Create a new tab
+        self.tabWidget.addTab(tab, "")  # Insert the new tab right before the tab_plus
+        if title is None:
+            self.tabWidget.tabIndex = self.tabWidget.tabIndex + 1
+            index = self.tabWidget.tabIndex
+            title = "Untitled Fit " + str(index)
+
+        tab_index =self.tabWidget.indexOf(tab)
+        self.tabWidget.setTabText(tab_index, _translate("MainWindow", title))
+        self.tabWidget.setCurrentIndex(tab_index)  # switch to that tab
+        self.initializeTabContents(tab)  # initialize the contents
+
+    def initializeTabContents(self, tab):
+        """Tab content"""
+        gridLayoutFits = QtWidgets.QGridLayout(tab)
+
+        # Data
+        data_groupBox = QtWidgets.QGroupBox(tab)
+        data_groupBox.setTitle("")
+        self.initialize_data(data_groupBox)
+        gridLayoutFits.addWidget(data_groupBox, 0, 0, 1, 4)
+
+        # Method
+        method_groupBox = QtWidgets.QGroupBox(tab)
+        method_groupBox.setTitle("")
+        self.initialize_method(method_groupBox)
+        gridLayoutFits.addWidget(method_groupBox, 0, 4, 1, 8)
+
+        # AutoFit
+        autofit_groupBox = QtWidgets.QGroupBox(tab)
+        autofit_groupBox.setTitle("")
+        self.initialize_autofit(autofit_groupBox)
+        gridLayoutFits.addWidget(autofit_groupBox, 0, 12, 1, 2)
+
+        # Results
+        results_groupBox = QtWidgets.QGroupBox(tab)
+        results_groupBox.setTitle(_translate("MainWindow", "Results"))
+        self.initialize_results(results_groupBox)
+        gridLayoutFits.addWidget(results_groupBox, 1, 0, 1, 3)
+
+        # Display
+        display_groupBox = QtWidgets.QGroupBox(tab)
+        display_groupBox.setTitle("")
+        self.initialize_display(display_groupBox)
+        gridLayoutFits.addWidget(display_groupBox, 1, 3, 1, 11)
+
+        return gridLayoutFits
+
+    def initialize_data(self, gbox):
+        """Initialize the data groupbox in the tab"""
+        gbox.setLayout(QtWidgets.QGridLayout())
+        fitname_label = QtWidgets.QLabel("Fit Name")
+        fitname_text  = QtWidgets.QLineEdit()
+        fitName = self.tabWidget.tabText(self.tabWidget.indexOf(self.tabWidget.currentWidget()))
+        fitname_text.setText(fitName)
+        fitname_text.editingFinished.connect(lambda: self.changeTabTitle(fitname_text.text()))
+
+        comboList = ['(none)']+list(self.vars.keys())
+        x_label = QtWidgets.QLabel("X data")
+        x_comboBox  = QtWidgets.QComboBox()
+        x_comboBox.addItems(comboList)
+        x_comboBox.currentIndexChanged.connect(lambda: self.setData('xdata', x_comboBox.currentText()))
+
+        y_label = QtWidgets.QLabel("Y data")
+        y_comboBox  = QtWidgets.QComboBox()
+        y_comboBox.addItems(comboList)
+        y_comboBox.currentIndexChanged.connect(lambda: self.setData('ydata', y_comboBox.currentText()))
+
+        z_label = QtWidgets.QLabel("Z data:")
+        z_comboBox  = QtWidgets.QComboBox()
+        z_comboBox.addItems(comboList)
+        z_comboBox.currentIndexChanged.connect(lambda: self.setData('zdata', z_comboBox.currentText()))
+
+        w_label = QtWidgets.QLabel("Weights:")
+        w_comboBox  = QtWidgets.QComboBox()
+        w_comboBox.addItems(comboList)
+        w_comboBox.currentIndexChanged.connect(lambda: self.setData('wdata', w_comboBox.currentText()))
+
+        gbox.layout().addWidget(fitname_label, 0, 0, 1, 1)
+        gbox.layout().addWidget(fitname_text, 0, 1, 1, 1)
+        gbox.layout().addWidget(x_label, 1, 0, 1, 1)
+        gbox.layout().addWidget(x_comboBox, 1, 1, 1, 1)
+        gbox.layout().addWidget(y_label, 2, 0, 1, 1)
+        gbox.layout().addWidget(y_comboBox, 2, 1, 1, 1)
+        gbox.layout().addWidget(z_label, 3, 0, 1, 1)
+        gbox.layout().addWidget(z_comboBox, 3, 1, 1, 1)
+        gbox.layout().addWidget(w_label, 4, 0, 1, 1)
+        gbox.layout().addWidget(w_comboBox, 4, 1, 1, 1)
+
+    def changeTabTitle(self, new_text):
+        tab_index = self.tabWidget.indexOf(self.tabWidget.currentWidget())
+        self.tabWidget.setTabText(tab_index, _translate("MainWindow", new_text))
+
+    def setData(self, key, valname):
+        """Change data"""
+        if valname == '(none)':
+            setattr(self, key, None)
+        else:
+            setattr(self, key, self.vars[valname])
+
+    def initialize_method(self, gbox):
+        """Initialize the method groupBox in the tab"""
+        gbox.setLayout(QtWidgets.QGridLayout())
+
+    def initialize_autofit(self, gbox):
+        """Initialize the autofit groupBox in the tab"""
+        gbox.setLayout(QtWidgets.QVBoxLayout())
+        autofit_checkBox = QtWidgets.QCheckBox("Auto fit")
+        autofit_checkBox.setCheckState(self.autofit)
+        fit_pushButton = QtWidgets.QPushButton("Fit")
+        fit_pushButton.clicked.connect(lambda: self.onFitButtonClicked())
+        fit_pushButton.setEnabled(False)
+        stop_pushButton = QtWidgets.QPushButton("Stop")
+        stop_pushButton.clicked.connect(lambda: self.onStopButtonClicked())
+        stop_pushButton.setEnabled(False)
+        autofit_checkBox.stateChanged.connect(lambda checked: self.onAutoFitCheckBoxToggled(checked, fit_pushButton, stop_pushButton))
+
+        gbox.layout().addWidget(autofit_checkBox)
+        gbox.layout().addWidget(fit_pushButton)
+        gbox.layout().addWidget(stop_pushButton)
+
+    def onAutoFitCheckBoxToggled(self, checked, fit_pushButton, stop_pushButton):
+        self.autofit = checked
+        if checked:
+            fit_pushButton.setEnabled(False)
+            stop_pushButton.setEnabled(False)
+        else:
+            fit_pushButton.setEnabled(True)
+            stop_pushButton.setEnabled(True)
+
+    def onFitButtonClicked(self):
+        pass
+
+    def onStopButtonClicked(self):
+        pass
+
+    def initialize_results(self, gbox):
+        """Initialize the results groupBox in the tab"""
+        gbox.setLayout(QtWidgets.QGridLayout())
+        self.result_textBox = QtWidgets.QTextEdit()
+        self.result_textBox.setReadOnly(True)
+        gbox.layout().addWidget(self.result_textBox)
+
+    def initialize_display(self, gbox):
+        """Initialize the display groupBox in the tab"""
+        gbox.setLayout(QtWidgets.QGridLayout())
+
+
+    def setDisplayText(self, result_textBox, model={}):
+        # parse coefficients
+
+        final_text = """
+        {}:
+            f(x) = {}
+        """#.format(model['type'], model['formula'])
+
+        # Coefficients
+        coef_format = "{} = {} ({}, {})"   # var = mean (lower, upper)
+        final_text = final_text + """
+        Coefficeints (with 95% confidence bounds):
+            {}
+        """#.format()
+
+        final_text = final_text + """
+        Goodness of fit:
+            SSE: {}
+            RMSE: {}
+            R-square: {}
+            Adjusted R-square: {}
+        """#.format(model['SSE'], model['RMSE'],  model['R-square'], model['Adjusted R-Square'])
+        result_textBox.setText(final_text)
+
+    def whatTab(self):
+        self.currentTab = self.tabWidget.currentWidget()
+        pass
+
+    def closeTab(self, currentIndex):
+        if self.tabWidget.count() < 2:
+            return  # Do not close the last tab
+        currentQWidget = self.tabWidget.widget(currentIndex)
+        currentQWidget.deleteLater()
+        self.tabWidget.removeTab(currentIndex)
 
     def setMenuBarItems(self):
         # <editor-fold desc="File menu">
@@ -218,6 +388,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         self.actionNew_Fit = QtWidgets.QAction(self)
         self.actionNew_Fit.setObjectName("actionNew_Fit")
         self.actionNew_Fit.setText(_translate("MainWindow", "New Fit"))
+        self.actionNew_Fit.triggered.connect(lambda: self.newFit())
         self.menuFit.addAction(self.actionNew_Fit)
 
         self.actionOpen_Fit = QtWidgets.QAction(self)
@@ -342,17 +513,43 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         self.menuTools.setTitle(_translate("MainWindow", "Tools"))
         # </editor-fold>
 
+    def filterVars(self, vars_list):
+        vars_final = {}
+        for kk in vars_list:
+            for key, value in kk.items():
+                if isinstance(value, np.ndarray):
+                    vars_final[key] = value
+                elif isinstance(value,  (list, tuple)):
+                    vars_final[key] = np.array(value)
+        return vars_final
+
+
+    def curveFit(self):
+        print("Not implemented")
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
 
 
-
-
+def cftool(xdata=None, ydata=None, zdata=None, wdata=None):
+    """
+    Wrapper function to call cftool GUI
+    :param xdata: x data
+    :param ydata: y data
+    :param zdata: z data (if 3D)
+    :param wdata: weights
+    :return:
+    """
+    pass
 
 if __name__ == "__main__":
+    np.random.seed(42)
+    X = np.arange(0, 100, 0.1) + np.random.randn(1000)/100
+    Y = 5 + np.arange(0, 100, 0.1) + np.random.randn(1000)/100
     sys.excepthook = my_excepthook   # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
     w = cftool_MainWindow()
     w.show()
+
+
     sys.exit(app.exec_())
