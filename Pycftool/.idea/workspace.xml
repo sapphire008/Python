@@ -2,14 +2,24 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="cfa48c46-6649-4b30-931d-e5ab5b5d295b" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/FitOptions.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Plots/ImportData.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Plots/ImportData.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Plots/simple/SimpleBarPlot.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../Plots/simple/beeswarm.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Plots/simple/beeswarm.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Plots/simple/colorbasket.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Plots/simple/colorbasket.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../PySynapse/app/Toolbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/../PySynapse/app/Toolbox.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../PySynapse/resources/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/../PySynapse/resources/config.ini" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../PySynapse/util/MATLAB.py" beforeDir="false" afterPath="$PROJECT_DIR$/../PySynapse/util/MATLAB.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Pycftool.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Pycftool.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Pycftool.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pycftool.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/ui_designer/Pycftool.ui" beforeDir="false" afterPath="$PROJECT_DIR$/resources/ui_designer/Pycftool.ui" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/ui_designer/Pycftool_1.ui" beforeDir="false" afterPath="$PROJECT_DIR$/resources/ui_designer/Pycftool_1.ui" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/ui_designer/Pycftool_2.ui" beforeDir="false" afterPath="$PROJECT_DIR$/resources/ui_designer/Pycftool_2.ui" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/ui_designer/Pycftool_3.ui" beforeDir="false" afterPath="$PROJECT_DIR$/resources/ui_designer/Pycftool_3.ui" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/2photon_util.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/ImportData.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Spikes/ImportData.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Spikes/MATLAB.py" beforeDir="false" afterPath="$PROJECT_DIR$/../Spikes/MATLAB.py" afterDir="false" />
@@ -29,87 +39,236 @@
       <usages-collector id="statistics.lifecycle.project">
         <counts>
           <entry key="project.closed" value="2" />
-          <entry key="project.open.time.0" value="1" />
+          <entry key="project.open.time.0" value="2" />
           <entry key="project.open.time.1" value="1" />
-          <entry key="project.opened" value="2" />
+          <entry key="project.opened" value="3" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
           <entry key="Python Console" value="138" />
-          <entry key="py" value="7571" />
+          <entry key="py" value="15220" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="7709" />
+          <entry key="Python" value="15358" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="py" value="1" />
+          <entry key="py" value="4" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="Python" value="1" />
+          <entry key="Python" value="4" />
+        </counts>
+      </usages-collector>
+    </session>
+    <session id="1164575301">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.closed" value="3" />
+          <entry key="project.open.time.1" value="1" />
+          <entry key="project.open.time.5" value="1" />
+          <entry key="project.open.time.8" value="1" />
+          <entry key="project.opened" value="3" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="Python Console" value="844" />
+          <entry key="py" value="26624" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="Python" value="27468" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="py" value="9" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="Python" value="9" />
         </counts>
       </usages-collector>
     </session>
   </component>
+  <component name="FavoritesManager">
+    <favorites_list name="Pycftool" />
+  </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/Pycftool.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-936">
-              <caret line="41" column="16" lean-forward="true" selection-start-line="41" selection-start-column="16" selection-end-line="41" selection-end-column="16" />
-              <folding>
-                <element signature="e#936#10709#0" />
-                <element signature="e#4700#4753#0" />
-                <element signature="e#5684#6297#0" />
-                <element signature="e#5749#6866#0" />
-                <element signature="e#7619#9303#0" />
-                <element signature="e#9381#9528#0" />
-                <element signature="e#9956#10107#0" />
-                <element signature="e#10156#10251#0" />
-                <element signature="e#10301#11135#0" />
-                <element signature="e#11229#11471#0" />
-                <element signature="e#10658#10662#0" />
-                <element signature="e#10718#10722#0" />
-                <element signature="e#11610#11857#0" />
-                <element signature="e#7909#8045#0" />
-                <element signature="e#6052#14491#0" />
-                <element signature="e#6052#6084#0" />
-                <element signature="e#8210#8241#0" />
-                <element signature="e#9222#9264#0" />
-                <element signature="e#11398#11431#0" />
-                <element signature="e#12396#12430#0" />
-                <marker date="1540931696865" expanded="true" signature="6496:6505" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="10109:10113" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="11135:11469" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="11560:11566" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="12091:12734" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="12752:12824" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="22026:22065" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="22101:22110" ph="..." />
-                <marker date="1540931696865" expanded="true" signature="22415:22426" ph="..." />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
+    <splitter split-orientation="horizontal" split-proportion="0.82">
+      <split-first>
+        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+          <file pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/FitOptions.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="1088">
+                  <caret line="115" lean-forward="true" selection-start-line="115" selection-end-line="115" />
+                  <folding>
+                    <element signature="e#49#59#0" expanded="true" />
+                    <element signature="e#2982#3790#0" />
+                    <element signature="e#3579#3668#0" />
+                    <marker date="1541744592720" expanded="true" signature="511:12184" ph="..." />
+                    <marker date="1541744592720" expanded="true" signature="4587:4593" ph="..." />
+                    <marker date="1541744592720" expanded="true" signature="11497:11538" ph="..." />
+                    <marker date="1541744592720" expanded="true" signature="11790:11799" ph="..." />
+                    <marker date="1541744592720" expanded="true" signature="11837:11924" ph="..." />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file pinned="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/Pycftool.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="144">
+                  <caret line="62" selection-start-line="62" selection-end-line="62" />
+                  <folding>
+                    <element signature="e#278#287#0" expanded="true" />
+                    <element signature="e#1767#2316#0" />
+                    <element signature="e#2362#6301#0" />
+                    <element signature="e#6345#6959#0" />
+                    <element signature="e#7011#8627#0" />
+                    <element signature="e#8674#10820#0" />
+                    <element signature="e#10870#11017#0" />
+                    <element signature="e#11156#13327#0" />
+                    <element signature="e#13417#14470#0" />
+                    <element signature="e#14562#15862#0" />
+                    <element signature="e#15926#16839#0" />
+                    <element signature="e#16374#16991#0" />
+                    <element signature="e#17041#17209#0" />
+                    <element signature="e#17391#18480#0" />
+                    <element signature="e#18531#19092#0" />
+                    <element signature="e#19138#20225#0" />
+                    <element signature="e#20275#21445#0" />
+                    <element signature="e#21846#38026#0" />
+                    <element signature="e#21790#21870#0" />
+                    <element signature="e#21722#23026#0" />
+                    <element signature="e#23776#25310#0" />
+                    <element signature="e#24663#26920#0" />
+                    <element signature="e#26990#29111#0" />
+                    <element signature="e#29162#29716#0" />
+                    <element signature="e#29770#31014#0" />
+                    <element signature="e#32324#32792#0" />
+                    <element signature="e#31925#32730#0" />
+                    <element signature="e#32778#33566#0" />
+                    <element signature="e#33622#34687#0" />
+                    <element signature="e#34738#36751#0" />
+                    <element signature="e#37775#38229#0" />
+                    <element signature="e#37365#38199#0" />
+                    <element signature="e#38291#38527#0" />
+                    <element signature="e#38674#38921#0" />
+                    <element signature="e#38984#40113#0" />
+                    <element signature="e#44871#45782#0" />
+                    <element signature="e#45249#46297#0" />
+                    <element signature="e#43364#43453#0" />
+                    <element signature="e#43501#43724#0" />
+                    <element signature="e#43765#52268#0" />
+                    <element signature="e#53892#54263#0" />
+                    <element signature="e#54298#55360#0" />
+                    <element signature="e#56480#58051#0" />
+                    <element signature="e#55942#56192#0" />
+                    <element signature="e#60174#61845#0" />
+                    <marker date="1541795665440" expanded="true" signature="22721:22731" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="24998:25011" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="25105:25118" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="59919:59933" ph="..." />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/../generic/MATLAB.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="389">
+                  <caret line="676" column="19" selection-start-line="676" selection-start-column="15" selection-end-line="676" selection-end-column="19" />
+                  <folding>
+                    <element signature="e#123#141#0" expanded="true" />
+                    <marker date="1541790212720" expanded="true" signature="23463:24026" ph="..." />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+        </leaf>
+      </split-first>
+      <split-second>
+        <leaf>
+          <file pinned="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/Pycftool.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="105">
+                  <caret line="781" column="44" selection-start-line="781" selection-start-column="44" selection-end-line="781" selection-end-column="44" />
+                  <folding>
+                    <element signature="e#278#287#0" expanded="true" />
+                    <element signature="e#42790#51293#0" />
+                    <marker date="1541795665440" expanded="true" signature="22721:22731" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="24998:25011" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="25105:25118" ph="..." />
+                    <marker date="1541795665440" expanded="true" signature="59919:59933" ph="..." />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+        </leaf>
+      </split-second>
+    </splitter>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>self.gridLayout_2</find>
-      <find>self.gridLayout</find>
-      <find>newfit</find>
-      <find>set_trace</find>
+      <find>str2numeric</find>
+      <find>fitted_params</find>
+      <find>self.graphicsView.name</find>
+      <find>self.centerscale</find>
+      <find>initialize_results</find>
+      <find>good</find>
+      <find>setDisplayText</find>
+      <find>toggleMethod</find>
+      <find>self.curveFit</find>
+      <find>self.options</find>
+      <find>self.options =</find>
+      <find>self.options.params</find>
+      <find>confidence</find>
+      <find>isnumeri</find>
+      <find>self.result_text</find>
+      <find>curve_fit</find>
+      <find>graphFit</find>
+      <find>called curve_fit</find>
+      <find>toggleMethods</find>
+      <find>onDataChanged</find>
+      <find>self.graphData</find>
+      <find>curveFit</find>
+      <find>lambda</find>
+      <find>print</find>
+      <find>MethodSet2</find>
+      <find>getparams</find>
+      <find>popt</find>
+      <find>graphData</find>
+      <find>getItem</find>
+      <find>self.params['dim</find>
     </findStrings>
     <replaceStrings>
       <replace>gridLayoutTable</replace>
+      <replace>methods_dict</replace>
+      <replace>setMethodLists</replace>
+      <replace>onDataChanged</replace>
+      <replace>methods_layout</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -119,15 +278,20 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/Pycftool2.py" />
+        <option value="$PROJECT_DIR$/QCode.py" />
+        <option value="$PROJECT_DIR$/QCodeEdit.py" />
+        <option value="$PROJECT_DIR$/ElideQLabel.py" />
+        <option value="$PROJECT_DIR$/FitOptions.py" />
+        <option value="$PROJECT_DIR$/../generic/MATLAB.py" />
         <option value="$PROJECT_DIR$/Pycftool.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="256" />
-    <option name="y" value="132" />
-    <option name="width" value="1550" />
-    <option name="height" value="845" />
+  <component name="ProjectFrameBounds">
+    <option name="x" value="43" />
+    <option name="y" value="24" />
+    <option name="width" value="1136" />
+    <option name="height" value="629" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -135,7 +299,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -147,10 +310,20 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="vcs.Git" />
+  </component>
+  <component name="PyConsoleOptionsProvider">
+    <option name="myPythonConsoleState">
+      <console-settings module-name="Pycftool" is-module-sdk="true">
+        <option name="myUseModuleSdk" value="true" />
+        <option name="myModuleName" value="Pycftool" />
+      </console-settings>
+    </option>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -164,7 +337,28 @@
       </list>
     </option>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.Pycftool">
+    <configuration name="FitOptions" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="Pycftool" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/FitOptions.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="Pycftool" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Pycftool" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -186,9 +380,37 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="QCode" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="Pycftool" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/QCode.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.Pycftool" />
+      <item itemvalue="Python.QCode" />
+      <item itemvalue="Python.FitOptions" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python.Pycftool" />
+        <item itemvalue="Python.FitOptions" />
+        <item itemvalue="Python.QCode" />
       </list>
     </recent_temporary>
   </component>
@@ -205,74 +427,176 @@
     </task>
     <servers />
   </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+  </component>
   <component name="ToolWindowManager">
-    <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
+    <frame x="43" y="24" width="1136" height="629" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.15201586" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49872124" weight="0.15336323" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info id="Favorites" order="2" sideWeight="0.50127876" side_tool="true" weight="0.18770581" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.32991204" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.47443947" weight="0.26815644" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49686098" weight="0.39851025" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.48699552" weight="0.32960895" />
       <window_info anchor="bottom" id="Version Control" order="7" />
-      <window_info anchor="bottom" id="Terminal" order="8" />
-      <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" weight="0.32991204" />
+      <window_info anchor="bottom" id="Terminal" order="8" sideWeight="0.492865" weight="0.38175046" />
+      <window_info anchor="bottom" id="Event Log" order="9" sideWeight="0.5201794" side_tool="true" weight="0.30912477" />
+      <window_info anchor="bottom" id="Python Console" order="10" sideWeight="0.47982064" weight="0.30912477" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
+    <layout-to-restore>
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49872124" visible="true" weight="0.15336323" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info id="Favorites" order="2" sideWeight="0.50127876" side_tool="true" weight="0.18770581" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.47443947" visible="true" weight="0.26815644" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49686098" weight="0.39851025" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.48699552" weight="0.32960895" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
+      <window_info anchor="bottom" id="Terminal" order="8" sideWeight="0.492865" weight="0.38175046" />
+      <window_info anchor="bottom" id="Event Log" order="9" sideWeight="0.5201794" side_tool="true" weight="0.30912477" />
+      <window_info anchor="bottom" id="Python Console" order="10" sideWeight="0.47982064" weight="0.30912477" />
+      <window_info anchor="right" id="Commander" order="0" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout-to-restore>
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Pycftool2.py">
+    <entry file="file://$PROJECT_DIR$/Pycftool2.py" />
+    <entry file="file://$PROJECT_DIR$/QCode.py" />
+    <entry file="file://$PROJECT_DIR$/QCodeEdit.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="361">
-          <caret line="187" selection-start-line="187" selection-end-line="187" />
+        <state relative-caret-position="1291">
+          <caret line="94" column="26" selection-start-line="94" selection-start-column="26" selection-end-line="94" selection-end-column="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ElideQLabel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="46" selection-start-column="46" selection-end-column="46" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../../../SD/PySynapse/SynapseQt.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../../../SD/anaconda3/lib/python3.7/site-packages/pyqtgraph/opengl/GLViewWidget.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15">
+          <caret line="1" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../../../SD/anaconda3/lib/python3.7/site-packages/scipy/linalg/matfuncs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-859">
+          <caret line="17" selection-start-line="17" selection-end-line="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/FitOptions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1088">
+          <caret line="115" lean-forward="true" selection-start-line="115" selection-end-line="115" />
+          <folding>
+            <element signature="e#49#59#0" expanded="true" />
+            <element signature="e#2982#3790#0" />
+            <element signature="e#3579#3668#0" />
+            <marker date="1541744592720" expanded="true" signature="511:12184" ph="..." />
+            <marker date="1541744592720" expanded="true" signature="4587:4593" ph="..." />
+            <marker date="1541744592720" expanded="true" signature="11497:11538" ph="..." />
+            <marker date="1541744592720" expanded="true" signature="11790:11799" ph="..." />
+            <marker date="1541744592720" expanded="true" signature="11837:11924" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../generic/MATLAB.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="389">
+          <caret line="676" column="19" selection-start-line="676" selection-start-column="15" selection-end-line="676" selection-end-column="19" />
+          <folding>
+            <element signature="e#123#141#0" expanded="true" />
+            <marker date="1541790212720" expanded="true" signature="23463:24026" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Pycftool.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-936">
-          <caret line="41" column="16" lean-forward="true" selection-start-line="41" selection-start-column="16" selection-end-line="41" selection-end-column="16" />
+        <state relative-caret-position="144">
+          <caret line="62" selection-start-line="62" selection-end-line="62" />
           <folding>
-            <element signature="e#936#10709#0" />
-            <element signature="e#4700#4753#0" />
-            <element signature="e#5684#6297#0" />
-            <element signature="e#5749#6866#0" />
-            <element signature="e#7619#9303#0" />
-            <element signature="e#9381#9528#0" />
-            <element signature="e#9956#10107#0" />
-            <element signature="e#10156#10251#0" />
-            <element signature="e#10301#11135#0" />
-            <element signature="e#11229#11471#0" />
-            <element signature="e#10658#10662#0" />
-            <element signature="e#10718#10722#0" />
-            <element signature="e#11610#11857#0" />
-            <element signature="e#7909#8045#0" />
-            <element signature="e#6052#14491#0" />
-            <element signature="e#6052#6084#0" />
-            <element signature="e#8210#8241#0" />
-            <element signature="e#9222#9264#0" />
-            <element signature="e#11398#11431#0" />
-            <element signature="e#12396#12430#0" />
-            <marker date="1540931696865" expanded="true" signature="6496:6505" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="10109:10113" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="11135:11469" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="11560:11566" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="12091:12734" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="12752:12824" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="22026:22065" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="22101:22110" ph="..." />
-            <marker date="1540931696865" expanded="true" signature="22415:22426" ph="..." />
+            <element signature="e#278#287#0" expanded="true" />
+            <element signature="e#1767#2316#0" />
+            <element signature="e#2362#6301#0" />
+            <element signature="e#6345#6959#0" />
+            <element signature="e#7011#8627#0" />
+            <element signature="e#8674#10820#0" />
+            <element signature="e#10870#11017#0" />
+            <element signature="e#11156#13327#0" />
+            <element signature="e#13417#14470#0" />
+            <element signature="e#14562#15862#0" />
+            <element signature="e#15926#16839#0" />
+            <element signature="e#16374#16991#0" />
+            <element signature="e#17041#17209#0" />
+            <element signature="e#17391#18480#0" />
+            <element signature="e#18531#19092#0" />
+            <element signature="e#19138#20225#0" />
+            <element signature="e#20275#21445#0" />
+            <element signature="e#21846#38026#0" />
+            <element signature="e#21790#21870#0" />
+            <element signature="e#21722#23026#0" />
+            <element signature="e#23776#25310#0" />
+            <element signature="e#24663#26920#0" />
+            <element signature="e#26990#29111#0" />
+            <element signature="e#29162#29716#0" />
+            <element signature="e#29770#31014#0" />
+            <element signature="e#32324#32792#0" />
+            <element signature="e#31925#32730#0" />
+            <element signature="e#32778#33566#0" />
+            <element signature="e#33622#34687#0" />
+            <element signature="e#34738#36751#0" />
+            <element signature="e#37775#38229#0" />
+            <element signature="e#37365#38199#0" />
+            <element signature="e#38291#38527#0" />
+            <element signature="e#38674#38921#0" />
+            <element signature="e#38984#40113#0" />
+            <element signature="e#44871#45782#0" />
+            <element signature="e#45249#46297#0" />
+            <element signature="e#43364#43453#0" />
+            <element signature="e#43501#43724#0" />
+            <element signature="e#43765#52268#0" />
+            <element signature="e#53892#54263#0" />
+            <element signature="e#54298#55360#0" />
+            <element signature="e#56480#58051#0" />
+            <element signature="e#55942#56192#0" />
+            <element signature="e#60174#61845#0" />
+            <marker date="1541795665440" expanded="true" signature="22721:22731" ph="..." />
+            <marker date="1541795665440" expanded="true" signature="24998:25011" ph="..." />
+            <marker date="1541795665440" expanded="true" signature="25105:25118" ph="..." />
+            <marker date="1541795665440" expanded="true" signature="59919:59933" ph="..." />
           </folding>
         </state>
       </provider>
