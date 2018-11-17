@@ -9,6 +9,7 @@ Python implemented MATLAB utilities
 
 import numpy as np
 import scipy as sp
+from scipy import stats
 from skimage.draw import polygon
 import re
 import glob
@@ -85,6 +86,13 @@ def str2numeric(lit):
         """"Handling only single numbers"""
         # Handle '0'
         if lit == '0': return 0
+        # Handle 'inf'
+        if lit.lower() == '-inf': return -np.inf
+        if lit.lower() == 'inf': return np.inf
+        # Handle nan
+        if lit.lower() == 'nan': return np.nan
+        # Handle None
+        if lit.lower() == 'none': return None
         # Hex/Binary
         litneg = lit[1:] if lit[0] == '-' else lit
         if litneg[0] == '0':
@@ -294,8 +302,9 @@ def isempty(m, singleton=True):
 
 def isnumber(obj):
     """Determine if the object is a single number"""
-    attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']
-    return all(hasattr(obj, attr) for attr in attrs)
+    attrs = ['__add__', '__sub__', '__mul__', '__pow__', '__abs__']   # need to have
+    attrs_neg = ['__len__']  # cannot have
+    return (all(hasattr(obj, attr) for attr in attrs)) and (not any(hasattr(obj, attr) for attr in attrs_neg))
 
 def isnumeric(obj):
     """Check if an object is numeric, or that elements in a list of objects
@@ -685,14 +694,55 @@ def compare_goodness_of_fit(popt1, pcov1, popt2, pcov2, num_data_points, param_n
     
     return T, df, P
 
+def confidence_interval(ydata, popt, pcov, alpha=0.05, parameter_names=None):
+    dof = max(0, len(ydata) - len(popt))
+    tval = stats.distributions.t.ppf(1.0-alpha/2., dof)
+    ci_list= []
+    if parameter_names is None:
+        for n, (p, var) in enumerate(zip(popt, np.diag(pcov))):
+            sigma = var**0.5
+            ci_list.append({'name': 'p{:d}'.format(n), 'mean': p, 'lower': p - tval * sigma, 'upper': p + tval * sigma})
+    else:
+        for pname, p, var in zip(parameter_names, popt, np.diag(pcov)):
+            sigma = var**0.5
+            ci_list.append({'name': pname, 'mean': p, 'lower': p - tval * sigma, 'upper': p + tval * sigma})
 
-def serr(X, axis=0, toarray=False, *args, **kwargs):
+    return ci_list
+
+
+
+
+def serr(X, axis=0, toarray=False, printerr=False, *args, **kwargs):
     try:
         if toarray:
             X = np.array(X)
         return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
     except Exception as err:
-        return []
+        if printerr:
+            print(err)
+        return None
+    
+def diffx(X, axis=0, printerr=False, *args, **kwargs):
+    """Wrapper function to deal with Panda's recent weird behavior"""
+    def df_diff_apply(df):
+        df_new = df.iloc[0, :]
+        for c in df_new.index:
+            if df[c].dtype.__str__() == 'object':
+                pass
+            else:
+                df_new[c] = np.diff(df[c], axis=axis, *args, **kwargs)
+                if len(df_new[c])==1:
+                    df_new[c] = np.asscalar(df_new[c])
+                
+        return df_new
+    try:
+        return df_diff_apply(X)
+    except Exception as err:
+        if True:
+            print(err)
+        print(X)
+        #set_trace()
+        return None
 
 
 def frequency_modulated_sine(f0, f, duration, ts, phase=0):

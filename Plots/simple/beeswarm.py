@@ -7,25 +7,24 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.neighbors.kde import KernelDensity
 
-def beeswarm(values, df, group=None, cluster=None, positions=None,
-            method='swarm', corral='none', corralWidth=None,
-            side=0L, priority='ascending', ax=None, orientation='vertical',
-            xlim=None, ylim=None, xlab=None, ylab=None, legendon=True,
-            legend=None, legendtitle=None, labels=None,
-            ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
-            figsize=(10.,5.), color=('k','r'), colortheme='cluster',**kwargs):
-    """
-     beeswarm(values, df, group=None, cluster=None, positions=None,
-            method='swarm', corral='none', corralWidth=None,
-            side=0L, priority='ascending', ax=None, orientation='vertical',
-            xlim=None, ylim=None, xlab=None, ylab=None, legendon=True,
-            legend=None, legendtitle=None, labels=None,
-            ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
-            figsize=(10.,5.), color=('k','r'), colortheme='cluster',**kwargs)
+from pdb import set_trace
 
+def beeswarm(df, values, group=None, cluster=None, positions=None,
+            method='swarm', corral='none', corralWidth=None,
+            side=int(0), priority='ascending', ax=None, orientation='vertical',
+            xlim=None, ylim=None, xlab=None, ylab=None, legendon=True,
+            legend=None, legendtitle=None, labels=None, labelson=True,
+            ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
+            figsize=(10.,5.), color=('k','r'), colortheme='cluster',
+            **kwargs):
+    """
+     Helper functions:
+         * connect_paired_dots
+         * add_average_bar
+         
      Inputs:
-         * values: column name of the data to be plotted
          * df: data frame
+         * values: column name of the data to be plotted
          * group: column name of the category vector
          * cluster: column name of the vector that further divides each group
          * positions: sets the horizontal positions of the swarms.
@@ -50,6 +49,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
          * legend: a list of names for legend
          * legendtitle: title of legend
          * labels: tick label of categorical axis
+         * labelson: turn on or off xlabel (Default True)
          * labelrotation: rotation of x label.
              Default: 'horizontal'
          * log: specify a function to apply log transformation of data, e.g. np.log10
@@ -57,7 +57,8 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
          * s: size of points in points^2 (assuming 72 points/inch).
             Default: 33 (corresponding roughly to 0.08 inch)
          * dpi: dots per point. Default 72.
-         * figsize: figure size (width, height). Default (10.0,5.0)
+         * figsize: figure size (width, height). Default (10.0,5.0). 
+             Need to specify before plotting for proper scatter spacing.
          * color: color of points. Can be:
             - a single string: color all points that color
             - a list of colors which will be cycled through
@@ -90,11 +91,13 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
     ax.get_figure().set_size_inches(figsize)
 
     # Create positions vector if not speicifed in the argument
+    # set_trace()
     ngroup = len(np.unique(df[group])) if group in list(df.columns.values) else 1
     if positions is None:
         positions = np.arange(ngroup)
     elif len(positions) != ngroup:
         raise(ValueError('"positions" must have length equal to %d, the number of groups'%(ngroup)))
+    print(positions)
 
     # Set the extent of axis
     if xlim is not None:
@@ -117,14 +120,19 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
     # Get dot size
     xsize, ysize = xydotsize(ax, s=s, dpi=dpi)
 
-    # Create labels if not specified in the argument
+    # Create legends if not specified in the argument
     ncluster = len(np.unique(df[cluster])) if cluster in list(df.columns.values) else 1
     if ncluster==1:
-        labels = None
-    elif labels is None:
-        labels = np.unique(df[group])
-    elif len(labels) != ncluster:
-        raise(ValueError('"labels" must have length equal to %d, the number of clusters'%(ncluster)))
+        legend = None
+    else:
+        if legend is None:
+            pass
+        elif isinstance(legend, (list, tuple, np.ndarray)) and len(legend) != ncluster: # sanity check
+            raise(ValueError('"legend" must have length equal to %d, the number of clusters'%(ncluster)))
+    
+    # Create group labels if not specified in the argument
+    if labels is None:
+        labels = stable_unique(df[group].values)
 
     # Get the color vector
     if isinstance(color, str): color = (color)
@@ -142,7 +150,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
 
     # Adjust data along the grouping dimension: for now, plot vertically
     g_offset, g_pos, d_pos = [], [], []
-    for n, g in enumerate(np.unique(df[group])):
+    for n, g in enumerate(stable_unique(df[group].values)):
         y = df.loc[df[group]==g, values]
         x =  np.repeat(positions[n], len(y))
         # jitter data
@@ -165,7 +173,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
     g_offset = _corral(positions, g_offset, size_g=xsize, ax=ax, corral=corral, corralWidth=corralWidth)
 
     # parse data frame
-    for n, g in enumerate(np.unique(df[group])):
+    for n, g in enumerate(stable_unique(df[group].values)):
         if orientation == 'vertical':
             bs.loc[df[group]==g, 'xorig'] = positions[n] # original position
             bs.loc[df[group]==g, 'xnew'] = np.array(g_pos[n]) # group offset
@@ -188,12 +196,13 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         ymin = min(bs['ynew'])-.05*yy
         ymax = max(bs['ynew'])+0.05*yy
         ax.set_ylim(bottom=ymin, top=ymax)
+    
 
     # Do the plot
     if cluster is None or ncluster==1:
         ax.scatter(bs['xnew'], bs['ynew'], s=s, c=bs['color'], **kwargs)
     else: # iterate over clusters
-        for m, cl in enumerate(np.unique(df[cluster])):
+        for m, cl in enumerate(stable_unique(df[cluster].values)):
             ind = df[cluster]==cl
             ax.scatter(bs.loc[ind,'xnew'], bs.loc[ind, 'ynew'], s=s, \
                     c=bs.loc[ind, 'color'],
@@ -201,11 +210,13 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
         if legendon: # turn on legend
             ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.,\
                         title=legendtitle)
-
+            
     # set axis tick / group label
     ax.set_xticks(positions)
-    if labels is not None:
+    if labels is not None and labelson:
         ax.set_xticklabels(labels, rotation=ticklabelrotation)
+    elif not labelson:
+        ax.set_xticklabels([""]*len(np.unique(df[group])))
 
     # set x, y label
     if xlab is not None: ax.set_xlabel(xlab)
@@ -217,6 +228,7 @@ def beeswarm(values, df, group=None, cluster=None, positions=None,
 def xydotsize(ax, s=None, dpi=None, scale=(1.25,1.25)):
     """ Determine dot size in data axis.
     scale: helps further increasing space between dots
+    s: font size in points
     """
     figw, figh = ax.get_figure().get_size_inches() # figure width, height in inch
     dpi = float(ax.get_figure().get_dpi()) if dpi is None else float(dpi)
@@ -233,7 +245,7 @@ def xydotsize(ax, s=None, dpi=None, scale=(1.25,1.25)):
 
     return(xsize, ysize)
 
-def _calculateSwarm(x, dsize, gsize, side=0L, priority='ascending'):
+def _calculateSwarm(x, dsize, gsize, side=int(0), priority='ascending'):
     """Implement swarm layout algorithm
     gsize: group dimension size
     dsize: data dimension size
@@ -255,8 +267,8 @@ def _calculateSwarm(x, dsize, gsize, side=0L, priority='ascending'):
 
     # Determine the order in which points will be placed
     out = {
-    'ascending': out.sort('x', ascending=True, axis=0),
-    'descending': out.sort('x', ascending=False, axis=0),
+    'ascending': out.sort_values('x', ascending=True, axis=0),
+    'descending': out.sort_values('x', ascending=False, axis=0),
     'none': out, # do not reorder
     'random': out.reindex(np.random.permutation(out.index)), # randomly gitter
     'density': out.reindex(np.argsort(-KernelDensity(kernel='gaussian',\
@@ -292,7 +304,7 @@ def _calculateSwarm(x, dsize, gsize, side=0L, priority='ascending'):
     out.loc[np.isnan(out['x']),'y'] = np.nan  # missing x values should have missing y values
     return(out.sort_index()['y'] * gsize)
 
-def swarmx(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=False):
+def swarmx(x, y, xsize, ysize, side=int(0), priority='ascending', xlog=False, ylog=False):
     """jitter points horizontally
     xlog, ylog: must be a function, e.g. np.log10; Default False
     """
@@ -309,7 +321,7 @@ def swarmx(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=F
     return(g_pos)
     #return(pd.DataFrame({x=x_new, y=y}))
 
-def swarmy(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=False):
+def swarmy(x, y, xsize, ysize, side=int(0), priority='ascending', xlog=False, ylog=False):
     """ jitter points vertically
     xlog, ylog: must be a function, e.g. np.log10; Default False
     """
@@ -326,7 +338,7 @@ def swarmy(x, y, xsize, ysize, side=0L, priority='ascending', xlog=False, ylog=F
     #return(pd.DataFrame({x=x, y=y_new}))
 
 
-def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
+def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=int(0), log=False):
     """
     Implement the non-swarm arrangement methods
     dlim: data dimension limit
@@ -353,7 +365,7 @@ def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
     #print(d_index)
     # now determine positions along the group axis
     v_s = {}
-    for item in np.unique(d_index):
+    for item in stable_unique(d_index):
         vals = np.arange(list(d_index).count(item))
         v_s[item] = {
         'center': {-1: vals - np.max(vals),
@@ -375,12 +387,12 @@ def _calculateGrid(x, dsize, gsize, dlim, method='hex', side=0, log=False):
     x_index = unsplit(v_s, d_index)
     return(x_index.apply(lambda x: x*gsize), d_pos)
 
-def gridx(x, y, xsize, ysize, dlim, method='hex', side=0L,log=False):
+def gridx(x, y, xsize, ysize, dlim, method='hex', side=int(0),log=False):
     """ jitter points horizontally"""
     g_offset, d_pos = _calculateGrid(y, dsize=ysize, gsize=xsize, dlim=dlim, method=method, side=side, log=log)
     return(g_offset+x, d_pos) # new_x, new_y
 
-def gridy(x, y, xsize, ysize, dlim,  method='hex', side=0L, log=False):
+def gridy(x, y, xsize, ysize, dlim,  method='hex', side=int(0), log=False):
     """ jitter points vertically"""
     g_offset, d_pos = _calculateGrid(x, dsize=xsize, gsize=ysize, dlim=dlim, method=method, side=side, log=log)
     return(g_offset+y, d_pos) # new_y, new_x
@@ -441,13 +453,83 @@ def colorvect(factors, df, color=('k','r')):
     groupby = df.groupby(list(factors))
     # get indices of unique group
     return([color[c] for c in groupby.grouper.group_info[0] % len(color)])
+    
+def stable_unique(a):
+    indices = np.unique(a, return_index=True)[1]
+    return [a[index] for index in sorted(indices)]
+
+
+def add_average_bar(ax, bs, pos='left', cap_marker_edge_width=1, label_values=False, label_values_offset=0, fmt="o", color="k", *args, **kwargs):
+    """
+    ax: axis of the beeswarm
+    bs: data frame returned by beeswarm
+    pos: position of the average bars of the beeswarm.
+        - "left": left of the swarm
+        - "right": right of the swarm
+        - a list of custom positions. Needs to be the same length as the number of swarms
+    cap_marker_edge_width: default 1. This deals with seaborn.
+    *args, **kwargs: additional arguments for ax.errorbar
+    """
+    gp = bs.groupby(by='xorig', sort=False)
+    mean0 = gp.mean()
+    serr0 = gp.agg(lambda x: np.std(x) / np.sqrt(np.shape(x)[0]))
+    if pos == 'left':
+        pos0 = gp.min()['xnew'].values-1.5*gp.std()['xnew']
+    elif pos == 'right':
+        pos0 = gp.max()['xnew'].values-1.5*gp.std()['xnew']
+    elif isinstance(pos, (list, tuple, np.ndarray)): # assume a list of positions
+        pos0 = np.asarray(pos)
+    else:
+        raise(TypeError('Unknown type of pos'))
+    
+    _, caps, _ = ax.errorbar(pos0, mean0['ynew'].values, serr0['ynew'].values, fmt=fmt, color=color, *args, **kwargs)
+    
+    if cap_marker_edge_width is not None:
+        for cap in caps:
+            cap.set_markeredgewidth(cap_marker_edge_width)
+            
+    if label_values:
+        if not isinstance(label_values_offset, (list, tuple, np.ndarray)):
+            label_values_offset = [label_values_offset]*len(pos0)
+        for p, yo, m, s in zip(pos0, label_values_offset, mean0['ynew'].values, serr0['ynew'].values):
+            ax.text(p, m+s*1.1+yo, "{:.1f}$\pm${:.1f}".format(m, s), va='bottom', ha='center')
+    
+    return ax
+
+
+def connect_paired_dots(ax, bs, zorder=0, pairs=[0, 1], *args, **kwargs):
+    """
+    Connect paired beeswarms
+    ax: axis of the beeswarm
+    bs: data frame returned by beeswram, assuming the first half is group1 and second half is group 2
+    *args, **kwargs, additional arguements for ax.plot
+    """
+
+    nrows = bs.shape[0] # should be a even number of rows
+    if nrows%2 != 0:
+        raise(ValueError('Number of rows of bs must be even!'))
+        
+    num_lines = int(nrows/2)
+    
+    # Sepeating the left and right dots
+    bs0 = bs.loc[bs['xorig']==pairs[0],:]
+    bs1 = bs.loc[bs['xorig']==pairs[1],:]
+    
+    for k in range(num_lines):
+        ax.plot(np.asarray([bs0.iloc[k]['xnew'], bs1.iloc[k]['xnew']]), 
+                np.asarray([bs0.iloc[k]['ynew'], bs1.iloc[k]['ynew']]), zorder=0, *args, **kwargs)
+        
+    return ax
+    
+    
+        
 
 if __name__=='__main__':
     from ImportData import FigureData
-    df = FigureData(dataFile='C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/beeswarm.csv')
+    df = FigureData(dataFile='D:/Edward/Documents/Assignments/Scripts/Python/Plots/example/beeswarm.csv')
     df = df.table
     values = 'time_survival'
     group = 'ER'
     cluster = 'event_survival'
-    ax, bs = beeswarm(values, df, group=group, cluster=cluster, figsize=(6,5),
+    ax, bs = beeswarm(df, values, group=group, cluster=cluster, figsize=(6,5),
                         method='swarm', legend=('yes','no'), legendtitle='Survival',corral='gutter')

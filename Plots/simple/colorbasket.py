@@ -104,12 +104,13 @@ def Tableau(cname='tableau10'):
     https://gist.github.com/Nepomuk/859fef81a912a9fe425e
     """
     return({
-    'tableau20':OrderedDict([('steelblue',(31, 119, 180)),('lightsteelblue',(174, 199, 232)),('darkorange',(255, 127, 14)), ('peachpuff',(255, 187, 120)), ('green',(44, 160, 44)), ('lightgreen',(152, 223, 138)),('crimson',(214, 39, 40)), ('lightcoral',(255, 152, 150)),('mediumpurple',(148, 103, 189)), ('thistle',(197, 176, 213)), ('saddlebrown',(140, 86, 75)),('rosybrown',(196, 156, 148)),('orhchid',(227, 119, 194)),('lightpink',(247, 182, 210)),('gray',(127, 127, 127)), ('lightgray',(199, 199, 199)),('olive',(188, 189, 34)),('palegoldenrod',(219, 219, 141)), ('mediumtorquoise',(23, 190, 207)),('paleturqoise',(158, 218, 229))]),
+    'tableau20':OrderedDict([('steelblue',(31,119,180)),('lightsteelblue',(174,199,232)),('darkorange',(255, 127, 14)), ('peachpuff',(255, 187, 120)), ('green',(44, 160, 44)), ('lightgreen',(152, 223, 138)),('crimson',(214, 39, 40)), ('lightcoral',(255, 152, 150)),('mediumpurple',(148, 103, 189)), ('thistle',(197, 176, 213)), ('saddlebrown',(140, 86, 75)),('rosybrown',(196, 156, 148)),('orhchid',(227, 119, 194)),('lightpink',(247, 182, 210)),('gray',(127, 127, 127)), ('lightgray',(199, 199, 199)),('olive',(188, 189, 34)),('palegoldenrod',(219, 219, 141)), ('mediumtorquoise',(23, 190, 207)),('paleturqoise',(158, 218, 229))]),
     'tableau10':OrderedDict([('steelblue',(31,119,180)),('darkorange',(255,127,14)),('green',(44,160,44)),('crimson',(214,39,40)),('mediumpurple',(148,103,189)),('saddlebrown',(140,86,75)),('orhchid',(227,119,194)),('gray',(127,127,127)),('olive',(188,189,34)),('mediumtorquoise',(23,190,207))]),
     'tableau10light':OrderedDict([('lightsteelblue',(174, 199, 232)),('peachpuff',(255, 187, 120)),('lightgreen',(152, 223, 138)),('lightcoral',(255, 152, 150)),('thistle',(197, 176, 213)),('rosybrown',(196, 156, 148)),('lightpink',(247, 182, 210)),('lightgray',(199, 199, 199)),('palegoldenrod',(219, 219, 141)),('paleturqoise',(158, 218, 229))]),
     'tableau10medium':OrderedDict([('cerulean',(114,158,206)),('orange',(255,158,74)),('younggreen',(103,191,92)),('red',(237,102,93)),('violet',(173,139,201)),('cocoa',(168,120,110)),('pink',(237,151,202)),('silver',(162,162,162)),('witheredyellow',(205,204,93)),('aqua',(109,204,218))]),
     'tableau10blind':OrderedDict([('deepskyblue4',(0, 107, 164)),('darkorange1',(255, 128,  14)),('darkgray',(171, 171, 171)),('dimgray',( 89,  89,  89)),('skyblue3',( 95, 158, 209)),('chocolate3',(200,  82,   0)),('gray',(137, 137, 137)),('slategray1',(163, 200, 236)),('sandybrown',(255, 188, 121)),('lightgray',(207, 207, 207))]),
-    'tableaugray5': OrderedDict([('gray1',(207,207,207)),('gray2',(165,172,175)),('gray3',(143,135,130)),('gray4',(96,99,106)),('gray5',(65,68,81))])
+    'tableaugray5': OrderedDict([('gray1',(207,207,207)),('gray2',(165,172,175)),('gray3',(143,135,130)),('gray4',(96,99,106)),('gray5',(65,68,81))]),
+    'tableau10new': OrderedDict([('steelblue', (78,121,167)), ('darkorange', (242,142,43)), ('crimson', (225,87,89)), ('turqoise', (118,183,178)), ('green', (89,175,79)), ('gold', (237,201,72)), ('vilot', (176,122,161)), ('pink', (255,157,167)), ('coffee', (156,117,95)), ('grey', (186,176,172))])
     }.get(cname))
 
 def MATLAB(cname='matlabnew'):
@@ -118,7 +119,7 @@ def MATLAB(cname='matlabnew'):
     'matlabnew': OrderedDict([('blue',(0, 114, 189)),('orange',(217, 83, 25)),('yellow',(237, 177, 31)), ('purple',(126, 47, 142)),('green',(119, 172, 48)),('skyblue',(77, 190, 238)),('crimson',(162, 19, 47))]),
     'matlabold': OrderedDict([('black',(0,0,0)),('red',(255,0,0)),('blue',(0,0,255)), ('orange',(255,165,0)),('green',(0,127,0)), ('cyan', (0, 191,191)),('magenta', (191, 0, 191))])
     }).get(cname)
-
+ 
 
 class ColorPalette(object):
     """Color Pallete utility"""

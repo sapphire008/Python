@@ -1588,9 +1588,9 @@ class Toolbox(QtWidgets.QWidget):
         """Remove widgets from a widgetFrame below row, excluding a reportBox"""
         nrows = widgetFrame.layout().rowCount()
         if nrows>row:
-            for row in range(row, nrows):
+            for r in range(row, nrows):
                 for col in range(widgetFrame.layout().columnCount()):
-                    currentItem = widgetFrame.layout().itemAtPosition(row, col)
+                    currentItem = widgetFrame.layout().itemAtPosition(r, col)
                     if currentItem is not None:
                         if currentItem.widget() is not reportBox:
                             currentItem.widget().deleteLater()
