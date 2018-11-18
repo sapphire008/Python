@@ -9,6 +9,8 @@
 
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../generic/")))
+
 import numpy as np
 from scipy.optimize import curve_fit
 from pdb import set_trace
@@ -16,11 +18,12 @@ from pdb import set_trace
 from PyQt5 import QtCore, QtGui, QtWidgets
 from QCodeEdit import QCodeEdit
 from ElideQLabel import ElideQLabel
+from MATLAB import *
 from FitOptions import *
 
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-__version__ = "PySynapse 0.4"
+__version__ = "Pycftool 0.1"
 
 def my_excepthook(type, value, tback):
     """This helps prevent program crashing upon an uncaught exception"""
@@ -659,32 +662,47 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             methods_dict.update({'degree': deg_spinBox})
         elif method == "Power":
             eqs_eqs_label = QtWidgets.QLabel("Equation:")
-            eqs_label = QtWidgets.QLabel("a*x**b")
+            eqs_label = QtWidgets.QLabel("a*x^b")
             numterms_label = QtWidgets.QLabel("Number of terms:")
             numterms_comboBox = QtWidgets.QComboBox()
             numterms_comboBox.addItems(["1", "2"])
-            numterms_comboBox.currentIndexChanged.connect(lambda index:
-                                    eqs_label.setText("a*x^b") if index == 0 else eqs_label.setText("a*x^b+c"))
+            numterms_comboBox.currentIndexChanged.connect(lambda index: on_numterms_changed(index, eqs_label, \
+                                                            {0: "a*x^b", 1: "a*x^b+c"}, \
+                                                            {0: ["a", "b"], 1: ["a", "b", "c"]}))
+            self.options.setMethod(method='2D: curve_fit')
+            self.options.setInitializationParameters(coefficients=['a', 'b'])
             fitopt_Button = QtWidgets.QPushButton("Fit Options...")
+            fitopt_Button.clicked.connect(lambda: self.options.show())
             methods_layout[(1, 0), (1, 1)] = numterms_label
             methods_layout[(1, 1), (1, 7)] = numterms_comboBox
             methods_layout[(2, 0), (1, 1)] = eqs_eqs_label
             methods_layout[(2, 1), (1, 6)] = eqs_label
             methods_layout[(3, 7), (1, 1)] = fitopt_Button
+            methods_dict.update({"terms": eqs_label})
         elif method == "Rational":
             numdeg_label = QtWidgets.QLabel("Numerator Degree:")
-            numdeg_lineEdit = QtWidgets.QLineEdit("0")
+            numdeg_spinBox = QtWidgets.QSpinBox()
+            numdeg_spinBox.setMinimum(0)
+            numdeg_spinBox.setValue(0)
             dendeg_label = QtWidgets.QLabel("Denominator Degree:")
-            dendeg_lineEdit = QtWidgets.QLineEdit("1")
+            dendeg_spinBox = QtWidgets.QSpinBox()
+            dendeg_spinBox.setValue(1)
+            dendeg_spinBox.setMinimum(1)
+            numdeg_spinBox.valueChanged.connect(lambda: self.on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
+            dendeg_spinBox.valueChanged.connect(lambda: self.on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
             centerScale_checkBox = QtWidgets.QCheckBox("Center and scale")
             centerScale_checkBox.setCheckState(self.centerscale)
+            self.options.setMethod(method='2D: curve_fit')
+            self.options.setInitializationParameters(coefficients=['p0', 'q0'])
             fitopt_Button = QtWidgets.QPushButton("Fit Options...")
+            fitopt_Button.clicked.connect(lambda: self.options.show())
             methods_layout[(1, 0), (1, 2)] = numdeg_label
-            methods_layout[(1, 2), (1, 6)] = numdeg_lineEdit
+            methods_layout[(1, 2), (1, 6)] = numdeg_spinBox
             methods_layout[(2, 0), (1, 2)] = dendeg_label
-            methods_layout[(2, 2), (1, 6)] = dendeg_lineEdit
+            methods_layout[(2, 2), (1, 6)] = dendeg_spinBox
             methods_layout[(3, 0), (1, 6)] = centerScale_checkBox
             methods_layout[(4, 7), (1, 1)] = fitopt_Button
+            methods_dict.update({'numdeg': numdeg_spinBox, 'dendeg': dendeg_spinBox, 'center_and_scale': centerScale_checkBox})
         elif method == "Smoothing Spline":
             smooth_param_label = QtWidgets.QLabel("Smoothing Parameter")
             default_radioButton = QtWidgets.QRadioButton("Default")
@@ -745,6 +763,11 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             raise(NotImplementedError("Unrecognized method: {}".format(method)))
         return methods_layout, methods_dict
 
+    def on_rational_deg_spinbox_changed(self, p, q):
+        terms_list = self.list_rational_terms(p, q)
+        self.options.setInitializationParameters(terms_list)
+        self.curveFit()
+
     def initialize_autofit(self, gbox):
         """Initialize the autofit groupBox in the tab"""
         gbox.setLayout(QtWidgets.QVBoxLayout())
@@ -782,6 +805,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         gbox.setLayout(QtWidgets.QGridLayout())
         self.result_textBox = QtWidgets.QTextEdit()
         self.result_textBox.setReadOnly(True)
+        self.result_textBox.setLineWrapMode(0)
         gbox.layout().addWidget(self.result_textBox)
 
     def initialize_display(self, gbox, method='2D'):
@@ -880,7 +904,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
                     # Remove the trace
                     p.removeItem(a)
 
-        if f0 is None: return
+        if f0 is None or isinstance(popt, Exception): return
         if self.params['dim'] == '2D':
             p_xrange, p_yrange = p.viewRange()
             x0_fit = np.linspace(p_xrange[0], p_xrange[1], 100)
@@ -1161,8 +1185,8 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         if self.params['dim'] == '2D':
             #if ~np.isnan(wdata0):
                 #ydata0 = ydata0 * wdata0
-            if self.params['method'] in ['Exponential', 'Weibull']:
-                popt, pcov, f0, fitted_params = self.fitExponential(xdata0, ydata0, terms=self.params['terms'])
+            if self.params['method'] in ['Exponential', 'Power', 'Weibull']:
+                popt, pcov, f0, fitted_params = self.fitTerms(xdata0, ydata0, terms=self.params['terms'])
                 self.graphFit(f0, popt) # Plot the fit
                 model.update({'formula': self.params['terms']}) # Output fitting results to the result box
             elif self.params['method'] == 'Polynomial':
@@ -1176,11 +1200,25 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
                                     'p0 + p1 * x + ... + p{0} * x^{0}'.format(self.params['degree']))
                 # Fitted params
                 fitted_params = ['p{:d}'.format(deg) for deg in range(self.params['degree']+1)]
+            elif self.params['method'] == 'Rational':
+                f0, f0_str = self.make_rational_function(p=self.params['numdeg'], q=self.params['dendeg'])
+                num_formula = {0: 'p0', 1: 'p1 * x + p0', 2: 'p2 * x^2 + p1 * x + p0'}.get(self.params['numdeg'],
+                                        'p{0} * x^{0} + ... + p1 * x + p0'.format(self.params['numdeg']))
+                den_formula = {1: 'x + q0', 2: 'x^2 + q1 * x + p0', 3: 'x^3 + q2 * x^2 + q1 * x + q0'}.get(self.params['dendeg'],
+                                        'x^{0} + ... + q1 * x + q0'.format(self.params['dendeg']))
+
+                model['formula'] = '  {}\n                    {}\n                        {}'.format(num_formula, "-"*(max(len(num_formula), len(den_formula))+5), den_formula)
+                model['type'] = model['type'] + ' (p = {:d}, q = {:d})'.format(self.params['numdeg'], self.params['dendeg'])
+
+                fitted_params = self.list_rational_terms(self.params['numdeg'], self.params['dendeg'])
+                popt, pcov, = self.call_curve_fit(f0, xdata0, ydata0, fitted_params)
+                self.graphFit(f0, popt) # Plot the fit
             else:
                 return
         else: # 3D
             return
 
+        # Output to results
         if pcov is not None:
             # Calculate goodness of fit
             gof = goodness_of_fit(xdata0, ydata0, popt, pcov, f0)
@@ -1194,39 +1232,80 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         else:
             self.outputResultText({'final_text': str(popt)})
 
-    def fitExponential(self, x0, y0, terms='a*exp(b*x)+c'):
+    def fitTerms(self, x0, y0, terms='a*exp(b*x)+c'):
+        """Fit a function with predefined equation"""
         if (isnumber(x0) and np.isnan(x0)) or (isnumber(y0) and np.isnan(y0)):
-            return "Need at least 2 dimensional data to fit", None, None, None
+            return Exception("Need at least 2 dimensional data to fit"), None, None, None
+
+        p0, bounds0 = None, None
 
         if terms == 'a*exp(b*x)':
             f0 = lambda x, a, b: a * np.exp(b * x)
             fitted_params = ['a', 'b']
-            fitted_params = ['a', 'b']
         elif terms == 'a*exp(b*x)+c':
             f0 = lambda x, a, b, c: a * np.exp(b * x) + c
             fitted_params = ['a', 'b', 'c']
+            # Add in help for fitting
+            p0 = fit_exp_with_offset(x0, y0)
         elif terms == 'a*exp(b*x) + c*exp(d*x)':
             f0 = lambda x, a, b, c, d: a * np.exp(b * x) + c * np.exp(d * x)
             fitted_params = ['a', 'b', 'c', 'd']
         elif terms == 'a*b*x^(b-1)*exp(-a*x^b)':  # Weibull
             f0 = lambda x, a, b: a * b * x ** (b - 1) * np.exp(-a * x ** b)
             fitted_params = ['a', 'b']
+        elif terms == 'a*x^b':
+            f0 = lambda x, a, b: a * x ** b
+            fitted_params = ['a', 'b']
+        elif terms == 'a*x^b+c':
+            f0 = lambda x, a, b, c: a * x ** b + c
+            fitted_params = ['a', 'b', 'c']
 
+        popt, pcov = self.call_curve_fit(f0, x0, y0, fitted_params, p0=p0, bounds0=bounds0)
+
+        return popt, pcov, f0, fitted_params
+
+    def call_curve_fit(self, f0, x0, y0, fitted_params, p0=None, bounds0=None):
         params = self.options.params
-        p0 = [params['coefficients'][l][0] for l in fitted_params]
-        bounds0 = (
-        [params['coefficients'][l][1] for l in fitted_params], [params['coefficients'][l][2] for l in fitted_params])
+        if p0 is None:
+            p0 = [params['coefficients'][l][0] for l in fitted_params]
+        if bounds0 is None:
+            bounds0 = (
+            [params['coefficients'][l][1] for l in fitted_params], [params['coefficients'][l][2] for l in fitted_params])
+        method = {'Trust-Region Reflective': 'trf', 'Levenberg-Marquardt': 'lm', 'Dog-Box': 'dogbox'}.get(params['algorithm'])
+
         try:
-            popt, pcov = curve_fit(f0, x0, y0, p0=p0, bounds=bounds0,
-                                   method={'Trust-Region Reflective': 'trf', 'Levenberg-Marquardt': 'lm',
-                                           'Dog-Box': 'dogbox'}.get(params['algorithm']),
-                                   max_nfev=params['maxfev'], ftol=params['ftol'], loss=params['loss'],
-                                   xtol=params['xtol'], gtol=params['gtol'])
-            return popt, pcov, f0, fitted_params
+            if method == 'lm':
+                popt, pcov = curve_fit(f0, x0, y0,
+                                       p0=p0, bounds=bounds0, method=method,
+                                       maxfev=0 if params['maxfev'] is None else params['maxfev'],
+                                       ftol=params['ftol'],
+                                       xtol=params['xtol'], gtol=params['gtol'])
+            else:
+                popt, pcov = curve_fit(f0, x0, y0,
+                                       p0=p0, bounds=bounds0, method=method,
+                                       max_nfev=params['maxfev'],
+                                       ftol=params['ftol'], loss=params['loss'],
+                                       xtol=params['xtol'], gtol=params['gtol'])
+            return popt, pcov
         except Exception as err:
             print(err)
             # set_trace()
-            return err, None, None, None
+            return err, None
+
+    def make_rational_function(self, p, q):
+        p_list = ", ".join(["p{:d}".format(n) for n in range(p+1)])
+        q_list = ", ".join(["q{:d}".format(n) for n in range(q)])
+        p_reverse_list = ", ".join(["p{:d}".format(n) for n in reversed(range(p+1))])
+        q_reverse_list = ", ".join(["q{:d}".format(n) for n in reversed(range(q))])
+        q_reverse_list = "1.0, " + q_reverse_list
+        f0_str = "lambda x, {0}, {1}: np.polyval([{2}], x) / np.polyval([{3}], x)".format(
+                                                p_list, q_list, p_reverse_list, q_reverse_list)
+        return eval(f0_str), f0_str # necessary evil
+
+    def list_rational_terms(self, p, q):
+        p_terms =  ["p{:d}".format(n) for n in range(p+1)]
+        q_terms = ["q{:d}".format(n) for n in range(q)]
+        return p_terms + q_terms
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -1245,9 +1324,9 @@ def cftool(xdata=None, ydata=None, zdata=None, wdata=None):
 
 if __name__ == "__main__":
     np.random.seed(42)
-    f0 = lambda x, a, b: a * b * x ** (b - 1) * np.exp(-a * x ** b)
+    f0 = lambda x, p0, p1, p2, q0, q1, q2: np.polyval([p2, p1, p0], x) / np.polyval([1, q2, q1, q0], x)
     Xdata = np.random.randn(1000)/100 + np.arange(0, 10, 0.01)+1
-    Ydata = np.random.randn(1000)/100 + f0(Xdata, 0.2, 0.5)  #5 * np.exp(-0.2*Xdata)+1
+    Ydata = np.random.randn(1000)/100 + f0(Xdata, 1, 5, 3, 2, 4, 3)  #5 * np.exp(-0.2*Xdata)+1
     Zdata = np.random.randn(1000)
     Wdata = np.random.randn(1000)*5
     X_small = np.array([1, 2, 3, 4])

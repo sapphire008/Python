@@ -5,7 +5,8 @@ A variety of interfaces for fit options
 import sys
 import os
 
-sys.path.append("/Volumes/Storage/Assignments/Scripts/Python/generic/")
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../generic/")))
+
 from MATLAB import *
 
 from PyQt5 import QtCore, QtGui, QtWidgets
