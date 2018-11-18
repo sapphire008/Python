@@ -651,7 +651,6 @@ def medfilt1(x, N):
     
     return result
 
-
 def goodness_of_fit(xdata, ydata, popt, pcov, f0):
     """Calculate goodness of fit from curve_fit
     popt, pcov: returend by curve_fit
@@ -708,9 +707,6 @@ def confidence_interval(ydata, popt, pcov, alpha=0.05, parameter_names=None):
             ci_list.append({'name': pname, 'mean': p, 'lower': p - tval * sigma, 'upper': p + tval * sigma})
 
     return ci_list
-
-
-
 
 def serr(X, axis=0, toarray=False, printerr=False, *args, **kwargs):
     try:
@@ -834,8 +830,102 @@ def get_alpha_duration(A, ts=0.1, thresh=0.95):
         return index[0]*ts
     else:
         return None # beyond the scope of the curve. Cannot calculate
-    
-    
+
+
+def fit_exp_with_offset(x, y, sort=False):
+    """
+    Fitting y = a * exp( b * x) + c
+    using non-iterative method based on
+    Regressions et Equations Integrales by Jean Jacquelin
+    https://math.stackexchange.com/questions/2318418/initial-guess-for-fitting-exponential-with-offset
+    """
+    if sort:
+        # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    #for k in range(1, len(S)):
+    #    S[k] = S[k-1] + 1/2 * (y[k] + y[k-1]) * (x[k] - x[k-1])
+
+    M = np.empty((2, 2))
+    N = np.empty((2, 1))
+
+    # Getting b
+    M[0, 0] = np.sum((x - x[0])**2)
+    M[0, 1] = np.sum((x - x[0]) * S)
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(S**2)
+
+
+    N[0, 0] = np.sum((y - y[0]) * (x - x[0]))
+    N[1, 0] = np.sum((y - y[0]) * S)
+
+    B = np.matmul(np.linalg.inv(M),  N)
+    b = B[1, 0]
+
+    # Getting a and c
+    M[0, 0] = len(x)
+    M[0, 1] = np.sum(np.exp(b*x))
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(np.exp(2*b*x))
+
+    N[0, 0] = np.sum(y)
+    N[1, 0] = np.sum(y * np.exp(b*x))
+    AC = np.matmul(np.linalg.inv(M), N)
+    c = AC[0, 0]
+    a = AC[1, 0]
+
+    return a, b, c
+
+def fit_gaussian_non_iter(x, y, sort=False):
+    """
+        Fitting Gaussian y = 1 / (sigma * sqrt(2 * pi)) * exp( -1/2 * ( (x - mu) / sigma )^2 )
+        using non-iterative method based on
+        Regressions et Equations Integrales by Jean Jacquelin
+        """
+    if sort:
+        # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    T = np.zeros_like(x)
+    x_y = x * y
+    T[1:] = 0.5 * ( x_y[:-1] + x_y[1:] ) * np.diff(x)
+    T = np.cumsum(T)
+
+    # S1 = np.zeros_like(x)
+    # T1 = np.zeros_like(x)
+    # for k in range(1, len(S1)):
+    #    S1[k] = S1[k-1] + 1/2 * (y[k] + y[k-1]) * (x[k] - x[k-1])
+    #    T1[k] = T1[k-1] + 1/2 * (y[k]*x[k] + y[k-1]*x[k-1]) * (x[k] - x[k-1])
+
+    M = np.empty((2, 2))
+    N = np.empty((2, 1))
+
+    # Getting the parameters
+    M[0, 0] = np.sum(S**2)
+    M[0, 1] = np.sum(S * T)
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(T**2)
+
+    N[0, 0] = np.sum((y - y[0]) * S)
+    N[1, 0] = np.sum((y - y[0]) * T)
+    AB = np.matmul(np.linalg.inv(M), N)
+    A = AB[0, 0]
+    B = AB[1, 0]
+
+    mu = - A / B
+
+    sigma = np.sqrt(-1 / B)
+
+    return mu, sigma
+
 def pairwise_diff(A, B):
     """ Calculate the pair wise difference between each element of the 
     two vectors of length N and M, respectively, and return a matrix of shape
@@ -846,10 +936,7 @@ def pairwise_diff(A, B):
     A = np.asarray(A).flatten()[:, np.newaxis]
     B = np.asarray(B).flatten()[np.newaxis,:]
     return A-B
-    
 
-
-        
 def gaussian_kernel(ts, sigma=300., n=5, normalize=False):
     """Make gaussian kernel centered at 0
     ts: sampling rate [ms]
@@ -876,7 +963,6 @@ def gaussian_kernel(ts, sigma=300., n=5, normalize=False):
         else:
             pass
     return(t, w)
-
 
 def exists(obj):
     """Check if a variable exists"""
@@ -1022,5 +1108,18 @@ if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
 #   A = ['a','b','a','c','a','b','c']
 #    C, IA, IC = uniquerows(A)
-    t, Y = frequency_modulated_sine(f0=0, f=10, duration=10, ts=0.0001, phase=0)
-    plt.plot(t, Y)
+    #x = np.arange(0, 10, 0.1)
+    #f0 = lambda x, a, b, c: a * np.exp(b*x)+c
+    #y = f0(x, 3, -3, 3) + np.random.randn(len(x))/10
+    #a, b, c = fit_exp_with_offset(x, y)
+    #plt.scatter(x, y)
+    #plt.plot(x, f0(x, a, b, c), 'r')
+    #plt.title('a={:.3f}, b={:.3f}, c={:.3f}'.format(a, b, c))
+    #print(a, b, c)
+    x = np.arange(-2.5, 7.1, 0.1)
+    f0 = lambda x, mu, sigma: 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp( -1/2 * ( (x - mu) / sigma )**2 )
+    y = f0(x, 2.08, 3.2) + np.random.randn(len(x))/100
+    mu, sigma= fit_gaussian_non_iter(x, y, sort=False)
+    plt.scatter(x, y)
+    plt.plot(x, f0(x, mu, sigma))
+    plt.title(r'$\mu$={:.3f}, $\sigma$={:.3f}'.format(mu, sigma))
