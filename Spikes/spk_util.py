@@ -17,10 +17,10 @@ except:
     try:
         from util.MATLAB import *
     except:
-        sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/Spikes/')
+        sys.path.append('/Users/edward/Documents/Scripts/Python/Spikes/')
         from MATLAB import *
-    
-        
+
+
 def time2ind(t, ts, t0=0):
     """Convert a time point to index of vector
     ind = time2ind(t, ts, t0)
@@ -316,15 +316,15 @@ def stionary_rect_kernel(ts, window=500.):
     t = time2ind(window, ts)
     w = np.concatenate((np.zeros(10), np.ones(t), np.zeros(10)))
     return(w)
-    
+
 
 def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, mph=0.5, mpd=1, step=1, criterion='se', thresh=3):
     """Intracellular post synaptic potential event detection based on
     Jonas et al, 1993: Quantal components of unitary EPSCs at the mossy fibre synapse on CA3 pyramidal cells of rat hippocampus.
     Clements and Bekkers, 1997: Detection of spontaneous synaptic events with an optimally scaled template.
     Cited by Guzman et al., 2014: Stimfit: quantifying electrophysiological data with Python
-    Inputs:    
-        * Vs: voltage or current time series  
+    Inputs:
+        * Vs: voltage or current time series
         * ts: sampling rate [ms]
         * event: event type
         * w: window of the template [ms]
@@ -340,7 +340,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
             This value depends on the criterion selected.
             'se': which is the default setting. Recommend 3 [Default]
             'corr': Recommend 0.95 (significance level of the correlation)
-            
+
     """
     step = step/ts
     t_vect = np.arange(0,w+ts,ts)
@@ -348,9 +348,9 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
         g = (1.0 - np.exp(-t/tau_RISE)) * np.exp(-t/tau_DECAY)
         g = g / np.max(g) # normalize the peak
         return g
-        
+
     p = p_t(t_vect, tau_RISE, tau_DECAY)
-    
+
     # Do some preprocessing first
     r_mean = np.mean(Vs)
     r = Vs - r_mean
@@ -361,7 +361,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
     chi_sq = np.zeros((np.arange(0, len(Vs), step).size,4)) # store fitting results
     A = np.vstack([p, np.ones(h)]).T
     for n, k in enumerate(np.arange(0, len(Vs), step, dtype=int)): # has total l steps
-        chi_sq[n,0] = int(k) # record index        
+        chi_sq[n,0] = int(k) # record index
         r_t = r[int(k):int(k+h)]
         q = np.linalg.lstsq(A, r_t)
         m, c = q[0] # m=scale, c=offset
@@ -370,7 +370,7 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
             chi_sq[n,3] = float(q[1]) # sum squared residual
         elif criterion == 'corr':
             chi_sq[n,3] = np.corrcoef(r_t, m*p+c)[0,1]
-    
+
     if criterion=='se':
         DetectionCriterion = chi_sq[:,1] / (np.sqrt(chi_sq[:,3]/(h-1)))
         if event in ['IPSP', 'EPSC']:
@@ -379,25 +379,25 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
         DetectionCriterion = chi_sq[:,3]
         DetectionCriterion = DetectionCriterion / np.sqrt((1-DetectionCriterion**2) /(h-2)) # t value
         DetectionCriterion = 1-st.t.sf(np.abs(DetectionCriterion), h-1)
-    
+
     # Run through general peak detection on the detection criterion trace
     ind, _ = findpeaks(DetectionCriterion, mph=thresh, mpd=mpd/ts)
-          
+
     pks = chi_sq[ind,1]
     ind = chi_sq[ind,0]
     # Filter out the detected events that is less than the minimum peak height requirement
-    if event in ['EPSP', 'IPSC']:    
+    if event in ['EPSP', 'IPSC']:
         valid_ind = pks>abs(mph)
     else:
         valid_ind = pks<-1*abs(mph)
-    
+
     pks = pks[valid_ind]
     ind = ind[valid_ind]
     event_time = ind2time(ind, ts)
-    
-        
+
+
     return event_time, pks, DetectionCriterion, chi_sq
-            
+
 
 def detectPSP_deconvolution():
     return
@@ -418,14 +418,14 @@ if __name__ == '__main__':
     Vs = zData.Voltage['A']
     ts = zData.Protocol.msPerPoint
 
-    
+
     ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
-    
+
     print(pks[0])
     print(pks[1])
     print(pks[2])
     print(pks[3])
-    
+
     from matplotlib import pyplot as plt
     plt.plot(Vs)
     plt.plot(ind, -65*np.ones_like(ind), 'ro')

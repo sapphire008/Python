@@ -81,6 +81,8 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         self.graphicsView = None
         # Set up fit options
         self.options = FitOptions(friend=self, method='2D: curve_fit')
+        # Expose data combobox for manipulation later
+        self.databox = {}
         self.DEBUG = False
         # Set up GUI window
         self.setupUi(self)
@@ -246,13 +248,13 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         x_comboBox  = QtWidgets.QComboBox()
         x_comboBox.addItems(comboList)
         x_comboBox.currentIndexChanged.connect(lambda: self.onDataChanged('xdata', x_comboBox.currentText()))
-        x_comboBox.setCurrentIndex(1)
+        x_comboBox.setCurrentIndex(1) # for development
 
         y_label = QtWidgets.QLabel("Y data:")
         y_comboBox  = QtWidgets.QComboBox()
         y_comboBox.addItems(comboList)
         y_comboBox.currentIndexChanged.connect(lambda: self.onDataChanged('ydata', y_comboBox.currentText()))
-        y_comboBox.setCurrentIndex(2)
+        y_comboBox.setCurrentIndex(2) # for development
 
         z_label = QtWidgets.QLabel("Z data:")
         z_comboBox  = QtWidgets.QComboBox()
@@ -266,6 +268,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         w_comboBox.currentIndexChanged.connect(lambda: self.onDataChanged('wdata', w_comboBox.currentText()))
         #w_comboBox.setCurrentIndex(0)
 
+        self.databox = {'xdata': x_comboBox, 'ydata': y_comboBox, 'zdata': z_comboBox, 'wdata': w_comboBox}
         gbox.layout().addWidget(fitname_label, 0, 0, 1, 1)
         gbox.layout().addWidget(fitname_text, 0, 1, 1, 1)
         gbox.layout().addWidget(x_label, 1, 0, 1, 1)
@@ -511,6 +514,11 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             self.options.setInitializationParameters(terms_dict.get(index))
             self.curveFit() # reissue curve fitting
 
+        def on_rational_deg_spinbox_changed(p, q):
+            terms_list = self.list_rational_terms(p, q)
+            self.options.setInitializationParameters(terms_list)
+            self.curveFit()
+
         methods_layout, methods_dict = {}, {'dim': '2D', 'method': method}
         if method == "Custom Equation":
             x_lineEdit = QtWidgets.QLineEdit("x")
@@ -562,7 +570,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             methods_layout[(3, 0), (1, 7)] = centerScale_checkBox
             methods_layout[(4, 7), (1, 1)] = fitopt_Button
             methods_dict.update({'terms': eqs_label, 'center_and_scale': centerScale_checkBox})
-        elif method == "Fourier": # Mixture of Fourier
+        elif method == "Fourier": # TODO Mixture of Fourier
             eqs_eqs_label = QtWidgets.QLabel("Equation:")
             eqs_label = ElideQLabel("a0 + a1*cos(x*w) + b1*sin(x*w)")
             eqs_label.setMinimumWidth(200)
@@ -660,6 +668,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             methods_layout[(1, 2), (1, 6)] = deg_spinBox
             methods_layout[(2, 0), (1, 6)] = centerScale_checkBox
             methods_dict.update({'degree': deg_spinBox})
+            # Done
         elif method == "Power":
             eqs_eqs_label = QtWidgets.QLabel("Equation:")
             eqs_label = QtWidgets.QLabel("a*x^b")
@@ -688,8 +697,8 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             dendeg_spinBox = QtWidgets.QSpinBox()
             dendeg_spinBox.setValue(1)
             dendeg_spinBox.setMinimum(1)
-            numdeg_spinBox.valueChanged.connect(lambda: self.on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
-            dendeg_spinBox.valueChanged.connect(lambda: self.on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
+            numdeg_spinBox.valueChanged.connect(lambda: on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
+            dendeg_spinBox.valueChanged.connect(lambda: on_rational_deg_spinbox_changed(numdeg_spinBox.value(), dendeg_spinBox.value()))
             centerScale_checkBox = QtWidgets.QCheckBox("Center and scale")
             centerScale_checkBox.setCheckState(self.centerscale)
             self.options.setMethod(method='2D: curve_fit')
@@ -760,13 +769,9 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
             methods_layout[(2, 7), (1, 1)] = fitopt_Button
             methods_dict.update({'terms': eqs_label})
         else:
+            # TODO: Poisson, Logarithmic, Logistic/Sigmoid
             raise(NotImplementedError("Unrecognized method: {}".format(method)))
         return methods_layout, methods_dict
-
-    def on_rational_deg_spinbox_changed(self, p, q):
-        terms_list = self.list_rational_terms(p, q)
-        self.options.setInitializationParameters(terms_list)
-        self.curveFit()
 
     def initialize_autofit(self, gbox):
         """Initialize the autofit groupBox in the tab"""
@@ -774,7 +779,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         autofit_checkBox = QtWidgets.QCheckBox("Auto fit")
         autofit_checkBox.setCheckState(self.autofit)
         fit_pushButton = QtWidgets.QPushButton("Fit")
-        fit_pushButton.clicked.connect(lambda: self.onFitButtonClicked())
+        fit_pushButton.clicked.connect(lambda: self.curveFit())
         fit_pushButton.setEnabled(False)
         stop_pushButton = QtWidgets.QPushButton("Stop")
         stop_pushButton.clicked.connect(lambda: self.onStopButtonClicked())
@@ -793,9 +798,6 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         else:
             fit_pushButton.setEnabled(True)
             stop_pushButton.setEnabled(True)
-
-    def onFitButtonClicked(self):
-        pass
 
     def onStopButtonClicked(self):
         pass
@@ -1311,7 +1313,7 @@ class cftool_MainWindow(QtWidgets.QMainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
 
 
-def cftool(xdata=None, ydata=None, zdata=None, wdata=None):
+def cftool(*args, **kwargs):
     """
     Wrapper function to call cftool GUI
     :param xdata: x data
