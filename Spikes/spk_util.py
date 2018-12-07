@@ -7,9 +7,13 @@ Some routines for electrophysiology data analyses
 @author: Edward
 """
 import sys
+import os
 import numpy as np
 import scipy.signal as sg
 import scipy.stats as st
+from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
+
 # from pdb import set_trace
 try:
     from MATLAB import *
@@ -17,7 +21,7 @@ except:
     try:
         from util.MATLAB import *
     except:
-        sys.path.append('/Users/edward/Documents/Scripts/Python/Spikes/')
+        sys.path.append('D:/Edward/Documents/Assignments/Scripts/Python/Spikes/')
         from MATLAB import *
 
 
@@ -79,7 +83,7 @@ def spk_window(Vs, ts, Window, t0=0):
     dur = len(Vs)
     # Start / end indices
     def parse_window(x, none_allowed, min_allowed, max_allowed, func):
-        if x is None:
+        if x is None or np.isnan(x):
             x = none_allowed
         else:
             x = func(x) # apply the transformation
@@ -126,28 +130,31 @@ def spk_average(Vs, ts=None, Window=None, axis=0, t0=0):
     return(Vs)
 
 
-def spk_count(Vs, ts, msh=-10.0, msd=1.0, **kwargs):
+def spk_count(Vs, ts, window=None, msh=-10.0, msd=1.0, **kwargs):
     """ Count the number of action potentials given a time series, using simple
         threshold based peak detection algorithm
     num_spikes, spike_time, spike_heights = spk_count(Vs, ts, **kwargs)
     Inputs:
-        Vs: voltage time series [mV].
-        ts: sampling rate [ms]
-        msh: minimum height of the spike. Default -10.0 [mV].
-        msd: minimum distances between detected spikes. Default 1.0 [ms].
+        * Vs: voltage time series [mV].
+        * ts: sampling rate [ms]
+        * msh: minimum height of the spike. Default -10.0 [mV].
+        * msd: minimum distances between detected spikes. Default 1.0 [ms].
+        * window: window the Vs trace first before counting the spike. 
+                Default None.
         **kwargs: optional inputs for "findpeaks"
 
     Note that min_spike_height needs to be in the same unit as Vs;
               min_spike_dist needs to be in the same unit as ts.
 
     Outputs:
-       num_spikes: number of spikes for each trial
-       spike_time: indices of the spike, returned as one cell array of time
+       * num_spikes: number of spikes for each trial
+       * spike_time: indices of the spike, returned as one cell array of time
                    vectors per trial
-       spike_heights: voltage of the spike [mV], returned as one cell array
+       * spike_heights: voltage of the spike [mV], returned as one cell array
                    of spike heights per trial
     """
-
+    if window is not None:
+        Vs = spk_window(Vs, ts, window)
     # find spikes
     if msd is not None:
         msd = float(msd) / float(ts)
@@ -158,6 +165,29 @@ def spk_count(Vs, ts, msh=-10.0, msd=1.0, **kwargs):
     spike_time = ind2time(ind, ts)
 
     return(num_spikes, spike_time, spike_heights)
+    
+def spk_bin(spk_times, stim=[0,2000], num_bins=40, cumulative=True):
+    """
+    Binning spikes given spike times
+        * spk_times: time of spikes
+        * stim: stimulus duration, or the window of which the spikes are binned from
+        * num_bins: number of bins given the duration of the window
+        * cumulative: cumulatively sum the spike count so far, default True
+    """
+    time_bins = np.linspace(0, stim[1]-stim[0], num_bins+1)
+    time_bins = np.c_[time_bins[:-1], time_bins[1:]]
+    time_bins = np.c_[time_bins.mean(axis=1), time_bins]
+    
+    spike_bins = np.zeros(time_bins.shape[0])
+    spk_times = spk_times - stim[0]
+    
+    for n, t in enumerate(time_bins):
+        spike_bins[n] = np.logical_and(spk_times >= time_bins[n, 1], spk_times < time_bins[n, 2]).sum(dtype=int)
+        
+    if cumulative:
+        spike_bins = np.cumsum(spike_bins, dtype=int)
+    
+    return spike_bins, time_bins
 
 def spk_filter(Vs, ts, Wn, N=6, btype='bandpass'):
     """Filter time series
@@ -199,6 +229,7 @@ def spk_dirac(ts=1., dur=1, phi=0., h=1., collapse=True):
              classic Dirac delta function. Input as a vector to return one
              Delta function for each phi.
         h: Height of the singularity (origin) where non-zero value occur.
+           This can be either a scalar or an array of the same size as phi.
            Deafult heigth is 1.
         collapse: [true|false] collaspe Dirac function with different phase
                   shifts by adding across phi (columns). Default is true.
@@ -288,9 +319,8 @@ def spk_firing_rate(Vs, ts, method='gaussian', debug=False, sigma=300., n=5,
 
     return(R)
 
-
 def stationary_gaussian_kernel(ts, sigma=300., n=5):
-    """Make gaussian kernel
+    """Make gaussian kernel centered at 0
     ts: sampling rate [ms]
     n: use n standard deviations below and above 0 (mean).
     sigma: standard deviation (width of Gaussian kernel) [ms].
@@ -402,32 +432,350 @@ def detectPSP_template_matching(Vs, ts, event, w=200, tau_RISE=1, tau_DECAY=4, m
 def detectPSP_deconvolution():
     return
 
+def detrending(Vs, ts, mode='linear'):
+    """Detrend the data. Useful for calculating mean independent noise.
+    mode:
+        'mean': simply remove mean
+        'linear' (Deafult),'nearest', 'zero', 'slinear', 'quadratic', 'cubic': using interp1d
+        'polyN': fit a polynomial for Nth degree. e.g. 'poly3' fits a cubic curve
+    Do not mistake 'linear' mode as removing a global linear trend. For removing global linear trend,
+    use 'poly1'
 
+    Note that after detrending the mean would be zero. To keep the mean of the
+    trace, remove mean before detrending, then add mean back.
+    """
+    if mode=='mean':
+        return Vs - np.mean(Vs)
+    else:
+        x = np.arange(0, len(Vs)*ts, ts)
+        if mode in ['linear','nearest', 'zero', 'slinear', 'quadratic', 'cubic']:
+            p = interp1d(x, Vs, kind=mode)
+        elif mode[:4]=='poly':
+            deg = str2num(mode[4:])
+            p = np.poly1d(np.polyfit(x,  Vs, deg))
+
+        y_hat = p(x)
+
+        return Vs - y_hat
+
+def detectSpikes_cell_attached(Is, ts, msh=30, msd=10, basefilt=20, maxsh=300,
+                               removebase=False, **kwargs):
+    """Detect cell attached extracellular spikes
+    Is: current time series
+    ts: sampling rate (ms)
+    msh: min spike height (Default 30pA)
+    msd: min spike distance (Default 10ms)
+    basefilt: baseline medfilt filter order in ms (Default 20)
+    maxsh: maximum spike height. Helpful to remove stimulation artifacts.
+            (Default 300)
+    removebase: remove baseline when returning height. This will result
+            absolute height of spike relative to the baseline. If set to false,
+            returning the value of the spike, before filtering. (Default False)
+    **kwargs: additional arguments for "findpeaks"
+    """
+    # Make sure medfilt kernel size is odd
+    # Median filter out the spikes to get baseline
+    Base = medfilt1(Is, int(basefilt/ts/2)*2+1) # Use custom medfilt1
+    msd = msd / ts
+    Is = Is - Base
+    # Invert Is because of voltage clamp mode, resulting inward current being
+    # negative.
+    [LOCS, PKS] = findpeaks(-Is, mph=msh, mpd=msd, **kwargs)
+    num_spikes = len(PKS)
+    spike_time = ind2time(LOCS, ts)
+    # Remove peaks exceeding max height
+    ind = np.where(PKS<maxsh)
+    LOCS = LOCS[ind]
+    PKS = PKS[ind]
+    if removebase:
+        spike_heights = PKS
+    else:
+        spike_heights = -PKS + Base[LOCS]
+    return num_spikes, spike_time, spike_heights
+
+
+def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0, direction='up'):
+    """Calculate the series resistance based on capacitance artifact
+    * Inputs:
+        - Is: current time series (pA)
+        - Vs: voltage step time series (mV)
+        - ts: sampling rate (ms)
+        - window: a window that contains the capcitance artifact, [baseline, end_of_artifact]
+        - scalefactor: scale factor of the current time series
+        - direction ["up"(default)|"down"]: is the artifact upswing or downswing
+    * Outputs:
+        - R_series: series resistance [MOhm]
+        - tau: time constant of the exponential fit on the artifact [ms]
+        - rsquare: adjusted R square of exponential fit on the artifact
+    """
+    if window is not None:
+        Is = spk_window(Is, ts, window)
+        Vs = spk_window(Vs, ts, window)
+        
+    if direction != 'up':
+        Is = -Is
+        Vs = -Vs
+
+    index = np.argmax(Is)
+    Is_fit = Is[index:]
+    Is_fit = Is_fit - np.mean(Is_fit[-5:])
+    Ts_fit = np.arange(0, len(Is_fit)*ts, ts)
+    
+    # plt.plot(Ts_fit, Is_fit)
+    # Fitting the best possible
+    f0 = lambda x, a, b: a*np.exp(-b*x)
+    popt1, pcov1 = curve_fit(f0, Ts_fit, Is_fit, [np.max(Is_fit), 0.5])
+    gof1 = goodness_of_fit(Ts_fit, Is_fit, popt1, pcov1, f0)
+    #print(gof1['adjrsquare'])
+    #return Ts_fit, Is_fit, popt1
+
+    if gof1['adjrsquare'] > 0.85:
+        tau = 1.0 / np.abs(popt1[1])    
+        rsquare = gof1['adjrsquare']
+    else:
+        f0 = lambda x, a, b, c: a*np.exp(-b*x)+c
+        popt2, pcov2 = curve_fit(f0, Ts_fit, Is_fit,  [np.max(Is_fit), 0.5, np.min(Is_fit)])
+        gof2 = goodness_of_fit(Ts_fit, Is_fit, popt2, pcov2, f0)
+        if gof2['adjrsquare'] > 0.85:
+            tau = 1.0 / np.abs(popt2[1])
+            rsquare = gof2['adjrsquare']
+        else:    
+            f0 = lambda x, a, b, c, d: a*np.exp(-b*x) + c*np.exp(d*x)
+            popt3, pcov3 = curve_fit(f0, Ts_fit, Is_fit,  [np.max(Is_fit), 0.5, np.min(Is_fit), 0.5])
+            gof3 = goodness_of_fit(Ts_fit, Is_fit, popt3, pcov3, f0)
+            tau = np.max(1.0/np.array([popt3[1], popt3[3]]))
+            rsquare = gof3['adjrsquare']
+
+    # Integrate the current over the window to get total charge
+    Is = Is - np.mean(Is[-5:])
+    Q = np.sum(Is[Is>0]) * ts / scalefactor
+    
+    C_m = Q / np.abs(Vs[-1] - Vs[0]) # [pF]
+    R_series = tau / C_m * 1000 # [MOhm]
+
+    return R_series, tau, rsquare
+
+
+def spk_get_stim(Ss, ts, longest_row=True, decimals=0):
+    """Serve as an example on how to extract the strongest 
+    and longest stimulus given the stimulus trace
+    
+    Inputs:
+        Ss: time series of stimulus trace
+        ts: sampling rate [seconds]
+    Returns [start, end, intensity]
+    """
+    stim_amp = np.max(Ss)
+    stim = np.where(Ss == stim_amp)[0]
+    consec_index = getconsecutiveindex(stim)
+    # Get the longest stimulus
+    if longest_row:
+        longest_row = np.argmax(np.diff(consec_index, axis=1))
+        stim = stim[consec_index[longest_row, :]]
+        stim = np.round(ind2time(stim, ts), decimals=decimals)
+        stim = np.concatenate((stim, np.asarray([stim_amp])), axis=0)
+    else: # can have multiple stims
+        tmp_stim = np.empty((consec_index.shape[0], consec_index.shape[1]))
+        for r in range(consec_index.shape[0]):
+            tmp_stim[r, :] = np.round(ind2time(stim[consec_index[r,:]], ts), decimals=decimals)
+            
+        stim = np.c_[tmp_stim, stim_amp*np.ones((consec_index.shape[0], 1))]
+        
+                    
+    return stim
+
+
+def spk_get_rin(Vs, ts, neg=[], Ss=None, base_win=[-100, 0], rin_win=[-100,0], base_func=np.mean, rin_func=np.mean, relative_rin_win_end=True):
+    """
+    Vs: voltage [mV]
+    ts: sampling interval [ms]
+    neg: a window of the Rin negative step [start, end (,intensity)], either size 2 or 3. If size 2, Ss argument must be specified
+    Ss: time series of the same length as Vs. Needed when len(neg)==2
+    base_win: baseline window
+    rin_win: Rin window
+    base_func: function applied to the base_win to extract the number. Default np.mean
+    rin_func: function applied to the rin_win. Default np.mean
+    relative_rin_win_end: If True: base_win is relative to neg[0], and rin_win to neg[1]
+    """
+    if len(neg) == 3:
+        Rin =(rin_func(spk_window(Vs, ts, rin_win + neg[1])) - base_func(spk_window(Vs, ts, base_win + neg[0]))) / neg[2] * 1000
+    elif len(neg) == 2: 
+        if Ss is None:
+            raise(Exception("Stimulus intensity is not specified"))
+        
+        Rin = (rin_func(spk_window(Vs, ts, rin_win + neg[1])) - base_func(spk_window(Vs, ts, base_win + neg[0]))) /  \
+               (np.mean(spk_window(Ss, ts, rin_win + neg[1])) - np.mean(spk_window(Ss, ts, base_win + neg[0]))) * 1000
+    else:
+        raise(Exception("Length of neg must be at least 2"))
+        
+    return Rin
+        
+
+# %%
+def spk_time_distance(spike_time, method="victor&purpura", *args, **kwargs):
+    if method == "victor&purpura":
+        spkd_victor_and_purpura(tli, tlj, cost)
+    return
+
+def spkd_victor_and_purpura(tli, tlj, cost=0):
+    """Calculate the "spike time" distance (Victor & Purpura 1996) for a single
+    cost between a pair of spike trains
+    
+    tli: vector of spike times for first spike train
+    tlj: vector of spike times for second spike train
+    cost: cost per unit time to move a spike
+     
+    Translated from origial MATLAB script by Daniel Reich
+    http://www-users.med.cornell.edu/~jdvicto/spkdm.html
+    
+    Original MATALB script license:
+    Copyright (c) 1999 by Daniel Reich and Jonathan Victor.
+    Translated to Matlab by Daniel Reich from FORTRAN code by Jonathan Victor.
+    """
+    nspi = len(tli)
+    nspj = len(tlj)
+    if cost == 0:
+        return abs(nspi-nspj)
+    elif cost == np.inf:
+        return nspi+nspj
+    
+    scr = np.zeros((nspi+1, nspj+1))
+    # Initialize margins with cost of adding a spike
+    scr[:, 0] = np.arange(0, nspi+1, 1)
+    scr[0, :] = np.arange(0, nspj+1, 1)
+    if nspi and nspj: # if neither is zero
+        for i in range(1, nspj+1):
+            for j in range(1, nspj+1):
+                # Finding the minimum of adding a spike, removing a spike, or moving a spike
+                scr[i,j]=np.min([scr[i-1,j]+1, scr[i,j-1]+1, scr[i-1,j-1]+cost*np.abs(tli[i-1]-tlj[j-1])])
+
+    return scr[nspi, nspj]
+
+def spkd_victor_purpura_interval(tli, tlj, cost=0, tsamp=2000):
+    """Calculates distance between two spike trains in the
+    spike interval metric by a continuum modification of the 
+    sellers algorithm
+    
+    Inputs:
+        tli: vector of spike times for first spike train
+        tlj: vector of spike times for second spike train
+        cost: cost per unit time to move a spike
+        tsamp: the length of the entire interval
+        
+    """
+    
+    nspi = len(tli) # number of spike times in train 1
+    nspj = len(tlj) # number of spike times in train 2
+    
+    ni = nspi + 1 # number of intervals in train 1
+    nj = nspj + 1 # number fo intervals in train 2
+    scr = np.zeros((ni+1, nj+1))
+    
+    # Define calculation for a cost of zero
+    if cost == 0:
+        d = np.abs(ni-nj)
+        return d, scr
+    
+    # Initialize margins with cost of adding a spike
+    scr[:, 0] = np.arange(0, ni+1, 1)
+    scr[0, :] = np.arange(0, nj+1, 1)
+    
+    tli_diff = np.diff(tli)
+    tlj_diff = np.diff(tlj)
+    
+    for i in range(0, ni):
+        if i>0 and i<ni-1: # in the middle
+            di = tli_diff[i-1]
+        elif i==0 and i==ni-1: # ni == 1 at the beginning
+            di = tsamp
+        elif i==0 and i<ni-1: # ni > 1 at the beginning
+            di = tli[i]
+        else: # otherwise
+            di = tsamp - tli[i-1]
+        
+        iend = i==0 or i==ni-1
+        
+        # Unrolled loop for j = 1
+        # -----------------------
+        if nj == 1:
+            dj = tsamp
+        else: # j < nj
+            dj = tlj[0]
+        
+        if iend:
+            dist = 0
+        else: # jend
+            dist = np.max([0, dj-di])
+            
+        scr[i+1, 1] = np.min([scr[i,1]+1, scr[i+1, 0]+1, scr[i,0]+cost*dist])
+        
+        # Main code
+        # -----------------------
+        for j in range(1, nj-1):
+            dj = tlj_diff[j-1]
+            
+            if iend:
+                dist = np.max([0, di-dj])
+            else:
+                dist = np.abs(di-dj)
+            
+            scr[i+1, j+1] = np.min([scr[i, j+1]+1, scr[i+1, j]+1, scr[i,j]+cost*dist])
+            
+        # Unrolled loop for j = nj
+        if nj == 0:
+            dj = tsamp
+        else:
+            dj = tsamp - tlj[nj-2]
+            
+        if iend:
+            dist = 0
+        else:
+            dist = np.max([0, dj-di])
+        
+        scr[i+1, nj] = np.min([scr[i, nj]+1,  scr[i+1, nj-1]+1,  scr[i, nj-1]+cost*dist])
+    
+    return scr[ni, nj]
+
+
+# %% Simultaions
+def spk_make_epsp_train(event_time, duration=10000, ts=0.1, 
+                        alpha_dict={'duration':1000, 'amplitude':150, 'tau1':50, 'tau2':100}):    
+    alpha_dict['ts'] = ts
+    
+    T = np.arange(0, duration+ts, ts)
+    R = spk_dirac(ts=ts, dur=[0, duration], phi=event_time, h=1., collapse=True)
+    epsp = alpha(**alpha_dict)
+    epsp_train = sg.convolve(R, epsp, mode="full")[:len(T)] # faster
+    return epsp_train
+
+# %%
 if __name__ == '__main__':
-    # test smoothed firing rate
-#    from ImportData import *
-#    zData = 'D:/Data/Traces/2015/09.September/Data 24 Sep 2015/Neocortex J.24Sep15.S1.E16.dat'
-#    zData = NeuroData(zData, old=True)
-#    Vs = zData.Voltage['A']
-#    ts = zData.Protocol.msPerPoint
-#    R = spk_firing_rate(Vs, ts, sigma=300.)
-#    from matplotlib import pyplot as plt
-#    plt.plot(R)
     from ImportData import *
-    zData = NeuroData('D:/Data/Traces/2015/08.August/Data 10 Aug 2015/Neocortex A.10Aug15.S1.E35.dat', old=True)
-    Vs = zData.Voltage['A']
-    ts = zData.Protocol.msPerPoint
-
-
-    ind, pks, DetectionCriterion, chi_sq = detectPSP_template_matching(Vs, ts, 'EPSP', step=10, criterion='se', thresh=3)
-
-    print(pks[0])
-    print(pks[1])
-    print(pks[2])
-    print(pks[3])
-
     from matplotlib import pyplot as plt
-    plt.plot(Vs)
-    plt.plot(ind, -65*np.ones_like(ind), 'ro')
-    plt.figure()
-    plt.plot(DetectionCriterion)
+    
+    Base = 'Neocortex N.30May16.S1.E67'
+    Similar = 'Neocortex N.30May16.S1.E71'
+    Similar2 = 'Neocortex N.30May16.S1.E58'
+    Different = 'Neocortex N.30May16.S1.E64'
+    Different2 = 'Neocortex N.30May16.S1.E68'
+    
+    def get_spike_num(path):
+        zData = load_trace(path)
+        ts = zData.Protocol.msPerPoint
+        stim = spk_get_stim(zData.Stimulus['A'], ts)
+        Vs = spk_window(zData.Voltage['A'], ts, np.array([0, 2000]) + stim[0])
+        _, spk_time, _ = spk_count(Vs, ts)
+        return spk_time, Vs
+        
+    
+    Base_spk, _ = get_spike_num(Base)
+    Similar_spk,_ = get_spike_num(Similar)
+    Similar2_spk,Vs = get_spike_num(Similar2)
+    Different_spk,_ = get_spike_num(Different)
+    Different2_spk,_ = get_spike_num(Different)
+    
+    d = spkd_victor_and_purpura(Base_spk, Similar_spk, cost=0.1)
+        
+    d = spkd_victor_purpura_interval(Base_spk, Similar_spk, cost=0.1, tsamp=2000)
+    
+

@@ -12,7 +12,7 @@ import zipfile
 import six
 import re
 from pdb import set_trace
-
+from collections import OrderedDict
 # import matplotlib.pyplot as plt
 
 def readVBString(fid):
@@ -27,19 +27,6 @@ def readVBString(fid):
         elif six.PY3:
             tmp = np.fromfile(fid, '|S1', stringLength)
             return(np.ndarray.tostring(tmp).decode('UTF-8'))
-
-def isempty(m):
-    """Return true if:
-    a). an empty string
-    b). a list of length zero
-    c). a tuple of length zero
-    d). a numpy array of length zero
-    e). a singleton that is not None
-    """
-    if isinstance(m, (list, tuple, str, np.ndarray)):
-        return len(m) == 0
-    else:
-        return True if m else False
 
 class Protocol(object): # for composition
     pass
@@ -113,7 +100,11 @@ class NeuroData(object):
                 ttlDataStr += self.generateTTLdesc(chanCounter, self.Protocol.ttlData[-1])
                 chanCounter += 1
             #print(fid.tell())
-
+            
+            self.Protocol.ttlDict = []
+            for index, ttlData in enumerate(self.Protocol.ttlData):
+                self.Protocol.ttlDict.append(self.parseTTLArray_old(ttlData))
+                
             # read in DAC information
             self.Protocol.dacData = []
             self.Protocol.dacName = []
@@ -125,9 +116,6 @@ class NeuroData(object):
                 self.Protocol.dacName.append(readVBString(fid))
                 dacDataStr += self.generateDACdesc(chanCounter, self.Protocol.dacData[-1])
                 chanCounter += 1
-
-            # Stimulus description
-            self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip()).strip()
 
             #print(fid.tell())
             # Get other parameters
@@ -152,6 +140,9 @@ class NeuroData(object):
             self.Protocol.ampDesc = []
             for index in range(self.Protocol.numChannels):
                 self.Protocol.ampDesc.append(readVBString(fid))
+
+            # Stimulus description
+            self.Protocol.stimDesc = (dacDataStr.strip() + " " + ttlDataStr.strip() + " " + self.Protocol.acquireComment).strip()
 
             # Get Channel info
             channelDict = {'VoltADC1':'VoltA','VoltADC3':'VoltB',
@@ -198,6 +189,12 @@ class NeuroData(object):
         # close file
         fid.close()
 
+    def TTL2Stim_old(self, TTLarray):
+        TTL = self.parseTTLArray_old(TTLarray)
+        TTL_trace = np.arange(0, duration+ts, ts)
+        return TTL_trace
+        
+        
     @staticmethod
     def epiTime(inTime):
         """Convert seconds into HH:MM:SS"""
@@ -225,11 +222,11 @@ class NeuroData(object):
                     "{:0.0f}".format(data[7]) + " ms)"
             if data[14]:
                 if data[17] != 0:
-                    pulse += "PulseA " + "{:0.0f}".format(data[17]) + " "
+                    pulse += "PulseA " + "{:0.0f}".format(data[17]) + " [{:0.0f},{:0.0f}]".format(data[15], data[16]) + ";"
                 if data[20] !=  0:
-                    pulse += "PulseB " + "{:0.0f}".format(data[20]) + " "
+                    pulse += "PulseB " + "{:0.0f}".format(data[20]) + " [{:0.0f},{:0.0f}]".format(data[18], data[19]) + ";"
                 if data[23] != 0:
-                    pulse += "PulseC " + "{:0.0f}".format(data[23]) + " "
+                    pulse += "PulseC " + "{:0.0f}".format(data[23]) + " [{:0.0f},{:0.0f}]".format(data[21], data[22]) + ";"
             if len(step) > 0 or len(pulse) > 0:
                 result = "DAC" + str(chanNum) + ": "
                 if len(step) > 0:
@@ -265,10 +262,50 @@ class NeuroData(object):
         else:
             retStr = ""
         return retStr.strip()
+    
+    @staticmethod
+    def parseTTLArray_old(TTLarray):
+        """Convert the TTL array into meaningful dictionary"""
+        TTL = OrderedDict()
+        TTL['is_on'] = TTLarray[0]
+        TTL['use_AWF'] = TTLarray[1]
+        TTL['Step_is_on'] = TTLarray[2]
+        TTL['Step_Latency'] = TTLarray[3]
+        TTL['Step_Duration'] = TTLarray[4]
+        TTL['SIU_Single_Shocks_is_on'] = TTLarray[5]
+        TTL['SIU_A'] = TTLarray[6]
+        TTL['SIU_B'] = TTLarray[7]
+        TTL['SIU_C'] = TTLarray[8]
+        TTL['SIU_D'] = TTLarray[9]
+        TTL['SIU_Train_is_on'] = TTLarray[10]
+        TTL['SIU_Train_of_Bursts_is_on'] = TTLarray[11]
+        TTL['SIU_Train_Start'] = TTLarray[12]
+        TTL['SIU_Train_Interval'] = TTLarray[13] # stimulate every x ms
+        TTL['SIU_Train_Number'] = TTLarray[14]
+        TTL['SIU_Train_Burst_Interval'] = TTLarray[15]
+        TTL['SIU_Train_Burst_Number'] = TTLarray[16]
+        return TTL
+
+    @staticmethod
+    def parseGenArray_old(GenArray):
+        """Convert genData array into meaningful dictionary"""
+        Gen = OrderedDict()
+        Gen['chantype'] = GenArray[3:11]
+        Gen['chanGain'] = GenArray[11:19]
+        Gen['chanExtGain'] = GenArray[19:27]
+        Gen['AuxTTlEnable'] = GenArray[51]
+        Gen['extTrig'] = GenArray[52]
+        Gen['SIUDuration'] = GenArray[53]
+        Gen['episodicMode'] = GenArray[54]
+        Gen['programCode'] = GenArray[55]
+        return Gen
+        
 
 def load_trace(cellname, basedir='D:/Data/Traces', old=True, infoOnly=False, *args, **kwargs):
     """Wrapper function to load NeuroData, assuming the data structure we have
     implemented in get_cellpath"""
+    if isinstance(cellname, (list, tuple, np.ndarray)):
+        cellname = ".".join(list(cellname))
     cell_path = os.path.join(basedir, get_cellpath(cellname))
     zData = NeuroData(dataFile=cell_path, old=old, infoOnly=infoOnly, *args, **kwargs)
     return zData
@@ -591,14 +628,14 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     """Infer full path of the cell given cell label (without file extension)
     e.g. Neocortex A.09Sep15.S1.E13 should yield
     ./2015/09.September/Data 9 Sep 15/Neocortex A.09sep15.S1.E13.dat"""
-    cell_label = cell_label.strip('.dat')
+    cell_label = cell_label.replace('.dat', '')
 
     if episode[0] != '.':
         episode = '.'+episode
 
     dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_label)
 
-    if not dinfo:
+    if not dinfo: # no episode
         dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+)', cell_label)
     else:
         episode = ''
@@ -621,6 +658,17 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     data_folder = os.path.join(year_dir, month_dir, data_folder, cell_label+episode+'.dat')
     data_folder = data_folder.replace('\\','/')
     return data_folder
+
+def separate_cell_episode(cell_name):
+    """Convert full name of the file, e.g. 'NeocortexChRNBM E.27Jul17.S1.E10.dat', 
+    into tuple 'NeocortexChRNBM E.27Jul17', 'S1.E10' 
+    """
+    dinfo = re.findall('([\w\s-]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_name)[0]
+     
+    cell_label = dinfo[0]+"."+"".join(dinfo[1:4])
+    episode_label = "S{}.E{}".format(dinfo[-2], dinfo[-1])
+     
+    return cell_label, episode_label
 
 
 class ROI(object):
@@ -664,15 +712,15 @@ class ROIData(list):
 
 
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
 #    data = NeuroData(dataFile, old=True)
 #    figdata = FigureData()
     # dataFile = 'C:/Users/Edward/Documents/Assignments/Scripts/Python/Plots/example/lineplot.csv'
 #    figdata.Neuro2Trace(data, channels=['A','B','C','D'], streams=['Volt','Cur','Stim'])
     # data = FigureData(dataFile='D:/Data/2015/07.July/Data 2 Jul 2015/Neocortex C.02Jul15.S1.E40.dat',old=True, channels=['A'], streams=['Volt','Cur','Stim'])
-    # zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
+    zData = NeuroData(dataFile='D:/Data/Traces/2015/07.July/Data 13 Jul 2015/Neocortex I.13Jul15.S1.E7.dat', old=True, infoOnly=True)
     # mData = ImageData(dataFile = 'D:/Data/2photon/2015/03.March/Image 10 Mar 2015/Neocortex D/Neocortex D 01/Neocortex D 01.512x512y1F.m21.img', old=True)
     # plt.imshow(mData.img[:,:,0])
     # zData = load_trace('Neocortex F.15Jun15.S1.E10')
-    roifile = 'C:/Users/Edward/Desktop/Slice B CCh Double.512x200y75F.m1.img.roi'
-    R = ROIData(roifile)
+    #roifile = 'C:/Users/Edward/Desktop/Slice B CCh Double.512x200y75F.m1.img.roi'
+    #R = ROIData(roifile)
