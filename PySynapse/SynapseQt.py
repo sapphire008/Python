@@ -776,9 +776,12 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
 if __name__ == '__main__':
     sys.excepthook = my_excepthook # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
+    running_os = sys.platform[:3]
     # w = Synapse_MainWindow()
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)
-    w = Synapse_MainWindow(startpath='/Volumes', hideScopeToolbox=False)
+    if running_os == 'win':
+        w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)
+    elif running_os == 'dar':
+        w = Synapse_MainWindow(startpath='/Volumes', hideScopeToolbox=False)
 
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False, layout=[['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]])
     # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/11.November/Data 9 Nov 2016', hideScopeToolbox=False)

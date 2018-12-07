@@ -908,9 +908,9 @@ class Toolbox(QtWidgets.QWidget):
         else:
             pass
 
-    def getExpCFDefaultParams(self, ydata, equation='a*exp(b*x)+c'):
+    def getExpCFDefaultParams(self, xdata, ydata, equation='a*exp(b*x)+c'):
         if equation == 'a*exp(b*x)+c':
-            p0 = [max(ydata), -0.015 if ydata[-1] < ydata[0] else 0.025, 0] # Default
+            p0 = list(fit_exp_with_offset(xdata, ydata, sort=False))
         elif equation == 'a*exp(b*x)':
             p0 = [max(ydata), -0.015 if ydata[-1] < ydata[0] else 0.025]
         elif equation == 'a*exp(b*x)+c*exp(d*x)':
@@ -964,7 +964,7 @@ class Toolbox(QtWidgets.QWidget):
         f0 = None
         if curve == 'Exponential':
             eqText = self.CFsettingTable[(3,1)].currentText()
-            p0 = self.getExpCFDefaultParams(ydata, equation=eqText)
+            p0 = self.getExpCFDefaultParams(xdata, ydata, equation=eqText)
             if eqText == 'a*exp(b*x)+c':
                 f0 = lambda x, a, b, c: a*np.exp(b*x)+c
                 # bounds = [(-max(abs(ydata))*1.1, -10, -np.inf),  (max(abs(ydata))*1.1, 10, np.inf)]

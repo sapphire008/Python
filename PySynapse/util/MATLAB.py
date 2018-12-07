@@ -49,7 +49,7 @@ def getconsecutiveindex(t, N=1, interval=True):
     N: filter for at least N consecutive. Default 1
     interval: if True, we are filtering by N consecutive intervals instead of
     N consecutive numbers
-    
+
     """
     x = np.diff(t) == 1
     f = np.where(np.concatenate(([False], x))!=np.concatenate((x, [False])))[0]
@@ -272,8 +272,8 @@ def isempty(m, singleton=True):
     c). a tuple of length zero
     d). a numpy array of length zero
     e). a singleton that is not None
-    
-    if singleton is true: treat np.ndarray as a single object, and return 
+
+    if singleton is true: treat np.ndarray as a single object, and return
     false only when the ndarray is an empty array
     """
     if isinstance(m, (list, tuple, str)):
@@ -451,15 +451,15 @@ def cell2df(C):
 def dict2df(mydict, colnames=None, addindex=False):
     """ Converting a dictionary into a Pandas data frame. Example:
     df = dict2df(mydict, colnames=['Drug', 'BifTime'], addindex=True)
-    Converting 
+    Converting
     mydict ={'ChR2': np.asarray([25, 725, 225, 175, 825, 1075, 825, 125, 325, 875, 325, 575, 1325, 725]),
              'Terfenadine': np.asarray([725, 275, 175, 675, 525, 775]),
-             'XE991': np.asarray([175, 75, 75, 125, 125]), 
+             'XE991': np.asarray([175, 75, 75, 125, 125]),
              'NS8593': np.asarray([25, 25, 25, 75, 75, 75, 75])}
-    
+
     into a data frame:
-        
-    index           Drug        BifTime   
+
+    index           Drug        BifTime
     0               ChR2          25
     1               ChR2          725
     2               ChR2          225
@@ -470,10 +470,10 @@ def dict2df(mydict, colnames=None, addindex=False):
          ...........................
     0              NS8593         25
          ...........................
-    
+
     colnames: column names of [key, values]
     addindex: add a column called "index" as the first column
-    
+
     """
     df = pd.DataFrame.from_dict(mydict, orient='index').transpose()
     df['index'] = df.index
@@ -488,7 +488,7 @@ def dict2df(mydict, colnames=None, addindex=False):
     df = df.reset_index(drop=True)
     if colnames is not None:
         df.columns = (["index"] if addindex else [] )+ list(colnames)
-        
+
     return df
 
 def cell2list_b(C):
@@ -504,9 +504,9 @@ def cell2list_b(C):
             tmp = C[i][j][0]
             if isinstance(tmp, (np.ndarray, list)):
                 tmp = tmp[0]
-            
+
             K[i][j] = tmp
-    return K 
+    return K
 
 def list2df(K):
     """From Python's list to panadas' data frame"""
@@ -514,9 +514,9 @@ def list2df(K):
     df = {}
     for n, h in enumerate(headers):
         df[h] = [c[n] for c in K[1:]]
-    
+
     df = pd.DataFrame(data=df, columns=headers)
-    
+
     return df
 
 
@@ -588,9 +588,11 @@ def midpoint(v):
 
 
 def SearchFiles(path, pattern, sortby='Name'):
-    """sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
+    """
+    Search for files
+    sortby: 'Name', 'Modified Date', 'Created Date', 'Size'"""
     P = glob.glob(os.path.join(path, pattern))
-    
+
     if isempty(P):
         return P, []
 
@@ -648,9 +650,8 @@ def medfilt1(x, N):
         del l[bisect_left(l, old_elem)]
         insort(l, new_elem)
         result[idx] = l[mididx]
-    
-    return result
 
+    return result
 
 def goodness_of_fit(xdata, ydata, popt, pcov, f0):
     """Calculate goodness of fit from curve_fit
@@ -666,7 +667,7 @@ def goodness_of_fit(xdata, ydata, popt, pcov, f0):
     R_sq_adj = 1.0 - (SSE/(len(xdata)-1)) / (SS_total/(len(xdata)-len(popt)-1))# Adjusted R_sq
     # R_sq_adj = 1-(1-R_sq)*(len(xdata-1))/(len(xdata)-len(popt)-1)
     gof = {'SSE': SSE, 'RMSE': RMSE, 'SS_total':SS_total, 'rsquare': R_sq, 'adjrsquare': R_sq_adj}
-    
+
     return gof
 
 def compare_goodness_of_fit(popt1, pcov1, popt2, pcov2, num_data_points, param_name=None, index=None):
@@ -676,22 +677,22 @@ def compare_goodness_of_fit(popt1, pcov1, popt2, pcov2, num_data_points, param_n
     if index is not None:
         popt1, popt2 = popt1[index], popt2[index]
         pcov1, pcov2 = pcov1[index], popt2[index]
-    
-    
+
+
     T, df, P = [[]]*nvars, [[]]*nvars, [[]]*nvars
     for n, t1, v1, t2, v2 in enumerate(zip(popt1, pcov1, popt2, pcov2)):
         T[n]= (t1-t2) / np.sqrt(v1^2 + v2^2)
         df[n] = (num_data_points-nvars)*2
         P[n] = sp.stats.t.cdf(T, df=df)
-        
+
     nvars = len(popt1) # update  for later looping
-        
+
     if param_name is None:
         param_name = ['param_{:d}'.format(d) for d in range(nvars)]
-        
+
     for n in range(nvars):
         print("{}: T = {:.4f}, df = {:d}, p = {:.4f}\n".format(param_name[n], T[n], df[n], P[n]))
-    
+
     return T, df, P
 
 def confidence_interval(ydata, popt, pcov, alpha=0.05, parameter_names=None):
@@ -709,19 +710,16 @@ def confidence_interval(ydata, popt, pcov, alpha=0.05, parameter_names=None):
 
     return ci_list
 
-
-
-
 def serr(X, axis=0, toarray=False, printerr=False, *args, **kwargs):
     try:
         if toarray:
             X = np.array(X)
-        return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis]) 
+        return np.std(X, axis=axis, *args, **kwargs) / np.sqrt(np.shape(X)[axis])
     except Exception as err:
         if printerr:
             print(err)
         return None
-    
+
 def diffx(X, axis=0, printerr=False, *args, **kwargs):
     """Wrapper function to deal with Panda's recent weird behavior"""
     def df_diff_apply(df):
@@ -733,7 +731,7 @@ def diffx(X, axis=0, printerr=False, *args, **kwargs):
                 df_new[c] = np.diff(df[c], axis=axis, *args, **kwargs)
                 if len(df_new[c])==1:
                     df_new[c] = np.asscalar(df_new[c])
-                
+
         return df_new
     try:
         return df_diff_apply(X)
@@ -753,7 +751,7 @@ def frequency_modulated_sine(f0, f, duration, ts, phase=0):
     ts: sampling rate of wave [sec]
     phase: phase at the start of the wave, between [0, pi]
     """
-    
+
     nu = np.linspace(f0, f, int(duration / ts) + 1)
     t = np.arange(0, duration+ts, ts)
     Y = np.sin(2 * np.pi * nu * t + phase)
@@ -774,13 +772,13 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
         decimals    - Optional  : positive number of decimals in percent complete (Int)
         length      - Optional  : character length of bar (Int)
         fill        - Optional  : bar fill character (Str)
-        
+
     # Sample Usage:
         from time import sleep
         # A List of Items
         items = list(range(0, 57))
         l = len(items)
-        
+
         # Initial call to print 0% progress
         printProgressBar(0, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
         for i, item in enumerate(items):
@@ -788,7 +786,7 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
             sleep(0.1)
             # Update Progress Bar
             printProgressBar(i + 1, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
-    
+
     # Sample Output
     Progress: |█████████████████████████████████████████████-----| 90.0% Complete
     """
@@ -797,9 +795,9 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
     bar = fill * filledLength + '-' * (length - filledLength)
     print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
     # Print New Line on Complete
-    if iteration >= total: 
+    if iteration >= total:
         print()
-        
+
 def alpha(duration=400, amplitude=150, tau1=50, tau2=100, ts=0.1, force="positive"):
     """Returns a double exponential alpha function given parameters"""
     T = np.arange(0, duration+ts, ts)
@@ -812,7 +810,7 @@ def alpha(duration=400, amplitude=150, tau1=50, tau2=100, ts=0.1, force="positiv
     elif force=="negative" and tau2>=tau1:
         # this will get us an alpha function with positive amp
         return np.zeros_like(T)
-            
+
     A = A / np.max(np.abs(A)) * amplitude
     return A
 
@@ -824,7 +822,7 @@ def alphag(duration=400, amplitude=150, tau=100, ts=0.1):
     return G
 
 def get_alpha_duration(A, ts=0.1, thresh=0.95):
-    """Find duration of alpha function curve, when the value falls below a 
+    """Find duration of alpha function curve, when the value falls below a
     threshold fraction (e.g. 0.95 or about 3 taus) of the amplitude"""
     amplitude = np.max(A)
     amplitude_ind = np.argmax(A)
@@ -834,10 +832,104 @@ def get_alpha_duration(A, ts=0.1, thresh=0.95):
         return index[0]*ts
     else:
         return None # beyond the scope of the curve. Cannot calculate
-    
-    
+
+
+def fit_exp_with_offset(x, y, sort=False):
+    """
+    Fitting y = a * exp( b * x) + c
+    using non-iterative method based on
+    Regressions et Equations Integrales by Jean Jacquelin
+    https://math.stackexchange.com/questions/2318418/initial-guess-for-fitting-exponential-with-offset
+    """
+    if sort:
+        # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    #for k in range(1, len(S)):
+    #    S[k] = S[k-1] + 1/2 * (y[k] + y[k-1]) * (x[k] - x[k-1])
+
+    M = np.empty((2, 2))
+    N = np.empty((2, 1))
+
+    # Getting b
+    M[0, 0] = np.sum((x - x[0])**2)
+    M[0, 1] = np.sum((x - x[0]) * S)
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(S**2)
+
+
+    N[0, 0] = np.sum((y - y[0]) * (x - x[0]))
+    N[1, 0] = np.sum((y - y[0]) * S)
+
+    B = np.matmul(np.linalg.inv(M),  N)
+    b = B[1, 0]
+
+    # Getting a and c
+    M[0, 0] = len(x)
+    M[0, 1] = np.sum(np.exp(b*x))
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(np.exp(2*b*x))
+
+    N[0, 0] = np.sum(y)
+    N[1, 0] = np.sum(y * np.exp(b*x))
+    AC = np.matmul(np.linalg.inv(M), N)
+    c = AC[0, 0]
+    a = AC[1, 0]
+
+    return a, b, c
+
+def fit_gaussian_non_iter(x, y, sort=False):
+    """
+        Fitting Gaussian y = 1 / (sigma * sqrt(2 * pi)) * exp( -1/2 * ( (x - mu) / sigma )^2 )
+        using non-iterative method based on
+        Regressions et Equations Integrales by Jean Jacquelin
+        """
+    if sort:
+        # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    T = np.zeros_like(x)
+    x_y = x * y
+    T[1:] = 0.5 * ( x_y[:-1] + x_y[1:] ) * np.diff(x)
+    T = np.cumsum(T)
+
+    # S1 = np.zeros_like(x)
+    # T1 = np.zeros_like(x)
+    # for k in range(1, len(S1)):
+    #    S1[k] = S1[k-1] + 1/2 * (y[k] + y[k-1]) * (x[k] - x[k-1])
+    #    T1[k] = T1[k-1] + 1/2 * (y[k]*x[k] + y[k-1]*x[k-1]) * (x[k] - x[k-1])
+
+    M = np.empty((2, 2))
+    N = np.empty((2, 1))
+
+    # Getting the parameters
+    M[0, 0] = np.sum(S**2)
+    M[0, 1] = np.sum(S * T)
+    M[1, 0] = M[0, 1]
+    M[1, 1] = np.sum(T**2)
+
+    N[0, 0] = np.sum((y - y[0]) * S)
+    N[1, 0] = np.sum((y - y[0]) * T)
+    AB = np.matmul(np.linalg.inv(M), N)
+    A = AB[0, 0]
+    B = AB[1, 0]
+
+    mu = - A / B
+
+    sigma = np.sqrt(-1 / B)
+
+    return mu, sigma
+
 def pairwise_diff(A, B):
-    """ Calculate the pair wise difference between each element of the 
+    """ Calculate the pair wise difference between each element of the
     two vectors of length N and M, respectively, and return a matrix of shape
     M x N
         * A: vector of length M
@@ -846,10 +938,7 @@ def pairwise_diff(A, B):
     A = np.asarray(A).flatten()[:, np.newaxis]
     B = np.asarray(B).flatten()[np.newaxis,:]
     return A-B
-    
 
-
-        
 def gaussian_kernel(ts, sigma=300., n=5, normalize=False):
     """Make gaussian kernel centered at 0
     ts: sampling rate [ms]
@@ -877,18 +966,17 @@ def gaussian_kernel(ts, sigma=300., n=5, normalize=False):
             pass
     return(t, w)
 
-
 def exists(obj):
     """Check if a variable exists"""
     if obj in locals() or obj in globals():
         return True
     else:
         return False
-    
+
 def spm_matrix_2d(P, order='T*R*Z*S'):
     """
     returns an affine transformation matrix
-    
+
     Arguments:
         * P[0]  - x translation
         * P[1]  - y translation
@@ -897,11 +985,11 @@ def spm_matrix_2d(P, order='T*R*Z*S'):
         * P[4]  - y scaling
         * P[5]  - affine
         * order (optional): application order of transformations.
-    
+
     Returns:
         * A: affine transformation matrix
-    
-    To transform X = [x;y] coordinate, pad 1 at the end, 
+
+    To transform X = [x;y] coordinate, pad 1 at the end,
     i.e. X = [x; y; 1], then Y = A * X, where X, Y are 3 x n matrices
     """
     # Pad matrix in case only a subset is being specified
@@ -912,7 +1000,7 @@ def spm_matrix_2d(P, order='T*R*Z*S'):
             [0,    1,      P[1]],
             [0,    0,      1]
             ])
-    
+
     R   =  np.array([
             [np.cos(P[2]),   np.sin(P[2]),  0],
             [-np.sin(P[2]),  np.cos(P[2]),  0],
@@ -924,25 +1012,25 @@ def spm_matrix_2d(P, order='T*R*Z*S'):
             [0,      P[4],  0],
             [0,       0,    1]
             ])
-    
+
     S   =  np.array([
             [1,    P[5],    0],
             [0 ,   1,       0],
             [0,    0,       1]
             ])
-    
+
     order = order.replace('*', '@')
     A = eval(order)
      # Sanity check
     if not isnumeric(A).all() or A.ndim != 2 or any(np.array(A.shape) != 3):
         raise(ValueError('Order expression "{}" did not return a valid 3x3 matrix.'.format(order)))
-    
+
     return A
-    
+
 def spm_matrix(P, order='T*R*Z*S'):
     """
     returns an affine transformation matrix
-    
+
     Arguments:
         * P[0]  - x translation
         * P[1]  - y translation
@@ -957,11 +1045,11 @@ def spm_matrix(P, order='T*R*Z*S'):
         * P[10] - y affine
         * P[11] - z affine
         * order (optional) application order of transformations.
-    
+
     Returns:
         * A: affine transformation matrix
-    
-    To transform X = [x;y;z] coordinate, pad 1 at the end, 
+
+    To transform X = [x;y;z] coordinate, pad 1 at the end,
     i.e. X = [x; y; z; 1], then Y = A * X, where X, Y are 4xn matrices
     """
     # Pad matrix in case only a subset is being specified
@@ -995,32 +1083,45 @@ def spm_matrix(P, order='T*R*Z*S'):
             [0,             0,              0,   1]
             ])
     R = R1 @ R2 @ R3
-    
+
     Z   =  np.array([
             [P[6],    0,    0,    0],
             [0,      P[7],  0,    0],
             [0,       0,    P[8], 0],
             [0,       0,    0,    1]
             ])
-    
+
     S   =  np.array([
             [1,    P[9],   P[10],  0],
             [0,    1,      P[11],  0],
             [0,    0,      1,      0],
             [0,    0,      0,      1]
             ])
-    
+
     order = order.replace('*', '@')
     A = eval(order)
     # Sanity check
     if not isnumeric(A).all() or A.ndim != 2 or any(np.array(A.shape) != 4):
         raise(ValueError('Order expression "{}" did not return a valid 4x4 matrix.'.format(order)))
-    
+
     return A
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
 #   A = ['a','b','a','c','a','b','c']
 #    C, IA, IC = uniquerows(A)
-    t, Y = frequency_modulated_sine(f0=0, f=10, duration=10, ts=0.0001, phase=0)
-    plt.plot(t, Y)
+    #x = np.arange(0, 10, 0.1)
+    #f0 = lambda x, a, b, c: a * np.exp(b*x)+c
+    #y = f0(x, 3, -3, 3) + np.random.randn(len(x))/10
+    #a, b, c = fit_exp_with_offset(x, y)
+    #plt.scatter(x, y)
+    #plt.plot(x, f0(x, a, b, c), 'r')
+    #plt.title('a={:.3f}, b={:.3f}, c={:.3f}'.format(a, b, c))
+    #print(a, b, c)
+    x = np.arange(-2.5, 7.1, 0.1)
+    f0 = lambda x, mu, sigma: 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp( -1/2 * ( (x - mu) / sigma )**2 )
+    y = f0(x, 2.08, 3.2) + np.random.randn(len(x))/100
+    mu, sigma= fit_gaussian_non_iter(x, y, sort=False)
+    plt.scatter(x, y)
+    plt.plot(x, f0(x, mu, sigma))
+    plt.title(r'$\mu$={:.3f}, $\sigma$={:.3f}'.format(mu, sigma))
