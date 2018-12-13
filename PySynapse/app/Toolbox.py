@@ -743,6 +743,7 @@ class Toolbox(QtWidgets.QWidget):
             self.friend.addSubplot(layout=[current_stream, current_channel, row, 0])
         scomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
         ccomb.currentIndexChanged.connect(lambda: self.friend.updateStream(old_layout=['stream', 'channel', row, 0], new_layout=[str(scomb.currentText()), str(ccomb.currentText()), row, 0]))
+        self.updateLayoutComboBox()
         # self.layout_comboBox = {'stream':scomb, 'channel':ccomb}
 
     def updateLayoutComboBox(self):

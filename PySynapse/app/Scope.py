@@ -337,8 +337,8 @@ class ScopeWindow(QtWidgets.QMainWindow):
             layoutWidget = self.dockPanel.layoutWidget()
             self.dockPanel.replaceWidget(widget=layoutWidget, index=layout_index)
 
-        if not bool_old_episode:
-            self.dockPanel.updateLayoutComboBox()
+        ##if not bool_old_episode:
+        self.dockPanel.updateLayoutComboBox()
 
         self.dockPanel.updateTTL()
 
