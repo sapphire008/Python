@@ -21,8 +21,10 @@ else:
     MODE = 'academic'
 
 import matplotlib
-PYPKGPATH = os.path.dirname(os.path.realpath(__file__))
-# PYPKGPATH = 'D:/Edward/Documents/Assignments/Scripts/Python/'
+if sys.platform == 'darwin':
+    PYPKGPATH = os.path.dirname(os.path.realpath(__file__))
+else:
+    PYPKGPATH = 'D:/Edward/Documents/Assignments/Scripts/Python/'
 # PYPKGPATH = '/Users/edward/Documents/Scripts/Python'
 sys.path.append(PYPKGPATH)
 import glob
