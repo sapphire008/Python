@@ -374,8 +374,10 @@ class ScopeWindow(QtWidgets.QMainWindow):
                 pname = info[0]+'.'+info[1]+'.'+l[0]+'.'+l[1]
             else:
                 pname = None
-
-            Y = getattr(zData, l[0])[l[1]]
+            try:
+                Y = getattr(zData, l[0])[l[1]]
+            except:
+                Y = np.zeros_like(zData.Time)
             if self.isnull and self.nullRange is not None:
                 Y = Y - self.getNullBaseline(Y, zData.Protocol.msPerPoint)
             cl = p.plot(x=zData.Time, y=Y, pen=pen, name=pname)
