@@ -742,6 +742,32 @@ def diffx(X, axis=0, printerr=False, *args, **kwargs):
         #set_trace()
         return None
 
+def detect_outliers(x, percentile=[75, 25], factor=1.58, return_index=False, return_threshold=False):
+    """
+    Using R's boxplot.stats way of outlier detection for robustness
+    Usages:
+        * outliers = detect_outliers(x)
+        * outliers, min_index, max_index = detect_outliers(x, return_index=True)
+        * outliers, min_index, max_index = detect_outliers(x, return_threshold=True)
+        * outliers, min_index, max_index, min_C, max_C = detect_outliers(x, return_index=True, return_threshold=True)
+    """
+    x = x[~np.isnan(x)]
+    qq = np.percentile(x, percentile)
+    q75, q25 = max(qq), min(qq)
+    iqr = q75 - q25
+    C = iqr * factor / np.sqrt(len(x))
+    min_C = q25-C # Threshold for lower bound
+    max_C = q75+C # Threshold for upper bound
+    min_index = np.where(x<min_C) # Index of the lower bound outliers
+    max_index = np.where(x>max_C) # Index of the upper bound outliers
+    return_list = list(np.concatenate((np.array(x[min_index]),np.array(x[max_index]))))
+    if return_index or return_threshold:
+        return_list = [return_list]
+    if return_index:
+        return_list = return_list + [min_index] + [max_index]
+    if return_threshold:
+        return_list = return_list + [min_C] + [max_C]
+    return  tuple(return_list)
 
 def frequency_modulated_sine(f0, f, duration, ts, phase=0):
     """Return the frequency modulated sinosoidal wave
@@ -761,7 +787,7 @@ def softmax(X):
   exps = np.exp(X)
   return exps / np.sum(exps)
 
-def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete', decimals = 1, length = 100, fill = '█'):
+def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete', decimals = 1, length = 100, fill = '█', mode='percentage'):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -772,6 +798,7 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
         decimals    - Optional  : positive number of decimals in percent complete (Int)
         length      - Optional  : character length of bar (Int)
         fill        - Optional  : bar fill character (Str)
+        mode        - Optional  : display mode, either "percentage" or "counts"
 
     # Sample Usage:
         from time import sleep
@@ -789,14 +816,18 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
 
     # Sample Output
     Progress: |█████████████████████████████████████████████-----| 90.0% Complete
+    Progress: |█████████████████████████████████████████████-----| 90/100 Complete
     """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    if mode == "percentage":
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    elif mode == "counts":
+        print('\r%s  |%s| %d / %d %s' % (prefix, bar, iteration, total, suffix), end='\r')
     # Print New Line on Complete
     if iteration >= total:
-        print()
+        print('ended')
 
 def alpha(duration=400, amplitude=150, tau1=50, tau2=100, ts=0.1, force="positive"):
     """Returns a double exponential alpha function given parameters"""
