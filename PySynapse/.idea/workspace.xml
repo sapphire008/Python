@@ -2,9 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2896f5ec-b843-4e64-bcd6-4b93b51d46e7" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Pycftool/.idea/Pycftool.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../Pycftool/.idea/Pycftool.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Pycftool/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../Pycftool/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Scope.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/Scope.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -48,14 +47,80 @@
         </counts>
       </usages-collector>
     </session>
+    <session id="1409573080">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.closed" value="2" />
+          <entry key="project.open.time.13" value="1" />
+          <entry key="project.open.time.16" value="1" />
+          <entry key="project.opened" value="2" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="ini" value="1" />
+          <entry key="py" value="3" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="PLAIN_TEXT" value="1" />
+          <entry key="Python" value="3" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="py" value="20" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="Python" value="20" />
+        </counts>
+      </usages-collector>
+    </session>
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/SynapseQt.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="10995">
-              <caret line="749" column="10" selection-start-line="749" selection-start-column="10" selection-end-line="749" selection-end-column="10" />
+            <state relative-caret-position="12528">
+              <caret line="712" column="20" selection-start-line="712" selection-start-column="20" selection-end-line="712" selection-end-column="20" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/app/Scope.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="6084">
+              <caret line="343" column="16" selection-start-line="343" selection-start-column="16" selection-end-line="343" selection-end-column="16" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/util/ExportData.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1555">
+              <caret line="402" column="28" selection-start-line="402" selection-start-column="28" selection-end-line="402" selection-end-column="28" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/util/svg2eps.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1121" />
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/resources/config.ini">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="198">
+              <caret line="11" column="30" selection-start-line="11" selection-start-column="30" selection-end-line="11" selection-end-column="30" />
             </state>
           </provider>
         </entry>
@@ -63,8 +128,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/app/Toolbox.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="13560">
-              <caret line="912" column="68" selection-start-line="912" selection-start-column="68" selection-end-line="912" selection-end-column="68" />
+            <state relative-caret-position="16272">
+              <caret line="912" column="38" selection-start-line="912" selection-start-column="38" selection-end-line="912" selection-end-column="38" />
             </state>
           </provider>
         </entry>
@@ -75,6 +140,8 @@
     <findStrings>
       <find>curve_fit</find>
       <find>fit_</find>
+      <find>lw=</find>
+      <find>linewidth</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -85,14 +152,15 @@
       <list>
         <option value="$PROJECT_DIR$/SynapseQt.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/app/Scope.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds">
-    <option name="x" value="212" />
-    <option name="y" value="169" />
-    <option name="width" value="1136" />
-    <option name="height" value="629" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="541" />
+    <option name="y" value="247" />
+    <option name="width" value="1138" />
+    <option name="height" value="630" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -112,6 +180,11 @@
               <item name="PySynapse" type="b2602c69:ProjectViewProjectNode" />
               <item name="PySynapse" type="462c0819:PsiDirectoryNode" />
               <item name="app" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="PySynapse" type="b2602c69:ProjectViewProjectNode" />
+              <item name="PySynapse" type="462c0819:PsiDirectoryNode" />
+              <item name="resources" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="PySynapse" type="b2602c69:ProjectViewProjectNode" />
@@ -182,9 +255,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="212" y="169" width="1136" height="629" extended-state="0" />
+    <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.25868374" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.14871117" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -194,7 +268,7 @@
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info anchor="bottom" id="Version Control" order="7" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
       <window_info anchor="bottom" id="Python Console" order="10" />
@@ -216,13 +290,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/app/Toolbox.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="13560">
-          <caret line="912" column="68" selection-start-line="912" selection-start-column="68" selection-end-line="912" selection-end-column="68" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/util/MATLAB.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="12390">
@@ -232,9 +299,42 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/SynapseQt.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="10995">
-          <caret line="749" column="10" selection-start-line="749" selection-start-column="10" selection-end-line="749" selection-end-column="10" />
+        <state relative-caret-position="12528">
+          <caret line="712" column="20" selection-start-line="712" selection-start-column="20" selection-end-line="712" selection-end-column="20" />
         </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/app/Scope.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="6084">
+          <caret line="343" column="16" selection-start-line="343" selection-start-column="16" selection-end-line="343" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/resources/config.ini">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="198">
+          <caret line="11" column="30" selection-start-line="11" selection-start-column="30" selection-end-line="11" selection-end-column="30" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/app/Toolbox.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="16272">
+          <caret line="912" column="38" selection-start-line="912" selection-start-column="38" selection-end-line="912" selection-end-column="38" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/ExportData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1555">
+          <caret line="402" column="28" selection-start-line="402" selection-start-column="28" selection-end-line="402" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/util/svg2eps.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1121" />
       </provider>
     </entry>
   </component>
