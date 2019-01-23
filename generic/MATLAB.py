@@ -827,7 +827,7 @@ def printProgressBar (iteration, total, prefix = 'Progress', suffix = 'Complete'
         print('\r%s  |%s| %d / %d %s' % (prefix, bar, iteration, total, suffix), end='\r')
     # Print New Line on Complete
     if iteration >= total:
-        print('ended')
+        print('\nended')
 
 def alpha(duration=400, amplitude=150, tau1=50, tau2=100, ts=0.1, force="positive"):
     """Returns a double exponential alpha function given parameters"""
