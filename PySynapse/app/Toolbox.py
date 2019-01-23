@@ -423,7 +423,7 @@ class Toolbox(QtWidgets.QWidget):
         self.annotation_table.horizontalHeader().highlightSections()
         self.annotation_table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         # Change style sheet a little for Windows 10
-        if sys.getwindowsversion().major == 10: # fix the problem that in Windows 10, bottom border of header is not displayed
+        if sys.platform[:3]== 'win' and sys.getwindowsversion().major == 10: # fix the problem that in Windows 10, bottom border of header is not displayed
             self.annotation_table.setStyleSheet("""
                 QHeaderView::section{
                 border-top:0px solid #D8D8D8;

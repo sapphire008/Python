@@ -7,6 +7,7 @@ Call Adobe Illustrator to convert .svg to .eps
 @author: Edward
 """
 import os
+import sys
 import signal
 import subprocess
 import time
@@ -76,7 +77,10 @@ def svg2eps_ai(source_file, target_file, \
     # Change the strings
     jsx_file_str = jsx_file_str.replace('{format_source_file}', source_file)
     jsx_file_str = jsx_file_str.replace('{format_target_file}', target_file).replace('\\','/')
-    tmp_f = os.path.abspath(os.path.join(os.path.dirname(target_file), "tmp.jsx"))
+    tmp_f = os.path.join(os.path.dirname(target_file), "tmp.jsx")
+    #set_trace()
+    #print(tmp_f)
+    tmp_osa = None
     f = open(tmp_f, 'w')
     f.write(jsx_file_str)
     f.close()
@@ -85,23 +89,34 @@ def svg2eps_ai(source_file, target_file, \
     if os.path.isfile(target_file):
         os.remove(target_file)
 
-    # subprocess.check_call([illustrator_path, '-run', tmp_f])
-    cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
-    pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    # print(pro.stdout)
-    # continuously check if new files are updated
-    time.sleep(5.0)
-    sleep_iter = 5.0
-    max_sleep_iter = 40
-    while not os.path.isfile(target_file):
-        time.sleep(1.0)
-        sleep_iter = sleep_iter + 1.0
-        if sleep_iter > max_sleep_iter:
-            break
+    running_os = sys.platform[:3].lower()
+    if running_os == 'win':
+        cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
+        pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        # continuously check if new files are updated
+        time.sleep(5.0)
+        sleep_iter = 5.0
+        max_sleep_iter = 40
+        while not os.path.isfile(target_file):
+            time.sleep(1.0)
+            sleep_iter = sleep_iter + 1.0
+            if sleep_iter > max_sleep_iter:
+                break
+        pro.kill()
+    elif running_os == 'dar': # mac
+        applescript = '''tell application "Adobe Illustrator"
+                            activate
+                            do javascript "#include {}"
+                            quit
+                         end tell
+                      '''.format(tmp_f)
+        args = [item for x in [("-e", l.strip()) for l in applescript.split('\n') if l.strip() != ''] for item in x]
+        proc = subprocess.Popen(["osascript"] + args, stdout=subprocess.PIPE)
+        progname = proc.stdout.read().strip()
+        sys.stdout.write(str(progname))
+    else:
+        raise(Exception("Unrecognized system"))
 
-    # pro.terminate()
-    #os.kill(os.getpid(), signal.SIGTERM)  # Send the signal to all the process groups
-    pro.kill()
     os.remove(tmp_f)
 
 def svg2eps_inkscape(source_file, target_file, \
@@ -129,9 +144,9 @@ def svg2eps_inkscape(source_file, target_file, \
 
 
 if __name__ == '__main__':
-    source_file = '"R:\\temp.svg"'
-    target_file = '"R:\\temp.eps"'
+    source_file = '/Volumes/SD/temp.svg'
+    target_file = '/Volumes/SD/temp.eps'
     illustrator_path="D:/Edward/Software/Adobe Illustrator CS6/Support Files/Contents/Windows/Illustrator.exe"
-    javascript_path="D:\\Edward\\Documents\\Assignments\\Scripts\\Python\\PySynapse\\util\\ExportDocsAdobeIllustrator.jsx"
-    # svg2eps_ai(source_file, target_file)
-    svg2eps_inkscape(source_file, target_file)
+    javascript_path="/Volumes/SD/tmp.jsx"
+    svg2eps_ai(source_file, target_file)
+    # svg2eps_inkscape(source_file, target_file)
