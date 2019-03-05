@@ -637,7 +637,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         df = df.drop(drop_columns, axis=1).rename(columns=rename_dict)
         df["Sampling Rate"] = 0.1
         df["Drug Level"] = 0
-        df["Drug Name"] = ["" if np.isnan(dn) else dn for dn in df["Drug Name"]]
+        df.loc[df["Drug Name"].isnull(), "Drug Name"] = ""
         df["Time"] = [NeuroData.epiTime(ttt) for ttt in df["Time"]]
         df["Drug Time"] = [NeuroData.epiTime(ttt) for ttt in df["Drug Time"]]
         # TODO: Tentitative path
