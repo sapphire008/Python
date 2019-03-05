@@ -710,7 +710,7 @@ def confidence_interval(ydata, popt, pcov, alpha=0.05, parameter_names=None):
 
     return ci_list
 
-def serr(X, axis=0, toarray=False, printerr=False, *args, **kwargs):
+def serr(X, axis=0, toarray=False, printerr=False, returnOnError=None, *args, **kwargs):
     try:
         if toarray:
             X = np.array(X)
@@ -718,7 +718,10 @@ def serr(X, axis=0, toarray=False, printerr=False, *args, **kwargs):
     except Exception as err:
         if printerr:
             print(err)
-        return None
+        if returnOnError is None:
+            return None
+        elif returnOnError == 'first':
+            return np.array(X)[0]
 
 def diffx(X, axis=0, printerr=False, *args, **kwargs):
     """Wrapper function to deal with Panda's recent weird behavior"""
@@ -1136,6 +1139,22 @@ def spm_matrix(P, order='T*R*Z*S'):
         raise(ValueError('Order expression "{}" did not return a valid 4x4 matrix.'.format(order)))
 
     return A
+
+
+def ks_test_survival(s1, s2, n, m, alpha=0.05, alpha_type=1):
+    """
+    Kolmogorov-Smirnov test on 2 survival curves
+    """
+    D = max(abs(s1 - s2))
+    en = np.sqrt((n+m)/(n*m))
+    c_alpha = np.sqrt(-1/2*np.log(alpha))
+    D_critical = c_alpha * en
+    if alpha_type==1:
+        p = np.exp((D / en)**2 * (-2))
+    else:
+        p = stats.distributions.kstwobign.sf((1/en + 0.12+0.11 * en) * D)
+        
+    return D, p, D_critical
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])

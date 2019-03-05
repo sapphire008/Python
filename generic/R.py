@@ -50,5 +50,22 @@ def subset(df, select=None, subset=None):
 
     return df
 
-    
+def filterByCount(df, N=2, by=None, keep_count=False):
+    """
+    Remove the rows if the total number of rows associated with the aggregate
+    is less than a threshold N
+    """
+    if not isinstance(by, list):
+        raise(TypeError('parameter "by" must be a list'))
+    df['filtered_count'] = 0
+    gp = df.groupby(by=by, as_index=False, sort=False)
+    ns0 = gp.count()
+    ns0 = ns0[by+['filtered_count']]
+    df.drop(columns=['filtered_count'], inplace=True)
+    df = df.merge(ns0, on=by)
+    df = df.loc[df['filtered_count']>=N,:]
+    if not keep_count:
+        df.drop(columns=['filtered_count'], inplace=True)
+    return df
+
 
