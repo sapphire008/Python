@@ -494,8 +494,8 @@ def detectSpikes_cell_attached(Is, ts, msh=30, msd=10, basefilt=20, maxsh=300,
     return num_spikes, spike_time, spike_heights
 
 
-def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0, direction='up'):
-    """Calculate the series resistance based on capacitance artifact
+def spk_vclamp_access_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0, direction='up'):
+    """Calculate the access resistance based on capacitance artifact
     * Inputs:
         - Is: current time series (pA)
         - Vs: voltage step time series (mV)
@@ -503,6 +503,7 @@ def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0,
         - window: a window that contains the capcitance artifact, [baseline, end_of_artifact]
         - scalefactor: scale factor of the current time series
         - direction ["up"(default)|"down"]: is the artifact upswing or downswing
+        - printResults: whether or not print the output
     * Outputs:
         - R_series: series resistance [MOhm]
         - tau: time constant of the exponential fit on the artifact [ms]
@@ -534,8 +535,9 @@ def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0,
         rsquare = gof1['adjrsquare']
     else:
         f0 = lambda x, a, b, c: a*np.exp(-b*x)+c
-        popt2, pcov2 = curve_fit(f0, Ts_fit, Is_fit,  [np.max(Is_fit), 0.5, np.min(Is_fit)])
-        gof2 = goodness_of_fit(Ts_fit, Is_fit, popt2, pcov2, f0)
+        a, b, c = fit_exp_with_offset(Ts_fit, Is_fit)
+        pcov2 = 0
+        gof2 = goodness_of_fit(Ts_fit, Is_fit, (a,b,c), pcov2, f0)
         if gof2['adjrsquare'] > 0.85:
             tau = 1.0 / np.abs(popt2[1])
             rsquare = gof2['adjrsquare']
@@ -552,7 +554,7 @@ def spk_vclamp_series_resistance(Is, Vs, ts, window=[995,1015], scalefactor=1.0,
     
     C_m = Q / np.abs(Vs[-1] - Vs[0]) # [pF]
     R_series = tau / C_m * 1000 # [MOhm]
-
+    
     return R_series, tau, rsquare
 
 
@@ -565,22 +567,33 @@ def spk_get_stim(Ss, ts, longest_row=True, decimals=0):
         ts: sampling rate [seconds]
     Returns [start, end, intensity]
     """
-    stim_amp = np.max(Ss)
-    stim = np.where(Ss == stim_amp)[0]
-    consec_index = getconsecutiveindex(stim)
     # Get the longest stimulus
     if longest_row:
+        stim_amp = np.max(Ss)
+        stim = np.where(Ss == stim_amp)[0]
+        consec_index = getconsecutiveindex(stim)
         longest_row = np.argmax(np.diff(consec_index, axis=1))
         stim = stim[consec_index[longest_row, :]]
         stim = np.round(ind2time(stim, ts), decimals=decimals)
         stim = np.concatenate((stim, np.asarray([stim_amp])), axis=0)
     else: # can have multiple stims
-        tmp_stim = np.empty((consec_index.shape[0], consec_index.shape[1]))
-        for r in range(consec_index.shape[0]):
-            tmp_stim[r, :] = np.round(ind2time(stim[consec_index[r,:]], ts), decimals=decimals)
-            
-        stim = np.c_[tmp_stim, stim_amp*np.ones((consec_index.shape[0], 1))]
         
+        def _extract_stim(stim, consec_index):
+            tmp_stim = np.zeros((consec_index.shape[0], consec_index.shape[1]+1))
+            for r in range(consec_index.shape[0]):
+                tmp_stim[r, :2] = np.round(ind2time(stim[consec_index[r,:]], ts), decimals=decimals)
+                tmp_stim[r, 2]  = np.round(Ss[stim[(consec_index[r,0]+1):(consec_index[r, 1]-1)]].mean())
+                
+            return tmp_stim
+        
+        pos_stim = np.where(Ss>0)[0]
+        consec_index_pos = getconsecutiveindex(pos_stim)
+        neg_stim = np.where(Ss<0)[0]
+        consec_index_neg = getconsecutiveindex(neg_stim)
+        pos_stim_a = _extract_stim(pos_stim, consec_index_pos)
+        neg_stim_a = _extract_stim(neg_stim, consec_index_neg)
+        stim = np.concatenate((pos_stim_a, neg_stim_a), axis=0)
+        stim, _ = sortrows(stim, col=0)
                     
     return stim
 
