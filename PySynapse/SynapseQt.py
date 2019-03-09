@@ -637,14 +637,14 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         df = df.drop(drop_columns, axis=1).rename(columns=rename_dict)
         df["Sampling Rate"] = 0.1
         df["Drug Level"] = 0
-        df["Drug Name"] = ["" if np.isnan(dn) else dn for dn in df["Drug Name"]]
+        df.loc[df["Drug Name"].isnull(), "Drug Name"] = ""
         df["Time"] = [NeuroData.epiTime(ttt) for ttt in df["Time"]]
         df["Drug Time"] = [NeuroData.epiTime(ttt) for ttt in df["Drug Time"]]
         # TODO: Tentitative path
         df["Dirs"] = [os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/") for cb, ep in zip(df["Name"], df["Epi"])]
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
         df = df.reindex(["Name", "Epi", "Time", "Duration", "Drug Name", "Drug Time", "Comment"], axis=1) # drop columns not to be displayed
-        print('loaded')
+        # print('loaded')
         # Populate the loaded data unto the table widget
         self.tableview.headers = df.columns.tolist()
         self.tableview.model = EpisodeTableModel(df)
