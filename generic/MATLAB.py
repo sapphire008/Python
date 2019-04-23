@@ -742,7 +742,6 @@ def diffx(X, axis=0, printerr=False, *args, **kwargs):
         if True:
             print(err)
         print(X)
-        #set_trace()
         return None
 
 def detect_outliers(x, percentile=[75, 25], factor=1.58, return_index=False, return_threshold=False):
@@ -915,6 +914,138 @@ def fit_exp_with_offset(x, y, sort=False):
     a = AC[1, 0]
 
     return a, b, c
+
+def fit_double_exp(x, y, sort=False):
+    """
+    Fitting y = b * exp(p * x) + c * exp(q * x)
+    Implemented based on: 
+        Regressions et Equations Integrales by Jean Jacquelin
+    """
+    if sort:
+        # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    n = len(x)
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    SS = np.zeros_like(x)
+    SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
+    SS = np.cumsum(SS)
+    
+    # Getting the parameters
+    M = np.empty((4, 4))
+    N = np.empty((4, 1))
+    
+    M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x), np.sum(SS)])
+
+    M[0, 1] = M[1, 0]
+    M[1:,1] = np.array([np.sum(S**2),  np.sum(S * x), np.sum(S)])
+    
+    M[:2,2] = M[2, :2]
+    M[2, 2] = np.sum(x**2)
+    
+    M[:3,3] = M[3,:3]
+    M[3, 3] = n
+    
+    N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x * y), np.sum(y)])
+    
+    # Regression for p and q
+    ABCD = np.matmul(np.linalg.inv(M), N)
+    #set_trace()
+    A, B, C, D = ABCD.flatten()
+    p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
+    q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
+    
+     # Regression for b, c
+    I = np.empty((2, 2))
+    J = np.empty((2, 1))
+    
+    beta = np.exp(p * x)
+    eta  = np.exp(q * x)
+    I[0, 0] = np.sum(beta**2)
+    I[1, 0] = np.sum(beta * eta)
+    I[0, 1] = I[1, 0]
+    I[1, 1] = np.sum(eta**2)
+    
+    
+    J[:, 0] = [np.sum(y * beta), np.sum(y * eta)]
+    
+    bc = np.matmul(np.linalg.inv(I), J)
+    b, c = bc.flatten()
+    
+    return b, c, p, q
+    
+
+def fit_double_exp_with_offset(x, y, sort=False):
+    """
+    Fitting y = a + b * exp(p * x) + c * exp(q * x)
+    Implemented based on: 
+        https://math.stackexchange.com/questions/2249200/exponential-regression-with-two-terms-and-constraints
+    """
+    if sort:
+         # Sorting (x, y) such that x is increasing
+        X, _ = sortrows(np.c_[x, y], col=0)
+        x, y = X[:, 0], X[:, 1]
+    # Start algorithm
+    n = len(x)
+    S = np.zeros_like(x)
+    S[1:] = 0.5 * (y[:-1] + y[1:]) * np.diff(x)
+    S = np.cumsum(S)
+    SS = np.zeros_like(x)
+    SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
+    SS = np.cumsum(SS)
+    
+    # Getting the parameters
+    M = np.empty((5, 5))
+    N = np.empty((5, 1))
+    
+    M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x**2), np.sum(SS * x), np.sum(SS)])
+
+    M[0, 1] = M[1, 0]
+    M[1:,1] = np.array([np.sum(S**2), np.sum(S * x**2), np.sum(S * x), np.sum(S)])
+    
+    M[0, 2] = M[2, 0]
+    M[1, 2] = M[2, 1]
+    M[2:,2] = np.array([np.sum(x**4),  np.sum(x**3), np.sum(x**2)])
+    
+    M[:3,3] = M[3,:3]
+    M[3, 3] = M[4, 2]
+    M[4, 3] = np.sum(x)
+    
+    M[:4, 4] = M[4, :4]
+    M[4, 4] = n
+    
+    N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x**2 * y), np.sum(x * y), np.sum(y)])
+    
+    # Regression for p and q
+    ABCDE = np.matmul(np.linalg.inv(M), N)
+    A, B, C, D, E = ABCDE.flatten()
+    p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
+    q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
+    
+    # Regression for a, b, c
+    I = np.empty((3, 3))
+    J = np.empty((3, 1))
+    
+    I[0, 0] = n
+    I[1, 0] = np.sum(np.exp(p * x))
+    I[2, 0] = np.sum(np.exp(q * x))
+    I[0, 1] = I[1, 0]
+    I[1, 1] = np.sum(I[1, 0]**2)
+    I[2, 1] = np.sum(I[1, 0] * I[2, 0])
+    I[0, 2] = I[2, 0]
+    I[1, 2] = I[2, 1]
+    I[2, 2] = np.sum(I[2, 0]**2)
+    
+    J[:, 0] = [np.sum(y), np.sum(y * I[1, 0]), np.sum(y * I[2, 0])]
+    
+    abc = np.matmul(np.linalg.inv(I), J)
+    a, b, c = abc.flatten()
+    
+    return a, b, c, p, q
+    
 
 def fit_gaussian_non_iter(x, y, sort=False):
     """
@@ -1160,18 +1291,20 @@ if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
 #   A = ['a','b','a','c','a','b','c']
 #    C, IA, IC = uniquerows(A)
-    #x = np.arange(0, 10, 0.1)
+    x = np.arange(0, 10, 0.1)
     #f0 = lambda x, a, b, c: a * np.exp(b*x)+c
-    #y = f0(x, 3, -3, 3) + np.random.randn(len(x))/10
+    f0 = lambda x, a, b, c, p, q: a + b * np.exp(p * x) + c * np.exp(q * x)
+    y = f0(x, 0, 2, 3, -1.6, 2) + np.random.randn(len(x))/10
     #a, b, c = fit_exp_with_offset(x, y)
-    #plt.scatter(x, y)
-    #plt.plot(x, f0(x, a, b, c), 'r')
-    #plt.title('a={:.3f}, b={:.3f}, c={:.3f}'.format(a, b, c))
-    #print(a, b, c)
-    x = np.arange(-2.5, 7.1, 0.1)
-    f0 = lambda x, mu, sigma: 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp( -1/2 * ( (x - mu) / sigma )**2 )
-    y = f0(x, 2.08, 3.2) + np.random.randn(len(x))/100
-    mu, sigma= fit_gaussian_non_iter(x, y, sort=False)
+    b, c, p, q = fit_double_exp(x, y)
     plt.scatter(x, y)
-    plt.plot(x, f0(x, mu, sigma))
-    plt.title(r'$\mu$={:.3f}, $\sigma$={:.3f}'.format(mu, sigma))
+    plt.plot(x, f0(x, 0, b, c, p, q), 'r')
+    plt.title('a={:.3f}, b={:.3f}, c={:.3f}'.format(0, b, c))
+
+#    x = np.arange(-2.5, 7.1, 0.1)
+#    f0 = lambda x, mu, sigma: 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp( -1/2 * ( (x - mu) / sigma )**2 )
+#    y = f0(x, 2.08, 3.2) + np.random.randn(len(x))/100
+#    mu, sigma= fit_gaussian_non_iter(x, y, sort=False)
+#    plt.scatter(x, y)
+#    plt.plot(x, f0(x, mu, sigma))
+#    plt.title(r'$\mu$={:.3f}, $\sigma$={:.3f}'.format(mu, sigma))
