@@ -31,14 +31,14 @@ fontsize = {'title':10, 'xlab':8, 'ylab':8, 'xtick':6,'ytick':6,'texts':6,
             'legend': 6, 'legendtitle':6} # font size
 
 # unit in points. This corresponds to 0.25mm (1pt  = 1/72 inch)
-bar_line_property = {'border': 0.70866144, 'h_err_bar': 0.70866144, 'v_err_bar': 0.70866144, 
+bar_line_property = {'border': 0.70866144, 'h_err_bar': 0.70866144, 'v_err_bar': 0.70866144,
                      'xaxis_tick': 0.70866144, 'yaxis_tick': 0.70866144, 'xaxis_spine': 0.70866144,
                      'yaxis_spine': 0.70866144} # in mm.
 
 def barplot(groups, values, errors=None, Ns=None, pos=None,
-                width=0.5, space=0.1, size=(2,2), 
+                width=0.5, space=0.1, size=(2,2),
                 color=['#BFBFBF'], xlabpos='hug', ylab="", set_axis=True,
-                showvalue=True, showerror=False, bardir='+', border=[0.75, 0.5], 
+                showvalue=True, showerror=False, bardir='+', border=[0.75, 0.5],
                 capsize=4, ax=None, iteration=0, numdigit="{:.1f}", xpad=5,
                 enforce_ylim=False, Ns_color='k', values_color='k',ylim=None,
                 outsidevalue_thresh_px=20, xticklabdir='horizontal',
@@ -71,7 +71,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
         numdigit: format of the value if showvalue. Default {:.2f}
         iteration: number of times / groups to draw the bars.
         xpad: padding of xtick labels. Deafult 5
-        enforce_ylim: enforce y-limit, given by the argument ylim. 
+        enforce_ylim: enforce y-limit, given by the argument ylim.
                       Choose [True, False, 0]. Effect of this option depends on
                       multiple factors. Play to determine the best option.
         Ns_color: Ns text color. Default 'k'
@@ -80,7 +80,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
         outsidevalue_thresh_px: If bar size is shorter than this number of
             pixels, write the value outside the bar. Default 20 pixels.
         xticklabdir: set to 'vertical' to rotate the xticklabels
-        
+
     Use add_comparison to add comparison
     """
     values = np.asarray(values)
@@ -92,7 +92,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
         pos = np.arange(ngroups)
     elif len(pos) != ngroups:
         raise(ValueError('Length of argument "pos" must be the same as the number of groups of bars'))
-    
+
     # Adjust spaciing
     pos = np.asarray(pos)+0.1+iteration*(width+space)
     # initialize the plot
@@ -135,7 +135,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
             pass
     elif isinstance(enforce_ylim, (tuple, list)) and len(enforce_ylim)==2:
         ax.set_ylim(enforce_ylim) # specified ylim
-        
+
     if DEBUG:
         print(bardir)
 
@@ -158,8 +158,8 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
             ymin, ymax = ax.get_ybound()
         else:
             ymin, ymax = ylim
-        
-    
+
+
         if ymax <= 0.0: # only negative data present
             if DEBUG:
                 print('All negative data')
@@ -240,7 +240,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
                 ybase = 0
             else:
                 ybase = ax.get_ylim()[np.argmin(np.abs(ax.get_ylim()))]
-                
+
 
             if abs(ax.transData.transform((0,v))[1] - ax.transData.transform((0,0))[1]) <outsidevalue_thresh_px: # small bar, less than 10 pixels
                 ke = max(np.abs(err[:,i]))
@@ -321,7 +321,7 @@ def barplot(groups, values, errors=None, Ns=None, pos=None,
     ax.set_ylabel(ylab)
     # Set xaxis limit
     ax.set_xlim([min(pos) - border[0], max(pos) + border[1]])
-    
+
     # Line drawing
     setBarplotErrorbarStyle(rec)
     equalAxLineWidth(ax)
@@ -344,7 +344,7 @@ def AdjustAxs(otypes=[np.ndarray], excluded=None):
             return(res)
         return(wrapper)
     return(wrap)
-    
+
 def setBarplotErrorbarStyle(rec):
     if 'ErrorbarContainer' in str(type(rec)):
         children = rec.get_children()
@@ -368,10 +368,10 @@ def setBarplotErrorbarStyle(rec):
             except:
                 pass
 
-@AdjustAxs()           
-def equalAxLineWidth(ax, lineproperty ={'xaxis_tick': 0.70866144, 
-                                    'yaxis_tick': 0.70866144, 
-                                    'xaxis_spine': 0.70866144, 
+@AdjustAxs()
+def equalAxLineWidth(ax, lineproperty ={'xaxis_tick': 0.70866144,
+                                    'yaxis_tick': 0.70866144,
+                                    'xaxis_spine': 0.70866144,
                                     'yaxis_spine': 0.70866144}):
     ax.spines['left'].set_linewidth(bar_line_property['xaxis_spine'])
     ax.spines['right'].set_linewidth(bar_line_property['xaxis_spine'])
@@ -379,7 +379,7 @@ def equalAxLineWidth(ax, lineproperty ={'xaxis_tick': 0.70866144,
     ax.spines['top'].set_linewidth(bar_line_property['yaxis_spine'])
     ax.xaxis.set_tick_params(width=bar_line_property['xaxis_tick'])
     ax.yaxis.set_tick_params(width=bar_line_property['yaxis_tick'])
-        
+
 @AdjustAxs()
 def setAxisLineStyle(ax, lineproperty={'xaxis_tick_capstyle':'projecting',
                                        'xaxis_tick_joinstyle':'miter',
@@ -391,14 +391,14 @@ def setAxisLineStyle(ax, lineproperty={'xaxis_tick_capstyle':'projecting',
                                        'yaxis_spine_joinstyle':'miter',
                                        }):
     # Ticks
-    for i in ax.xaxis.get_ticklines(): 
+    for i in ax.xaxis.get_ticklines():
         i._marker._capstyle = lineproperty['xaxis_tick_capstyle']
         i._marker._joinstyle = lineproperty['xaxis_tick_joinstyle']
-    
+
     for i in ax.yaxis.get_ticklines():
         i._marker._capstyle = lineproperty['yaxis_tick_capstyle']
         i._marker._joinstyle = lineproperty['yaxis_tick_joinstyle']
-        
+
     # Spines
     ax.spines['left']._capstyle = lineproperty['yaxis_spine_capstyle']
     ax.spines['left']._joinstyle = lineproperty['yaxis_spine_joinstyle']
@@ -408,15 +408,15 @@ def setAxisLineStyle(ax, lineproperty={'xaxis_tick_capstyle':'projecting',
     ax.spines['top']._joinstyle = lineproperty['xaxis_spine_joinstyle']
     ax.spines['bottom']._capstyle = lineproperty['xaxis_spine_capstyle']
     ax.spines['bottom']._joinstyle = lineproperty['xaxis_spine_joinstyle']
-    
-    
+
+
 def add_comparison(x_bar=[0.1, 1.1], y_bar=[0.5, 0.5], x_text=0.6, y_text=0.5, text='*', ax=None, va='bottom', ha='center', *args, **kwargs):
     if ax is None:
         ax = plt.gca()
-    
+
     ax.plot(x_bar, y_bar, color='k', lw=bar_line_property['h_err_bar'])
     ax.text(x_text, y_text, text, va=va, ha=ha,*args, **kwargs)
-    
+
     return ax
 
 
@@ -430,7 +430,7 @@ if __name__=='__main__':
     Ns = [5, 13, 4]
     # ax.bar(np.arange(3), values, width=0.2, color='b', align='center')
     fig, ax, rec1 = barplot(groups, values, errors, Ns, width=0.3, space=0.05, numdigit="{:d}", ylab='weight gained (kg)', iteration=0)
-    
+
     groups = ['dog', 'cat', 'hippo']
     values = [-13, 6, 8]
     errors = [2, 3, 1]
