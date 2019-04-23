@@ -644,7 +644,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         df["Dirs"] = [os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/") for cb, ep in zip(df["Name"], df["Epi"])]
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
         df = df.reindex(["Name", "Epi", "Time", "Duration", "Drug Name", "Drug Time", "Comment"], axis=1) # drop columns not to be displayed
-        print('loaded')
+        # print('loaded')
         # Populate the loaded data unto the table widget
         self.tableview.headers = df.columns.tolist()
         self.tableview.model = EpisodeTableModel(df)

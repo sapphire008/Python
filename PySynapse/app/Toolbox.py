@@ -1035,11 +1035,15 @@ class Toolbox(QtWidgets.QWidget):
         R_sq = 1.0 - SSE / SS_total
         R_sq_adj = 1.0 - (SSE/(len(xdata)-len(p0))) / (SS_total/(len(xdata)-1))# Adjusted R_sq
         # Draw the fitted data
+        xplot = np.arange(-500, xdata[-1], xdata[-1]-xdata[-2])
+        yplot = f0(xplot, *popt)
         for a in p.listDataItems():
             if 'fit' in a.name():
-                a.setData(xdata+xoffset, yfit+yoffset)
+                #a.setData(xdata+xoffset, yfit+yoffset)
+                a.setData(xplot+xoffset, yplot+yoffset)
             else:
-                p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: '+eqText)
+                #p.plot(xdata+xoffset, yfit+yoffset, pen='r', name='fit: '+eqText)
+                p.plot(xplot + xoffset, yplot + yoffset, pen='r', name='fit: ' + eqText)
         # Add fitted curve to annotation artist
         self.fittedCurve = {'x': xdata+xoffset, 'y': yfit+yoffset, 'linecolor': 'r', 'name': 'fit: '+eqText, \
                             'layout': self.friend.layout[currentView[0]], 'type': 'curve'}
@@ -1393,12 +1397,14 @@ class Toolbox(QtWidgets.QWidget):
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # Get only the plotted data of first channel / stream
         data = p.listDataItems()
-
+        # Flag export
+        self.friend.exportFiltered = checked
         if checked: # assuming changed from unchecked to checked state, apply the filter
             if filterType.lower() == 'butter':
                 Order = str2numeric(self.FiltSettingTable[(3,1)].text())
                 Wn = str2num(self.FiltSettingTable[(4,1)].text())
                 Btype = self.FiltSettingTable[(5,1)].currentText()
+                self.friend.exportFiltered = {'order': Order, 'wn': Wn, 'btype':Btype}
                 if yData is None: # inplace
                     for d in data:
                         y = self.butterFilter(d.yData, Order, Wn, Btype)
@@ -1434,7 +1440,7 @@ class Toolbox(QtWidgets.QWidget):
         applyButton = QtGui.QPushButton("Apply")
         # Select from a list of pre-existing tools, or enter a custom function
         functionComboBox = QtGui.QComboBox()
-        functionComboBox.addItems(['mean', 'std', 'diff', 'rms', 'series resistance', 'Rin', 'Rin2']) #  'custom'
+        functionComboBox.addItems(['mean', 'std', 'diff', 'rms', 'series resistance', 'Rin', 'Rin2', 'mean time']) #  'custom'
         # Summary box
         functionReportBox = QtGui.QLabel("Apply a function")
         functionReportBox.setStyleSheet("background-color: white")
@@ -1468,6 +1474,8 @@ class Toolbox(QtWidgets.QWidget):
             functionReportBox.setText("Calculate series resistance from current trace in voltage clamp")
         elif func ==' diff':
             functionReportBox.setText("Calculate the average difference between two trace")
+        elif func == 'mean time':
+            functionReportBox.setText("Calculate the average time of a window")
         else:
             functionReportBox.setText("Apply a function")
 
@@ -1570,6 +1578,11 @@ class Toolbox(QtWidgets.QWidget):
                     Y2 = spk_window(Y2, ts, self.friend.selectedRange)
 
                 final_label_text = 'Diff = {:.9f}'.format(np.mean(Y1) - np.mean(Y2))
+
+        elif func == 'mean time': # given a window, display the start, end, and mean time
+            start_time, end_time = self.friend.selectedRange
+            mean_time = (start_time + end_time) / 2.0
+            final_label_text = 'Start: {:.9f}\nEnd: {:.9f}\nMean: {:.9f}'.format(start_time, end_time, mean_time)
 
         else: # custom function
             pass

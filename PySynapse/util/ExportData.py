@@ -13,6 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import numpy as np
+from scipy.signal import butter, filtfilt
 import matplotlib
 matplotlib.use("PS")
 matplotlib.rcParams['svg.fonttype'] = 'none'
@@ -220,6 +221,12 @@ def roundto125(x, r=np.array([1,2,5,10])): # helper static function
         y = r[(np.abs(r-x/(10**p))).argmin()] # find closest value
         return(y*(10**p))
 
+
+def butterFilter(y, Order, Wn, Btype="low"):
+    b, a = butter(Order, Wn, btype=Btype, analog=False, output='ba')
+    y_filt = filtfilt(b, a, y)
+    return y_filt
+
 def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
                          fontsize=None, ax=None, xscale=None, yscale=None,
                          loc=5, bbox_to_anchor=None):
@@ -255,7 +262,8 @@ def AddTraceScaleBar(xunit, yunit, color='k',linewidth=None,\
             try:
                 linewidth = ax.get_lines()[0]
             except:
-                raise(AttributeError('Did not find any line in this axis. Please explicitly specify the linewidth'))
+                linewidth=0.70
+                #raise(AttributeError('Did not find any line in this axis. Please explicitly specify the linewidth'))
         if 'matplotlib.lines.Line2D' in str(type(linewidth)):
             linewidth = linewidth.get_linewidth()
         # print(linewidth)
@@ -363,7 +371,7 @@ def writeEpisodeNote(zData, viewRange, channels, initFunc=None, mode='Simple'):
 def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=300, fig_size=None,
                adjustFigH=True, adjustFigW=True, nullRange=None, annotation='Simple',  showInitVal=True,
                setFont='default', fontSize=10, linewidth=1.0, monoStim=False, stimReflectCurrent=True,
-               plotStimOnce=False, **kwargs):
+               plotStimOnce=False, filterDict=None, **kwargs):
     """Export multiple traces overlapping each other"""    
     # np.savez('R:/tmp.npz', df=df, index=index, viewRange=[viewRange], saveDir=saveDir, colorfy=colorfy)
     # return
@@ -399,6 +407,11 @@ def PlotTraces(df, index, viewRange, saveDir, colorfy=False, artists=None, dpi=3
             # window the plot
             X = spk_window(X, ts, viewRange[m][0])
             Y = spk_window(Y, ts, viewRange[m][0])
+
+            # Apply filter if toggled filtering, but do not filter stimulus
+            if isinstance(filterDict, dict) and m[0]!='Stimulus':
+                Y = butterFilter(Y, filterDict['order'], filterDict['wn'], filterDict['btype'])
+
             # Stim channel reflects current channel
             if stimReflectCurrent and m[0]=='Stimulus':
                 CurBase = spk_window(zData.Current[m[1]], ts, viewRange[m][0]) # use view range of stimulus on current
@@ -720,8 +733,7 @@ def PlotTracesAsGrids(df, index, viewRange, saveDir=None, colorfy=False, artists
         scalebar = [annotationbox]
     else:
         scalebar = []
-    
-    
+
     # set axis
     for c, vr in enumerate(viewRange_dict.items()):
         l, r = vr

@@ -728,6 +728,7 @@ def diffx(X, axis=0, printerr=False, *args, **kwargs):
             if df[c].dtype.__str__() == 'object':
                 pass
             else:
+                set_trace()
                 df_new[c] = np.diff(df[c], axis=axis, *args, **kwargs)
                 if len(df_new[c])==1:
                     df_new[c] = np.asscalar(df_new[c])

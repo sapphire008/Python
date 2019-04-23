@@ -106,6 +106,8 @@ class ScopeWindow(QtWidgets.QMainWindow):
         self._usedColors = []
         # Track if scalebar is turned on or not
         self.has_scalebar=False
+        # Export filtered
+        self.exportFiltered = False
         # Set up the GUI window
         self.setupUi(self)
         self.setDisplayTheme(theme)
@@ -1067,7 +1069,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
                        fig_size=(options['figSizeW'], options['figSizeH']), adjustFigW=options['figSizeWMulN'], adjustFigH=options['figSizeHMulN'],
                        dpi=options['dpi'], nullRange=None if not self.isnull else self.nullRange, annotation=options['annotation'], showInitVal=options['showInitVal'],
                        setFont=options['fontName'], fontSize=options['fontSize'], linewidth=options['linewidth'], monoStim=options['monoStim'],
-                       stimReflectCurrent=options['stimReflectCurrent'], plotStimOnce=options['plotStimOnce'])
+                       stimReflectCurrent=options['stimReflectCurrent'], plotStimOnce=options['plotStimOnce'], filterDict=self.exportFiltered)
         elif arrangement == 'concatenate':
             PlotTracesConcatenated(self.episodes, self.index, viewRange, saveDir=options['saveDir'], colorfy=self._usedColors, artists=annotationArtists,
                                  dpi=options['dpi'], fig_size=(options['figSizeW'], options['figSizeH']), nullRange=None if not self.isnull else self.nullRange, hSpaceType=options['hSpaceType'], hFixedSpace=options['hFixedSpace'],
