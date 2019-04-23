@@ -16,6 +16,7 @@ def beeswarm(df, values, group=None, cluster=None, positions=None,
             legend=None, legendtitle=None, labels=None, labelson=True,
             ticklabelrotation='horizontal', log=False, s=33., dpi=72.,
             figsize=(10.,5.), color=('k','r'), colortheme='cluster',
+            reset_index=False, 
             **kwargs):
     """
      Helper functions:
@@ -70,6 +71,7 @@ def beeswarm(df, values, group=None, cluster=None, positions=None,
             - 'multi': different colors for different group x clusters
             - 'floral': as in floral pattern (e.g. wallpaper, dresses), where each point within
                     group x cluster are cycled using color. Make sure set 'cluster=None'.
+         * reset_index: reset the index of the df before making the plot. Default False
          * kwargs: whichever arguments that are relevent for plt.scatter
 
      Returns:
@@ -83,6 +85,10 @@ def beeswarm(df, values, group=None, cluster=None, positions=None,
          (coresponding roughly to 0.08 inch, use by R's beeswarm package), and
          figure size to be (10,5)
     """
+    # Reset df index
+    if reset_index:
+        df = df.reset_index(drop=True)
+    
     # Create axis handle if not specified in the argument
     if ax is None:
         fig, ax = plt.subplots(nrows=1, ncols=1)
@@ -144,9 +150,12 @@ def beeswarm(df, values, group=None, cluster=None, positions=None,
     }.get(colortheme)
     if color_spec is None:
         raise(ValueError('Unrecognized color theme: %s')%(colortheme))
-
+        
+    
     # Create a new dataframe
     bs = pd.DataFrame({'xorig':0, 'yorig':df[values], 'xnew':0, 'ynew':df[values], 'color':color_spec})
+    
+    #set_trace()
 
     # Adjust data along the grouping dimension: for now, plot vertically
     g_offset, g_pos, d_pos = [], [], []
@@ -221,7 +230,9 @@ def beeswarm(df, values, group=None, cluster=None, positions=None,
     # set x, y label
     if xlab is not None: ax.set_xlabel(xlab)
     if ylab is not None: ax.set_ylabel(ylab)
-
+    
+    if xlim is not None: ax.set_xlim(*xlim)
+    if ylim is not None: ax.set_ylim(*ylim)
     # Return items
     return(ax, bs)
 
@@ -450,7 +461,7 @@ def colorvect(factors, df, color=('k','r')):
     Cycle through the list of colors provided
     """
     # create group by object
-    groupby = df.groupby(list(factors))
+    groupby = df.groupby(list(factors), sort=False)
     # get indices of unique group
     return([color[c] for c in groupby.grouper.group_info[0] % len(color)])
     
@@ -459,7 +470,7 @@ def stable_unique(a):
     return [a[index] for index in sorted(indices)]
 
 
-def add_average_bar(ax, bs, pos='left', cap_marker_edge_width=1, label_values=False, label_values_offset=0, fmt="o", color="k", *args, **kwargs):
+def add_average_bar(ax, bs, pos='left', cap_marker_edge_width=1, label_values=None, label_values_offset=0, fmt="o", color="k", *args, **kwargs):
     """
     ax: axis of the beeswarm
     bs: data frame returned by beeswarm
@@ -492,16 +503,24 @@ def add_average_bar(ax, bs, pos='left', cap_marker_edge_width=1, label_values=Fa
         if not isinstance(label_values_offset, (list, tuple, np.ndarray)):
             label_values_offset = [label_values_offset]*len(pos0)
         for p, yo, m, s in zip(pos0, label_values_offset, mean0['ynew'].values, serr0['ynew'].values):
-            ax.text(p, m+s*1.1+yo, "{:.1f}$\pm${:.1f}".format(m, s), va='bottom', ha='center')
+            if isinstance(label_values, str) :
+                if label_values == 'vertical':
+                    ax.text(p, m+s*1.1+yo, "{:.1f}\n$\pm$\n{:.1f}".format(m, s), va='bottom', ha='center')
+                elif label_values == 'mean':
+                    ax.text(p, m+s*1.1+yo, "{:.1f}".format(m), va='bottom', ha='center')
+            
+            else:
+                ax.text(p, m+s*1.1+yo, "{:.1f}$\pm${:.1f}".format(m, s), va='bottom', ha='center')
     
     return ax
 
 
-def connect_paired_dots(ax, bs, zorder=0, pairs=[0, 1], *args, **kwargs):
+def connect_paired_dots(ax, bs, zorder=0, pairs=None, *args, **kwargs):
     """
     Connect paired beeswarms
     ax: axis of the beeswarm
     bs: data frame returned by beeswram, assuming the first half is group1 and second half is group 2
+    pairs: positions of the dots. Default is the unique value of the xorig
     *args, **kwargs, additional arguements for ax.plot
     """
 
@@ -510,6 +529,9 @@ def connect_paired_dots(ax, bs, zorder=0, pairs=[0, 1], *args, **kwargs):
         raise(ValueError('Number of rows of bs must be even!'))
         
     num_lines = int(nrows/2)
+    
+    if pairs is None:
+        pairs = np.sort(bs['xorig'].unique())
     
     # Sepeating the left and right dots
     bs0 = bs.loc[bs['xorig']==pairs[0],:]
@@ -524,7 +546,7 @@ def connect_paired_dots(ax, bs, zorder=0, pairs=[0, 1], *args, **kwargs):
     
         
 
-if __name__=='__main__':
+if __name__=='asdf':#'__main__':
     from ImportData import FigureData
     df = FigureData(dataFile='D:/Edward/Documents/Assignments/Scripts/Python/Plots/example/beeswarm.csv')
     df = df.table

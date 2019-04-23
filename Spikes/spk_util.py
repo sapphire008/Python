@@ -749,7 +749,44 @@ def spkd_victor_purpura_interval(tli, tlj, cost=0, tsamp=2000):
     
     return scr[ni, nj]
 
+def spk_preliminary_analysis(zData, params=['RMP', 'AHP', 'Rin', 
+                                            'NumSpikes','SpikeTime', 
+                                            'NumPASpikes', 'PASpikeTime']):
+    """General purpose analysis, with default settings
+    * zData: data loaded
+    * params: ['RMP', 'AHP', 'Rin', 'NumSpikes', 'SpikeTime', 'NumPASpikes', 'PASpikeTime']
+    """
+    
+    ts = zData.Protocol.msPerPoint
+    stim = spk_get_stim(zData.Stimulus['A'], ts)
+    neg = spk_get_stim(-zData.Stimulus['A'], ts)
+    neg[2] = -neg[2]
+    
+    outputs = {'stim':stim, 'neg':neg, 'ts':ts}
+    
+    if 'RMP' in params:
+        outputs['RMP'] = spk_window(zData.Voltage['A'], ts, np.array([-100, 0])+stim[0]).mean()
+        
+            
+    if 'AHP' in params:
+        outputs['AHP'] = spk_window(zData.Voltage['A'], ts, np.array([50, 200])+stim[1]).mean() - \
+            spk_window(zData.Voltage['A'], ts, np.array([-100, 0])+stim[0]).mean()
+        
+    if 'Rin' in params:
+        outputs['Rin'] = spk_get_rin(zData.Voltage['A'], ts, neg)
+        
+    if 'NumSpikes' in params or 'SpikeTime' in params:
+        outputs['NumSpikes'], outputs['SpikeTime'], _ = spk_count(zData.Voltage['A'], ts, window=stim)
+    
+    if 'NumPASpikes' in params or 'PASpikeTime' in params:
+        outputs['NumPASpikes'], outputs['PASpikeTime'], _ = spk_count(zData.Voltage['A'], ts, window=[stim[1], None])
+        
+    return outputs
+        
 
+    
+    
+    
 # %% Simultaions
 def spk_make_epsp_train(event_time, duration=10000, ts=0.1, 
                         alpha_dict={'duration':1000, 'amplitude':150, 'tau1':50, 'tau2':100}):    

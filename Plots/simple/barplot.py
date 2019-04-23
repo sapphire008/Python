@@ -346,7 +346,10 @@ def AdjustAxs(otypes=[np.ndarray], excluded=None):
     return(wrap)
     
 def setBarplotErrorbarStyle(rec):
-    children = rec.errorbar.get_children()
+    if 'ErrorbarContainer' in str(type(rec)):
+        children = rec.get_children()
+    else:
+        children = rec.errorbar.get_children()
     for c in children:
         if c is None:
             continue
