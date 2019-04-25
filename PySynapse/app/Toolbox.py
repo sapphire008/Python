@@ -802,6 +802,17 @@ class Toolbox(QtWidgets.QWidget):
         widgetFrame.layout().setSpacing(10)
         # Curve fitting button
         fitButton = QtGui.QPushButton("Curve Fit")
+        # Window
+        windowLabel = QtGui.QLabel("Window")
+        windowLabel.setToolTip("Overwrite manual Region Selection")
+        windowText = QtGui.QLineEdit()
+        windowText.setToolTip("window in ms [start, end]")
+        windowText.setPlaceholderText("0")
+        # Extrapolate
+        extrapolLabel = QtGui.QLabel("Extrapolate")
+        extrapolText = QtGui.QLineEdit()
+        extrapolText.setToolTip("* No extrapolation: leave blank;\n* Extrapolate backwards 500 ms: -500;\n* Extrapolate forward 500 ms: 500;\n* Extrapolate both directions: [-500, 500];")
+        extrapolText.setPlaceholderText("0")
         # Type of curve to fit dropdown box
         curveTypeComboBox = QtGui.QComboBox()
         curveTypeComboBox.addItems(['Exponential', 'Polynomial', 'Power'])
@@ -814,12 +825,18 @@ class Toolbox(QtWidgets.QWidget):
         # Arrange the widget
         widgetFrame.layout().addWidget(fitButton, 0, 0, 1,3)
         widgetFrame.layout().addWidget(curveTypeComboBox, 1, 0, 1, 3)
+        widgetFrame.layout().addWidget(windowLabel, 2, 0, 1, 1)
+        widgetFrame.layout().addWidget(windowText, 2, 1, 1, 2)
+        widgetFrame.layout().addWidget(extrapolLabel, 3, 0, 1, 1)
+        widgetFrame.layout().addWidget(extrapolText, 3, 1, 1, 1)
+
+        self.cfsr = 4 # curve fitting table start row
 
         # Settings of curve fitting
-        self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText())
+        self.setCFSettingWidgetFrame(widgetFrame, windowText, extrapolText, cfReportBox, curveTypeComboBox.currentText())
 
         # Refresh setting section when cf type changed
-        curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, cfReportBox, curveTypeComboBox.currentText()))
+        curveTypeComboBox.currentIndexChanged.connect(lambda: self.setCFSettingWidgetFrame(widgetFrame, windowText, extrapolText, cfReportBox, curveTypeComboBox.currentText()))
 
         # Summary box behavior
         fitButton.clicked.connect(lambda: self.curveFit(curveTypeComboBox.currentText(), cfReportBox))#, csCheckBox.checkState()))
@@ -827,46 +844,51 @@ class Toolbox(QtWidgets.QWidget):
         return widgetFrame
 
 
-    def setCFSettingWidgetFrame(self, widgetFrame, cfReportBox, curve):
+    def setCFSettingWidgetFrame(self, widgetFrame, windowText, extrapolText, cfReportBox, curve):
         # Remove everything at and below the setting rows: rigid setting
-        widgetFrame = self.removeFromWidget(widgetFrame, cfReportBox, row=3)
+        widgetFrame = self.removeFromWidget(widgetFrame, cfReportBox, row=4)
         # Get the setting table again
-        self.getCFSettingTable(widgetFrame, cfReportBox, curve)
+        self.getCFSettingTable(widgetFrame, windowText, extrapolText, cfReportBox, curve)
         for key, val in self.CFsettingTable.items():
-            widgetFrame.layout().addWidget(val, key[0], key[1])
+            if isinstance(key, tuple):
+                widgetFrame.layout().addWidget(val, key[0], key[1])
         # Report box
         widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
 
-    def getCFSettingTable(self, widgetFrame, cfReportBox, curve):
+    def getCFSettingTable(self, widgetFrame, windowText, extrapolText, cfReportBox, curve):
         if curve == 'Exponential':
             eqLabel = QtGui.QLabel("Equation:")
             eqComboBox = QtGui.QComboBox()
             eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)'])
             eqComboBox.currentIndexChanged.connect(lambda: self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText()))
-            self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
+            self.CFsettingTable = {(self.cfsr,0): eqLabel, (self.cfsr,1): eqComboBox}
             # Call it once at startup to get initialization parameters
             self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText())
         elif curve == 'Power':
             eqLabel = QtGui.QLabel("Equation")
             eqComboBox = QtGui.QComboBox()
             eqComboBox.addItems(['a*x^b', 'a*x^b+c'])
-            self.CFsettingTable = {(3,0): eqLabel, (3,1): eqComboBox}
+            self.CFsettingTable = {(self.cfsr,0): eqLabel, (self.cfsr,1): eqComboBox}
         elif curve == 'Polynomial':
             degLabel = QtGui.QLabel("Degree:")
             degText = QtGui.QLineEdit("1")
-            self.CFsettingTable = {(3,0):degLabel, (3,1): degText}
+            self.CFsettingTable = {(self.cfsr,0):degLabel, (self.cfsr,1): degText}
+
+        self.CFsettingTable.update({'window':windowText, 'extrapolate':extrapolText})
 
     def setExpCFInitializationParams(self, widgetFrame, cfReportBox, equation='a*exp(b*x)+c'):
         # Remove everything at and below the setting rows:
-        widgetFrame = self.removeFromWidget(widgetFrame, reportBox=cfReportBox, row=4)
+        widgetFrame = self.removeFromWidget(widgetFrame, reportBox=cfReportBox, row=self.cfsr+1)
         # Get the setting table
         self.getExpCFParamTable(equation=equation)
         for key, val in self.CFsettingTable.items():
-            widgetFrame.layout().addWidget(val, key[0], key[1])
+            if isinstance(key, tuple):
+                widgetFrame.layout().addWidget(val, key[0], key[1])
         # Report box
         widgetFrame.layout().addWidget(cfReportBox, widgetFrame.layout().rowCount(), 0, 1, 3)
 
     def getExpCFParamTable(self, equation='a*exp(b*x)+c'):
+        cfsr = self.cfsr
         if equation == 'a*exp(b*x)+c':
             a0_label = QtGui.QLabel('a0')
             a0_text = QtGui.QLineEdit('auto')
@@ -874,21 +896,21 @@ class Toolbox(QtWidgets.QWidget):
             b0_text = QtGui.QLineEdit('auto')
             c0_label = QtGui.QLabel('c0')
             c0_text = QtGui.QLineEdit('0')
-            self.CFsettingTable[(4, 0)] = a0_label
-            self.CFsettingTable[(4, 1)] = a0_text
-            self.CFsettingTable[(5, 0)] = b0_label
-            self.CFsettingTable[(5, 1)] = b0_text
-            self.CFsettingTable[(6, 0)] = c0_label
-            self.CFsettingTable[(6, 1)] = c0_text
+            self.CFsettingTable[(cfsr+1, 0)] = a0_label
+            self.CFsettingTable[(cfsr+1, 1)] = a0_text
+            self.CFsettingTable[(cfsr+2, 0)] = b0_label
+            self.CFsettingTable[(cfsr+2, 1)] = b0_text
+            self.CFsettingTable[(cfsr+3, 0)] = c0_label
+            self.CFsettingTable[(cfsr+3, 1)] = c0_text
         elif equation == 'a*exp(b*x)':
             a0_label = QtGui.QLabel('a0')
             a0_text = QtGui.QLineEdit('auto')
             b0_label = QtGui.QLabel('b0')
             b0_text = QtGui.QLineEdit('auto')
-            self.CFsettingTable[(4, 0)] = a0_label
-            self.CFsettingTable[(4, 1)] = a0_text
-            self.CFsettingTable[(5, 0)] = b0_label
-            self.CFsettingTable[(5, 1)] = b0_text
+            self.CFsettingTable[(cfsr+1, 0)] = a0_label
+            self.CFsettingTable[(cfsr+1, 1)] = a0_text
+            self.CFsettingTable[(cfsr+2, 0)] = b0_label
+            self.CFsettingTable[(cfsr+2, 1)] = b0_text
         elif equation == 'a*exp(b*x)+c*exp(d*x)':
             a0_label = QtGui.QLabel('a0')
             a0_text = QtGui.QLineEdit('auto')
@@ -898,14 +920,14 @@ class Toolbox(QtWidgets.QWidget):
             c0_text = QtGui.QLineEdit('auto')
             d0_label = QtGui.QLabel('d0')
             d0_text = QtGui.QLineEdit('auto')
-            self.CFsettingTable[(4, 0)] = a0_label
-            self.CFsettingTable[(4, 1)] = a0_text
-            self.CFsettingTable[(5, 0)] = b0_label
-            self.CFsettingTable[(5, 1)] = b0_text
-            self.CFsettingTable[(6, 0)] = c0_label
-            self.CFsettingTable[(6, 1)] = c0_text
-            self.CFsettingTable[(7, 0)] = d0_label
-            self.CFsettingTable[(7, 1)] = d0_text
+            self.CFsettingTable[(cfsr+1, 0)] = a0_label
+            self.CFsettingTable[(cfsr+1, 1)] = a0_text
+            self.CFsettingTable[(cfsr+2, 0)] = b0_label
+            self.CFsettingTable[(cfsr+2, 1)] = b0_text
+            self.CFsettingTable[(cfsr+3, 0)] = c0_label
+            self.CFsettingTable[(cfsr+3, 1)] = c0_text
+            self.CFsettingTable[(cfsr+4, 0)] = d0_label
+            self.CFsettingTable[(cfsr+4, 1)] = d0_text
         else:
             pass
 
@@ -921,18 +943,20 @@ class Toolbox(QtWidgets.QWidget):
             return
 
         for m in range(len(p0)): # replacing with user custom values
-            if self.CFsettingTable[(4+m, 1)].text() == 'auto':
+
+            if self.CFsettingTable[(self.cfsr+1+m, 1)].text() == 'auto':
                 pass
-            elif not isstrnum(self.CFsettingTable[(4+m, 1)].text()):
+            elif not isstrnum(self.CFsettingTable[(self.cfsr+1+m, 1)].text()):
                 pass
             else:
-                p0[m] = str2numeric(self.CFsettingTable[(4+m, 1)].text())
+                p0[m] = str2numeric(self.CFsettingTable[(self.cfsr+1+m, 1)].text())
 
         #print('Initial fitted parameters')
         #print(p0)
         return p0
 
     def curveFit(self, curve, cfReportBox, currentView=(0,0)):#, centerAndScale):
+        cfsr = self.cfsr
         # get view
         p = self.friend.graphicsView.getItem(row=currentView[0], col=currentView[1])
         # clear previous fit artists
@@ -950,11 +974,15 @@ class Toolbox(QtWidgets.QWidget):
         # Get only the plotted data of first channel / stream
         d = p.listDataItems()[0]
 
-        if self.friend.viewRegionOn: # fit between region selection
-            xdata, ydata = spk_window(d.xData, d._ts, self.friend.selectedRange), spk_window(d.yData, d._ts, self.friend.selectedRange)
+        try:
+            windowRegion = str2num(self.CFsettingTable['window'].text())
+            xdata, ydata = spk_window(d.xData, d._ts, windowRegion), spk_window(d.yData, d._ts, windowRegion)
+        except: # defer to Region Selection
+            if self.friend.viewRegionOn: # fit between region selection
+                xdata, ydata = spk_window(d.xData, d._ts, self.friend.selectedRange), spk_window(d.yData, d._ts, self.friend.selectedRange)
 
-        else: # fit within the current view
-            xdata, ydata = spk_window(d.xData, d._ts, p.viewRange()[0]), spk_window(d.yData, d._ts, p.viewRange()[0])
+            else: # fit within the current view
+                xdata, ydata = spk_window(d.xData, d._ts, p.viewRange()[0]), spk_window(d.yData, d._ts, p.viewRange()[0])
 
         # remove baseline: -= and += can be tricky. Use carefully
         xoffset = xdata[0]
@@ -964,7 +992,7 @@ class Toolbox(QtWidgets.QWidget):
 
         f0 = None
         if curve == 'Exponential':
-            eqText = self.CFsettingTable[(3,1)].currentText()
+            eqText = self.CFsettingTable[(cfsr,1)].currentText()
             p0 = self.getExpCFDefaultParams(xdata, ydata, equation=eqText)
             if eqText == 'a*exp(b*x)+c':
                 f0 = lambda x, a, b, c: a*np.exp(b*x)+c
@@ -979,7 +1007,7 @@ class Toolbox(QtWidgets.QWidget):
                 # bounds = [(-max(abs(ydata))*1.1, -10, -max(abs(ydata))*1.1, -10),  (max(abs(ydata))*1.1, 10, max(abs(ydata))*1.1, 10)]
                 ptext = ['a','b','c','d']
         elif curve == 'Power':
-            eqText = self.CFsettingTable[(3,1)].currentText()
+            eqText = self.CFsettingTable[(cfsr,1)].currentText()
             if eqText == 'a*x^b':
                 f0 = lambda x, a, b: a*(x**b)
                 p0 = np.ones(2,)
@@ -991,7 +1019,7 @@ class Toolbox(QtWidgets.QWidget):
                 # bounds = [(-np.inf, -np.inf, -np.inf), (np.inf, np.inf, np.inf)]
                 ptext = ['a','b','c']
         elif curve == 'Polynomial':
-            eqText = self.CFsettingTable[(3,1)].text()
+            eqText = self.CFsettingTable[(cfsr,1)].text()
             def f0(x, *p):
                 poly = 0.
                 for i, n in enumerate(p):
@@ -1035,7 +1063,18 @@ class Toolbox(QtWidgets.QWidget):
         R_sq = 1.0 - SSE / SS_total
         R_sq_adj = 1.0 - (SSE/(len(xdata)-len(p0))) / (SS_total/(len(xdata)-1))# Adjusted R_sq
         # Draw the fitted data
-        xplot = np.arange(-500, xdata[-1], xdata[-1]-xdata[-2])
+        extrapolWindow = str2num(self.CFsettingTable['extrapolate'].text())
+        if isnumber(extrapolWindow):
+            if extrapolWindow > 0:
+                xplot = np.arange(xdata[0], xdata[-1] + extrapolWindow, xdata[-1] - xdata[-2])
+            elif extrapolWindow < 0:
+                xplot = np.arange(extrapolWindow, xdata[-1], xdata[-1] - xdata[-2])
+            else:
+                xplot = xdata
+        elif isinstance(extrapolWindow, (tuple, list, np.ndarray)) and len(extrapolWindow)==2: # assuming a pair of numbers, extrapolating both sides
+            xplot = np.arange(extrapolWindow[0], xdata[-1] + extrapolWindow[1], xdata[-1] - xdata[-2])
+        else: # otherwise
+            xplot = np.arange(xdata[0], xdata[-1], xdata[-1]-xdata[-2])
         yplot = f0(xplot, *popt)
         for a in p.listDataItems():
             if 'fit' in a.name():

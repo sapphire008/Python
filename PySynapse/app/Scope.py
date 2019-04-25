@@ -1141,9 +1141,9 @@ if __name__ == '__main__' and not run_example:
     'Duration': [50000,50000,50000], 'Drug Level': [0,0,0], 'Time': ['30:03','31:03','32:03'],
     'Name': 'NeocortexChRNBM D.09Nov16', 'Drug Time': ['24:27','25:15','26:03'], 'Sampling Rate': [0.1,0.1,0.1],
     'Comment': ['TTL3: SIU train','',''],
-    'Dirs': ['D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E22.dat',
-             'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E23.dat',
-             'D:/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E24.dat']}
+    'Dirs': ['/Users/edward/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E22.dat',
+             '/Users/edward/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E23.dat',
+             '/Users/edward/Data/Traces/2016/11.November/Data 9 Nov 2016/NeocortexChRNBM D.09Nov16.S1.E24.dat']}
 
     index = [0]
     app = QtWidgets.QApplication(sys.argv)
