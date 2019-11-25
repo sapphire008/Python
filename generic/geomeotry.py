@@ -99,3 +99,31 @@ def spm_matrix(P, order='T*R*Z*S'):
     v = {'T':T, 'R':R, 'Z':Z, 'S':S}
     l = order.split('*')
     A = v[l[0]].dot(v[l[1]]).dot(v[l[2]]).dot(v[l[3]])
+
+def ndim_rotation_matrix(x, y):
+    """
+    Implemented based on MATLAB code from
+    https://math.stackexchange.com/questions/598750/finding-the-rotation-matrix-in-n-dimensions
+
+    x, y are n-dimensional column vectors
+
+    u = x / |x|
+    v = y - (u'*y).*u
+    v = v / |v|
+
+    cos(theta) = x' * y / (|x| |y|)
+    sin(theta) = sqrt(1-cos(theta)^2)
+
+    R = I - u*u' - v*v' + [u, v] R_theta [u, v]'
+    """
+    u = x / np.linalg.norm(x, ord=2)
+    v = y - u.T.dot(y)*(u)
+    v = v / np.linalg.norm(v, ord=2)
+
+    cost = float(x.T.dot(y) / (np.linalg.norm(x, ord=2) * np.linalg.norm(y, ord=2)))
+    sint = float(np.sqrt(1-cost**2))
+
+    R = np.eye(x.shape[0]) - u.dot(u.T) - v.dot(v.T) + \
+        np.c_[u, v].dot(np.array([[cost, -sint], [sint, cost]])).dot(np.c_[u, v].T)
+
+    return R

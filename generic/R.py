@@ -77,4 +77,23 @@ def filterByCount(df, N=2, by=None, by2=None, keep_count=False):
         df.drop(columns=['filtered_count'], inplace=True)
     return df
 
+def filter_logicals(df, conditions, logicals='and'):
+    """
+    filter by logical and
+    conditions: dictionary of col:value
+    """
+    cond_list = [[]] * len(conditions)
+    for n, (key, val) in enumerate(conditions.items()):
+        cond_list[n] = df[key] == val
+    
+    if logicals == 'and':
+        df = df.loc[np.logical_and.reduce(cond_list)]
+    elif logicals == 'or':
+        df = df.loc[np.logical_or.reduce(cond_list)]
+    return df
+
+
+
+
+
 

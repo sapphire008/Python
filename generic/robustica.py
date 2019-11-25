@@ -655,3 +655,4 @@ def robsutica(X, deftype='orthogonalization', dimred=False, kurtsign=0.,
 
 if __name__ == '__main__':
     # test
+    pass

@@ -422,6 +422,32 @@ def longest_repeated_substring(lst, ignore_nonword=True, inall=True):
 
     return(longest)
 
+def slice_array(array, fs, duration=4, overlap=1):
+    """
+    Dividing a time series into pieces, with overlap
+    array: time series array
+    fs: sampling frequency of the time sereis, in Hz
+    duration: duration of the segments, in sec. Default 4
+    overlap: overlap between the segments, in sec. Default 1.
+
+    Return:
+    The start and the end of the segments
+    """
+    l = len(array) # length of audio
+    dur_len = duration * fs
+    ol_len = overlap * fs
+    win = dur_len - ol_len
+
+    # Build the start and end index
+    start_index = np.floor(np.arange(0, l, win)).astype(np.int32)
+    end_index = np.floor(np.arange(dur_len, l+1, win)).astype(np.int32)
+    min_len = min(len(start_index), len(end_index))
+    start_index = start_index[:min_len]
+    end_index = end_index[:min_len]
+    array_segments = np.c_[start_index, end_index]
+
+    return array_segments
+
 def cell2array(C):
     """Helpful when reading MATLAB .mat files containing cellarray"""
     n, m = C.shape
@@ -918,7 +944,7 @@ def fit_exp_with_offset(x, y, sort=False):
 def fit_double_exp(x, y, sort=False):
     """
     Fitting y = b * exp(p * x) + c * exp(q * x)
-    Implemented based on: 
+    Implemented based on:
         Regressions et Equations Integrales by Jean Jacquelin
     """
     if sort:
@@ -933,55 +959,55 @@ def fit_double_exp(x, y, sort=False):
     SS = np.zeros_like(x)
     SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
     SS = np.cumsum(SS)
-    
+
     # Getting the parameters
     M = np.empty((4, 4))
     N = np.empty((4, 1))
-    
+
     M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x), np.sum(SS)])
 
     M[0, 1] = M[1, 0]
     M[1:,1] = np.array([np.sum(S**2),  np.sum(S * x), np.sum(S)])
-    
+
     M[:2,2] = M[2, :2]
     M[2, 2] = np.sum(x**2)
-    
+
     M[:3,3] = M[3,:3]
     M[3, 3] = n
-    
+
     N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x * y), np.sum(y)])
-    
+
     # Regression for p and q
     ABCD = np.matmul(np.linalg.inv(M), N)
     #set_trace()
     A, B, C, D = ABCD.flatten()
     p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
     q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
-    
+
      # Regression for b, c
     I = np.empty((2, 2))
     J = np.empty((2, 1))
-    
+
     beta = np.exp(p * x)
     eta  = np.exp(q * x)
     I[0, 0] = np.sum(beta**2)
     I[1, 0] = np.sum(beta * eta)
     I[0, 1] = I[1, 0]
     I[1, 1] = np.sum(eta**2)
-    
-    
+
+
     J[:, 0] = [np.sum(y * beta), np.sum(y * eta)]
-    
+
     bc = np.matmul(np.linalg.inv(I), J)
     b, c = bc.flatten()
-    
+
     return b, c, p, q
-    
+
 
 def fit_double_exp_with_offset(x, y, sort=False):
     """
     Fitting y = a + b * exp(p * x) + c * exp(q * x)
-    Implemented based on: 
+    Implemented based on:
         https://math.stackexchange.com/questions/2249200/exponential-regression-with-two-terms-and-constraints
     """
     if sort:
@@ -996,39 +1022,39 @@ def fit_double_exp_with_offset(x, y, sort=False):
     SS = np.zeros_like(x)
     SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
     SS = np.cumsum(SS)
-    
+
     # Getting the parameters
     M = np.empty((5, 5))
     N = np.empty((5, 1))
-    
+
     M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x**2), np.sum(SS * x), np.sum(SS)])
 
     M[0, 1] = M[1, 0]
     M[1:,1] = np.array([np.sum(S**2), np.sum(S * x**2), np.sum(S * x), np.sum(S)])
-    
+
     M[0, 2] = M[2, 0]
     M[1, 2] = M[2, 1]
     M[2:,2] = np.array([np.sum(x**4),  np.sum(x**3), np.sum(x**2)])
-    
+
     M[:3,3] = M[3,:3]
     M[3, 3] = M[4, 2]
     M[4, 3] = np.sum(x)
-    
+
     M[:4, 4] = M[4, :4]
     M[4, 4] = n
-    
+
     N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x**2 * y), np.sum(x * y), np.sum(y)])
-    
+
     # Regression for p and q
     ABCDE = np.matmul(np.linalg.inv(M), N)
     A, B, C, D, E = ABCDE.flatten()
     p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
     q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
-    
+
     # Regression for a, b, c
     I = np.empty((3, 3))
     J = np.empty((3, 1))
-    
+
     I[0, 0] = n
     I[1, 0] = np.sum(np.exp(p * x))
     I[2, 0] = np.sum(np.exp(q * x))
@@ -1038,14 +1064,14 @@ def fit_double_exp_with_offset(x, y, sort=False):
     I[0, 2] = I[2, 0]
     I[1, 2] = I[2, 1]
     I[2, 2] = np.sum(I[2, 0]**2)
-    
+
     J[:, 0] = [np.sum(y), np.sum(y * I[1, 0]), np.sum(y * I[2, 0])]
-    
+
     abc = np.matmul(np.linalg.inv(I), J)
     a, b, c = abc.flatten()
-    
+
     return a, b, c, p, q
-    
+
 
 def fit_gaussian_non_iter(x, y, sort=False):
     """
@@ -1284,7 +1310,7 @@ def ks_test_survival(s1, s2, n, m, alpha=0.05, alpha_type=1):
         p = np.exp((D / en)**2 * (-2))
     else:
         p = stats.distributions.kstwobign.sf((1/en + 0.12+0.11 * en) * D)
-        
+
     return D, p, D_critical
 
 if __name__ == '__main__':
