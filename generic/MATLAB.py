@@ -1372,6 +1372,33 @@ def sparse_memory_usage(mat):
     else:
         return sys.getsizeof(mat)
 
+def cosine_similarities(mat):
+    """
+    Compute pairiwise cosine similarities between columns
+    given sparse matrix mat
+    """
+    import sklearn.preprocessing as pp
+    col_normed_mat = pp.normalize(mat.tocsc(), axis=0)
+    return col_normed_mat.T * col_normed_mat
+
+def jaccard_similarities(mat):
+    """
+    Compute pairwise Jaccard similarities between columns
+    given sparse matrix mat
+    """
+    cols_sum = mat.getnnz(axis=0)
+    ab = mat.T * mat
+
+    # for rows
+    aa = np.repeat(cols_sum, ab.getnnz(axis=0))
+    # for columns
+    bb = cols_sum[ab.indices]
+
+    similarities = ab.copy()
+    similarities.data /= (aa + bb - ab.data)
+
+    return similarities
+
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
