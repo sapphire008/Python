@@ -10,11 +10,12 @@ Convenient R functions in Python
 import numpy as np
 import pandas as pd
 from pdb import set_trace
+import psutil
 
 def aggregate(df, by, fun, select=None, subset=None, **kwargs):
     """This should enhance the stupidly designed groupby functions.
     Will have to evoke this until it is fixed.
-    
+
     df: pandas data frame
     by: columns to aggregate by
     fun: function(s) to apply. For examples:
@@ -23,7 +24,7 @@ def aggregate(df, by, fun, select=None, subset=None, **kwargs):
           the results of each aggregation
         - fun = ['sum', 'count', custom_function], apply the pandas built-in
           sum and count, as well as a custom_function defined by the user.
-          The column aggregated by custom_function will be named 
+          The column aggregated by custom_function will be named
           'custom_function'
     select: select columns to aggregate on, exclude other columns
     subset: select rows to aggregate on.
@@ -31,10 +32,10 @@ def aggregate(df, by, fun, select=None, subset=None, **kwargs):
     if 'DataFrameGroupBy' not in str(type(df)):
         for b in by:
             df[b] = df[b].astype('category')
-        
+
         df = subset(df, select, subset)
         gp = df.groupby(by)
-    
+
     gp = gp.agg(fun)#, **kwargs)
     # Remove any nuisance rows with all nans
     gp = subset(gp, subset=~np.all(np.isnan(gp.values), axis=1))
@@ -42,9 +43,13 @@ def aggregate(df, by, fun, select=None, subset=None, **kwargs):
     return gp
 
 def subset(df, select=None, subset=None):
+    """
+    select: columns to keep
+    subset: rows to keep
+    """
     if select is not None:
         df = df[select]
-    
+
     if select is not None:
         df = df.loc[subset, :]
 
@@ -68,7 +73,7 @@ def filterByCount(df, N=2, by=None, by2=None, keep_count=False):
     if by2 is not None:
         gp = ns0.groupby(by=by2, as_index=False, sort=False)
         ns1 = gp.count()
-        ns1.drop(columns=np.setdiff1d(by, by2), inplace=True)        
+        ns1.drop(columns=np.setdiff1d(by, by2), inplace=True)
         df = df.merge(ns1, on=by2)
     else:
         df = df.merge(ns0, on=by)
@@ -77,23 +82,126 @@ def filterByCount(df, N=2, by=None, by2=None, keep_count=False):
         df.drop(columns=['filtered_count'], inplace=True)
     return df
 
-def filter_logicals(df, conditions, logicals='and'):
+def filterAND(df, AND, select=None):
     """
-    filter by logical and
-    conditions: dictionary of col:value
+    Filter rows of a dataframe based on the values in the specified columns
+
+    AND: A dictionary, where the keys are the column names, and values are the
+         the corresponding values of the column to apply AND filter on
+    select: subset of columns to use
     """
-    cond_list = [[]] * len(conditions)
-    for n, (key, val) in enumerate(conditions.items()):
-        cond_list[n] = df[key] == val
-    
-    if logicals == 'and':
-        df = df.loc[np.logical_and.reduce(cond_list)]
-    elif logicals == 'or':
-        df = df.loc[np.logical_or.reduce(cond_list)]
-    return df
+    AND_filter = []
+    for key, val in AND.items():
+        if isinstance(val, (list, tuple, np.ndarray)):
+            for v in val:
+                AND_filter.append((df[key] == v).values)
+        else:
+            AND_filter.append((df[key] == val).values)
+            
+    if select is None:
+        if len(AND_filter) > 1:
+            return df.loc[np.logical_and.reduce(AND_filter), :]
+        else:
+            return df.loc[AND_filter[0], :]
+    else:
+        if len(AND_filter) > 1:
+            return df.loc[np.logical_and.reduce(AND_filter), select]
+        else:
+            return df.loc[AND_filter[0], select]
 
 
+def filterOR(df, OR, select=None):
+    """
+    Filter rows of a dataframe based on the values in the specified columns
+
+    OR: A dictionary, where the keys are the column names, and values are the
+         the corresponding values of the column to apply OR filter on
+    select: subset of columns to use
+    """
+    OR_filter = []
+    try:
+        for key, val in OR.items():
+            if isinstance(val, (list, tuple, np.ndarray)):
+                for v in val:
+                    OR_filter.append((df[key] == v).values)
+            else:
+                OR_filter.append((df[key] == val).values)
+        if select is None:
+            if len(OR_filter) > 1:
+                return df.loc[np.logical_or.reduce(OR_filter), :]
+            else:
+                return df.loc[OR_filter[0], :]
+        else:
+            if len(OR_filter) > 1:
+                return df.loc[np.logical_or.reduce(OR_filter), select]
+            else:
+                return df.loc[OR_filter[0], select]
+    except:
+        set_trace()
 
 
+def filterRows(df, AND=None, OR=None, AndBeforeOr=True, select=None):
+    """
+    Filter rows of a dataframe based on the values in the specified columns
+
+    AND: A dictionary, where the keys are the column names, and values are the
+         the corresponding values of the column to apply AND filter on
+    OR:  A dictionary like And, except to apply OR filter
+    AndBeforeOr: If true (Default), apply AND filter before OR filter
+    select: subset of columns to use
+    """
+    # Make a copy of the df first
+    dff = df.copy()
+    if AndBeforeOr:
+        # Apply AND filter
+        dff = filterAND(dff, AND, select=select)
+        # Apply OR filter
+        dff = filterOR(dff, OR, select=select)
+    else:
+        # Apply AND filter
+        dff = filterOR(dff, OR, select=select)
+        # Apply OR filter
+        dff = filterAND(dff, AND, select=select)
+        
+    return dff
 
 
+def merge_size(left_frame, right_frame, on, how='inner'):
+    """
+    Check memory usage of a merge
+    """
+    left_groups = left_frame.groupby(on).size()
+    right_groups = right_frame.groupby(on).size()
+    left_keys = set(left_groups.index)
+    right_keys = set(right_groups.index)
+    intersection = right_keys & left_keys
+    left_diff = left_keys - intersection
+    right_diff = right_keys - intersection
+
+    left_nan = len(left_frame[left_frame[on] != left_frame[on]])
+    right_nan = len(right_frame[right_frame[on] != right_frame[on]])
+    left_nan = 1 if left_nan == 0 and right_nan != 0 else left_nan
+    right_nan = 1 if right_nan == 0 and left_nan != 0 else right_nan
+
+    sizes = [(left_groups[group_name] * right_groups[group_name]) for group_name in intersection]
+    sizes += [left_nan * right_nan]
+
+    left_size = [left_groups[group_name] for group_name in left_diff]
+    right_size = [right_groups[group_name] for group_name in right_diff]
+    if how == 'inner':
+        return sum(sizes)
+    elif how == 'left':
+        return sum(sizes + left_size)
+    elif how == 'right':
+        return sum(sizes + right_size)
+    return sum(sizes + left_size + right_size)
+
+def mem_fit(df1, df2, on, how='inner'):
+    """
+    Check if a merge would fit in the memory
+    """
+    rows = merge_size(df1, df2, on, how)
+    cols = len(df1.columns) + (len(df2.columns) - 1)
+    required_memory = (rows * cols) * np.dtype(np.float64).itemsize
+
+    return required_memory <= psutil.virtual_memory().available
