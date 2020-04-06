@@ -6,18 +6,22 @@ Python implemented MATLAB utilities
 
 @author: Edward
 """
-
-import numpy as np
-import scipy as sp
-from scipy import stats
-from skimage.draw import polygon
+import sys
+import os
 import re
 import glob
-import os
 import operator
-import pandas as pd
-from collections import OrderedDict, Iterable
 from pdb import set_trace
+from collections import OrderedDict, Iterable
+
+import numpy as np
+import pandas as pd
+
+import scipy as sp
+from scipy import stats
+from scipy import sparse
+from skimage.draw import polygon
+
 
 def getfield(struct, *args): # layered /serial indexing
     """Get value from a field from a dictionary /structure"""
@@ -921,7 +925,7 @@ def fit_exp_with_offset(x, y, sort=False):
 def fit_double_exp(x, y, sort=False):
     """
     Fitting y = b * exp(p * x) + c * exp(q * x)
-    Implemented based on: 
+    Implemented based on:
         Regressions et Equations Integrales by Jean Jacquelin
     """
     if sort:
@@ -936,55 +940,55 @@ def fit_double_exp(x, y, sort=False):
     SS = np.zeros_like(x)
     SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
     SS = np.cumsum(SS)
-    
+
     # Getting the parameters
     M = np.empty((4, 4))
     N = np.empty((4, 1))
-    
+
     M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x), np.sum(SS)])
 
     M[0, 1] = M[1, 0]
     M[1:,1] = np.array([np.sum(S**2),  np.sum(S * x), np.sum(S)])
-    
+
     M[:2,2] = M[2, :2]
     M[2, 2] = np.sum(x**2)
-    
+
     M[:3,3] = M[3,:3]
     M[3, 3] = n
-    
+
     N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x * y), np.sum(y)])
-    
+
     # Regression for p and q
     ABCD = np.matmul(np.linalg.inv(M), N)
     #set_trace()
     A, B, C, D = ABCD.flatten()
     p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
     q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
-    
+
      # Regression for b, c
     I = np.empty((2, 2))
     J = np.empty((2, 1))
-    
+
     beta = np.exp(p * x)
     eta  = np.exp(q * x)
     I[0, 0] = np.sum(beta**2)
     I[1, 0] = np.sum(beta * eta)
     I[0, 1] = I[1, 0]
     I[1, 1] = np.sum(eta**2)
-    
-    
+
+
     J[:, 0] = [np.sum(y * beta), np.sum(y * eta)]
-    
+
     bc = np.matmul(np.linalg.inv(I), J)
     b, c = bc.flatten()
-    
+
     return b, c, p, q
-    
+
 
 def fit_double_exp_with_offset(x, y, sort=False):
     """
     Fitting y = a + b * exp(p * x) + c * exp(q * x)
-    Implemented based on: 
+    Implemented based on:
         https://math.stackexchange.com/questions/2249200/exponential-regression-with-two-terms-and-constraints
     """
     if sort:
@@ -999,39 +1003,39 @@ def fit_double_exp_with_offset(x, y, sort=False):
     SS = np.zeros_like(x)
     SS[1:] = 0.5 * (S[:-1] + S[1:]) * np.diff(x)
     SS = np.cumsum(SS)
-    
+
     # Getting the parameters
     M = np.empty((5, 5))
     N = np.empty((5, 1))
-    
+
     M[:, 0] = np.array([np.sum(SS**2), np.sum(SS * S), np.sum(SS * x**2), np.sum(SS * x), np.sum(SS)])
 
     M[0, 1] = M[1, 0]
     M[1:,1] = np.array([np.sum(S**2), np.sum(S * x**2), np.sum(S * x), np.sum(S)])
-    
+
     M[0, 2] = M[2, 0]
     M[1, 2] = M[2, 1]
     M[2:,2] = np.array([np.sum(x**4),  np.sum(x**3), np.sum(x**2)])
-    
+
     M[:3,3] = M[3,:3]
     M[3, 3] = M[4, 2]
     M[4, 3] = np.sum(x)
-    
+
     M[:4, 4] = M[4, :4]
     M[4, 4] = n
-    
+
     N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x**2 * y), np.sum(x * y), np.sum(y)])
-    
+
     # Regression for p and q
     ABCDE = np.matmul(np.linalg.inv(M), N)
     A, B, C, D, E = ABCDE.flatten()
     p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
     q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
-    
+
     # Regression for a, b, c
     I = np.empty((3, 3))
     J = np.empty((3, 1))
-    
+
     I[0, 0] = n
     I[1, 0] = np.sum(np.exp(p * x))
     I[2, 0] = np.sum(np.exp(q * x))
@@ -1041,14 +1045,14 @@ def fit_double_exp_with_offset(x, y, sort=False):
     I[0, 2] = I[2, 0]
     I[1, 2] = I[2, 1]
     I[2, 2] = np.sum(I[2, 0]**2)
-    
+
     J[:, 0] = [np.sum(y), np.sum(y * I[1, 0]), np.sum(y * I[2, 0])]
-    
+
     abc = np.matmul(np.linalg.inv(I), J)
     a, b, c = abc.flatten()
-    
+
     return a, b, c, p, q
-    
+
 
 def fit_gaussian_non_iter(x, y, sort=False):
     """
@@ -1287,7 +1291,7 @@ def ks_test_survival(s1, s2, n, m, alpha=0.05, alpha_type=1):
         p = np.exp((D / en)**2 * (-2))
     else:
         p = stats.distributions.kstwobign.sf((1/en + 0.12+0.11 * en) * D)
-        
+
     return D, p, D_critical
 
 def faster_corr(X, Y):
@@ -1301,7 +1305,7 @@ def faster_corr(X, Y):
     X = X / np.sqrt(np.sum(X**2, axis=0, keepdims=True)) # L2 normalization
     Y = Y / np.sqrt(np.sum(Y**2, axis=0, keepdims=True)) # L2 normalization
     R = np.sum(X*Y, axis=0)
-    
+
     return R
 
 def faster_cross_corr(X, Y):
@@ -1319,20 +1323,20 @@ def faster_cross_corr(X, Y):
     X = X / np.sqrt(np.sum(X**2, axis=0, keepdims=True)) # L2 normalization
     Y = Y / np.sqrt(np.sum(Y**2, axis=0, keepdims=True)) # L2 normalization
     R = X.T.dot(Y)
-    
+
     return R
 
-    
+
 def r2z(R, return_q=False):
     """
     Convert Pearson correlation to Z score and get a P value
-    
+
     z = arctanh(R)
     p = Gaussian(mu=0, sigma=1)(z)
     q = NormCDF(mu=0, sigma=1)(z)
       = (1. + erf(z / sqrt(2.))) / 2.
       where erf = 2/sqrt(pi)*integral(exp(-t**2), t=0..z).
-    
+
     Parameters
     ----------
     R : Pearson correlation between -1 and 1
@@ -1345,7 +1349,7 @@ def r2z(R, return_q=False):
     q: cumulative distribution of the z score (only returned if return_q=True)
     """
     assert R <=1 and R>=-1
-    
+
     z = np.arctanh(R)
     p = (1/np.sqrt(2*np.pi)) * np.exp(-z**2/2) # Gaussian N(0, 1)
     if return_q:
@@ -1353,8 +1357,21 @@ def r2z(R, return_q=False):
         return z, p, q
     else:
         return z, p
-    
-    
+
+
+def sparse_memory_usage(mat):
+    """
+    Based on https://stackoverflow.com/questions/43681279/why-is-scipy-sparse-matrix-memory-usage-indifferent-of-the-number-of-elements-in
+    """
+    if mat.format in ('csr', 'csc'):
+        return mat.data.nbytes + mat.indptr.nbytes + mat.indices.nbytes
+    elif mat.format == 'coo':
+        return mat.data.nbytes + mat.row.nbytes + mat.col.nbytes
+    elif mat.format == 'lil':
+        return mat.data.nbytes + mat.rows.nbytes
+    else:
+        return sys.getsizeof(mat)
+
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
