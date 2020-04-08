@@ -13,6 +13,7 @@ from pdb import set_trace
 import psutil
 from joblib import Parallel, delayed
 import multiprocessing
+from tqdm import tqdm
 
 def aggregate(df, by, fun, select=None, subset=None, **kwargs):
     """This should enhance the stupidly designed groupby functions.
@@ -210,8 +211,6 @@ def mem_fit(df1, df2, on, how='inner'):
 
 
 def applyParallel(dfGrouped, func):
-    """
-    Parallel apply func to Pandas groupby data
-    """
-    retLst = Parallel(n_jobs=multiprocessing.cpu_count())(delayed(func)(group) for name, group in dfGrouped)
+    retLst = Parallel(n_jobs=multiprocessing.cpu_count())(\
+            delayed(func)(group) for name, group in tqdm(dfGrouped)) # enumerate(tqdm(dfGrouped))
     return pd.concat(retLst)
