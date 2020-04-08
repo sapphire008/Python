@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from pdb import set_trace
 import psutil
+from joblib import Parallel, delayed
+import multiprocessing
 
 def aggregate(df, by, fun, select=None, subset=None, **kwargs):
     """This should enhance the stupidly designed groupby functions.
@@ -205,3 +207,11 @@ def mem_fit(df1, df2, on, how='inner'):
     required_memory = (rows * cols) * np.dtype(np.float64).itemsize
 
     return required_memory <= psutil.virtual_memory().available
+
+
+def applyParallel(dfGrouped, func):
+    """
+    Parallel apply func to Pandas groupby data
+    """
+    retLst = Parallel(n_jobs=multiprocessing.cpu_count())(delayed(func)(group) for name, group in dfGrouped)
+    return pd.concat(retLst)
