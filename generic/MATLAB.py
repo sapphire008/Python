@@ -1358,7 +1358,6 @@ def r2z(R, return_q=False):
     else:
         return z, p
 
-
 def sparse_memory_usage(mat):
     """
     Based on https://stackoverflow.com/questions/43681279/why-is-scipy-sparse-matrix-memory-usage-indifferent-of-the-number-of-elements-in
@@ -1399,6 +1398,48 @@ def jaccard_similarities(mat):
 
     return similarities
 
+
+def harmonic_approx(n):
+    """Returns an approximate value of n-th harmonic number.
+
+       http://en.wikipedia.org/wiki/Harmonic_number
+    """
+    if n == 0:
+        return 0
+    # Euler-Mascheroni constant
+    gamma = 0.57721566490153286060651209008240243104215933593992
+    return gamma + np.log(n) + 0.5/n - 1./(12*n**2) + 1./(120*n**4)
+
+
+def cubic_trig(b, c, d):
+    """
+    Trigonometric solution to a cubic function, assuming the form
+    x^3 + b x^2 + c x + d = 0
+    
+    The coefficients can be of any shape (n1, n2, n3, ...), 
+    and the solutions will be an output of dimension (n1, n2, n3, ..., 3)
+    where the 3 solutions (both complex and real) are stacked in the 
+    last dimension
+    
+    Reference: "A Generalized Trigonometric Solution of the Cubic Equation"
+    https://www.jstor.org/stable/2968419?seq=1#metadata_info_tab_contents
+    """
+    # Transform to depressed form
+    b_sq = b * b
+    b_cb = b_sq * b
+    b_3 = b/3
+    p = c-b_sq/3
+    q = 2/27*b_cb-1/3*b*c+d
+    
+    # Solve with complex trigonometric functions
+    phi = 1/3*np.arcsin((3*q/(-2*p) * np.lib.scimath.sqrt(3/(-p))).astype(np.complex))
+    f = -2 * np.sign(p) * np.lib.scimath.sqrt(-p/3)
+    x1 = f * np.sin(phi) - b_3
+    x2 = f * np.sin(phi + 2*np.pi/3) - b_3
+    x3 = f * np.sin(phi + 4*np.pi/3) - b_3
+
+    X = np.dstack([x1, x2, x3])
+    return X
 
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
