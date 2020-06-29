@@ -237,17 +237,15 @@ def reduce_mem_usage(df, int_cast=True, obj_to_category=False, subset=None):
 
     cols = subset if subset is not None else df.columns.tolist()
 
-    for col in tqdm(cols):
+    for col in cols:
         col_type = df[col].dtype
 
         if col_type != object and col_type.name != 'category' and 'datetime' not in col_type.name:
-            c_min = df[col].min()
-            c_max = df[col].max()
+            c_min = np.nanmin(df[col].values)
+            c_max = np.nanmax(df[col].values)
 
-            # test if column can be converted to an integer
+            # test if column can be cast down to a smaller integer
             treat_as_int = str(col_type)[:3] == 'int'
-            if int_cast and not treat_as_int:
-                treat_as_int = check_if_integer(df[col])
 
             if treat_as_int:
                 if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
@@ -266,7 +264,7 @@ def reduce_mem_usage(df, int_cast=True, obj_to_category=False, subset=None):
                     df[col] = df[col].astype(np.int64)
                 elif c_min > np.iinfo(np.uint64).min and c_max < np.iinfo(np.uint64).max:
                     df[col] = df[col].astype(np.uint64)
-            else:
+            else: # floats
                 if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
                     df[col] = df[col].astype(np.float16)
                 elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
@@ -281,3 +279,4 @@ def reduce_mem_usage(df, int_cast=True, obj_to_category=False, subset=None):
     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
 
     return df
+
