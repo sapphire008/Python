@@ -166,3 +166,33 @@ def regularized_matrix_factorization(R, K=25, l2_reg=0.001, maxiter=100, random_
         c = 1 / (card_omega + l2_reg) * R_u_b_mu # legnth M
             
     return U, W, b, c, mu, J, R_hat
+
+if __name__ == '__main__':
+    tmp_A = np.array([[1,2,0], [0, 1, 3], [3, 2, 0], [1, 0, 5]], dtype=float)
+    print(tmp_A)
+    nan_A = tmp_A.copy()
+    nan_A[nan_A<1E-6] = np.nan
+    print(nan_A)
+    A = scipy.sparse.csc_matrix(tmp_A)
+    row_mean, row_var, row_std = sparse_stats(A, axis=0)
+    print('sparse mean', row_mean)
+    print('sparse var', row_var)
+    print('sparse std', row_std)
+    A_new = R_plus_rv(A, -row_mean.ravel())
+    print('remove mean', A_new.toarray())
+    A_new = R_op_rv(A_new, row_std.ravel(), op='divide')
+    print('divide std', A_new.toarray())
+
+    new_row_mean, _, new_row_std = sparse_stats(A_new, axis=0)
+    print('sparse new mean:', new_row_mean)
+    print('sparse new std:', new_row_std)
+
+    print('numpy mean:', np.nanmean(nan_A, axis=0))
+    print('numpy var:', np.nanvar(nan_A, axis=0))
+    print('numpy std:', np.nanstd(nan_A, axis=0))
+    SS = nan_A - np.nanmean(nan_A, axis=0, keepdims=True)
+    print('remove_mean', SS)
+    SS = SS/np.nanstd(nan_A, axis=0, keepdims=True)
+    print('divide std', SS)
+    print('numpy new mean: ', np.nanmean(SS, axis=0))
+    print('numpy new std: ', np.nanstd(SS, axis=0))
