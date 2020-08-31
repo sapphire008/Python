@@ -10,6 +10,7 @@ Convenient R functions in Python
 import numpy as np
 import pandas as pd
 from pdb import set_trace
+import gc
 import psutil
 from joblib import Parallel, delayed
 import multiprocessing
