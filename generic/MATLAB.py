@@ -724,7 +724,7 @@ def calculate_aic(n, mse, num_params):
     * mse: mean squared error
     * num_params: number of parameters of the model
     """
-	aic = n * log(mse) + 2 * num_params
+	aic = n * np.log(mse) + 2 * num_params
 	return aic
 
 def calculate_bic(n, mse, num_params):
@@ -733,7 +733,7 @@ def calculate_bic(n, mse, num_params):
     * mse: mean squared error
     * num_params: number of parameters of the model
     """
-	bic = n * log(mse) + num_params * log(n)
+	bic = n * np.log(mse) + num_params * log(n)
 	return bic
 
 def serr(X, axis=0, toarray=False, printerr=False, returnOnError=None, *args, **kwargs):
