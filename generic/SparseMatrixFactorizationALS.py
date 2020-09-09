@@ -59,7 +59,7 @@ def sparse_mean(R, axis=0):
     """Compute mean of a sparse matrix along a certain axis"""
     R = R.tocsc()
     # Compute mean
-    R_mean = np.array(R.sum(axis=axis) / R.getnnz(axis=axis)) # dense, kept dim
+    R_mean = np.array(R.sum(axis=axis) / np.expand_dims(R.getnnz(axis=axis), axis=axis)) # dense, kept dim
     return R_mean
 
 def sparse_var(R, axis=0):
@@ -68,7 +68,7 @@ def sparse_var(R, axis=0):
     # Compute mean
     R_mean = sparse_mean(R, axis=axis)
     # Compute variance
-    R_var = np.array(R.multiply(R).sum(axis=axis) / R.getnnz(axis=axis)) - R_mean**2
+    R_var = np.array(R.multiply(R).sum(axis=axis) / np.expand_dims(R.getnnz(axis=axis), axis=axis)) - R_mean**2
     return R_var
 
 def sparse_std(R, axis=0):
@@ -81,8 +81,8 @@ def sparse_std(R, axis=0):
 
 def sparse_stats(R, axis=0):
     R = R.tocsc()
-    R_mean = np.array(R.sum(axis=axis) / R.getnnz(axis=axis)) # dense, kept dim
-    R_var = np.array(R.multiply(R).sum(axis=axis) / R.getnnz(axis=axis)) - R_mean**2
+    R_mean = np.array(R.sum(axis=axis) / np.expand_dims(R.getnnz(axis=axis), axis=axis)) # dense, kept dim
+    R_var = np.array(R.multiply(R).sum(axis=axis) / np.expand_dims(R.getnnz(axis=axis), axis=axis)) - R_mean**2
     R_std = np.sqrt(R_var)
     return R_mean, R_var, R_std
     
