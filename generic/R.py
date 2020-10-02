@@ -281,3 +281,31 @@ def reduce_mem_usage(df, int_cast=True, obj_to_category=False, subset=None):
 
     return df
 
+def columns2dict(df, key_cols, val_cols):
+    """Convert a dataframe's columns into key and val pairs
+    Parameters:
+    -----------
+        * df: Pandas dataframe
+        * key_cols: list of columns used as key
+        * val_cols: list of columns used as value
+
+    Example 1:
+    df = pd.DataFrame({"key1":[1, 2, 3, 4], "val1":[10, 25, 35, 45]})
+    out_dict = column2dict(df, "key1", "val1")
+    >> {1: 10, 2: 25, 3: 35, 4: 45}
+    
+    Example 2:
+    df = pd.DataFrame({"key1":[1, 2, 3, 4], "key2":["a","b","c","d"], "val1":[10, 25, 35, 45]})
+    out_dict = columns2dict(df, ["key1", "key2"], ["val1"])
+    >> {(1, 'a'): 10, (2, 'b'): 25, (3, 'c'): 35, (4, 'd'): 45}
+    
+    Example 2:
+    df = pd.DataFrame({"key1":[1, 2, 3, 4], "key2":["a","b","c","d"], "val1":[10, 25, 35, 45], "val2":[102, 204, 308, 496]})
+    out_dict = columns2dict(df, ["key1", "key2"], ["val1", "val2"])
+    >> {(1, 'a'): [10, 102], (2, 'b'): [25, 204], (3, 'c'): [35, 308], (4, 'd'): [45, 496]}
+    """
+    tmp = df[key_cols+val_cols].set_index(key_cols).T
+    if len(val_cols) < 2:
+        return tmp.to_dict('records')[0]
+    else:
+        return tmp.to_dict('list')
