@@ -85,6 +85,10 @@ def sparse_stats(R, axis=0):
     R_var = np.array(R.multiply(R).sum(axis=axis) / np.expand_dims(R.getnnz(axis=axis), axis=axis)) - R_mean**2
     R_std = np.sqrt(R_var)
     return R_mean, R_var, R_std
+
+def sparse_symmetrify(R):
+    R = R + R.T.multiply(R.T > R) - R.multiply(R.T > R)
+    return R
     
 def regularized_matrix_factorization(R, K=25, l2_reg=0.001, maxiter=100, random_state=42):
     """
