@@ -1399,6 +1399,27 @@ def cosine_similarities(mat):
     col_normed_mat = pp.normalize(mat.tocsc(), axis=0)
     return col_normed_mat.T * col_normed_mat
 
+def cosine_similarities_ab(A, B):
+    """
+    Compute cosine similarities between matrix A and B.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        Left matrix of shape (M x K).
+    B : np.ndarray
+        Right matrix of shape (N x K).
+
+    Returns
+    -------
+    Cosine similarity matrix of shape (M x N).
+
+    """
+    # L2 normalize
+    A = A / np.sqrt(np.sum(A**2, axis=1, keepdims=True))
+    B = B / np.sqrt(np.sum(B**2, axis=1, keepdims=True))
+    return A @ B.T
+
 def jaccard_similarities(mat):
     """
     Compute pairwise Jaccard similarities between columns
