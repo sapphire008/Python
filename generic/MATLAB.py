@@ -1439,6 +1439,23 @@ def jaccard_similarities(mat):
     return similarities
 
 
+def kl_divergence_pairwise(P):
+    """
+    Compute pairwise KL divergence in P, where
+    each row of P is a probability distribution.
+    
+    Using formula:
+    D_KL(P, Q) = H(P, Q) - H(P) 
+               = (-\sum_i p_i \log q_i) - (-\sum p_i \log p_i)
+    
+    Returns an N x N matrix where N is the number of rows
+    """
+    H_p = -np.sum(P * np.log(P), axis=1, keepdims=True)
+    H_p_q = -(P @ np.log(P.T))
+    D_kl = H_p_q - H_p
+    return D_kl
+
+
 def harmonic_approx(n):
     """Returns an approximate value of n-th harmonic number.
 
