@@ -211,14 +211,16 @@ def mem_fit(df1, df2, on, how='inner'):
     return required_memory <= psutil.virtual_memory().available
 
 
-def applyParallel(dfGrouped, func):
+def applyParallel(dfGrouped, func, n_jobs=None):
     """
     def apply_func(pandas_df):
         ...
         
     df = applyParallel(df.groupby(by=grouped_by_columns, as_index=False), apply_func)
     """
-    retLst = Parallel(n_jobs=multiprocessing.cpu_count())(\
+    if n_jobs is None:
+        n_jobs = multiprocessing.cpu_count()
+    retLst = Parallel(n_jobs=n_jobs)(\
             delayed(func)(group) for name, group in tqdm(dfGrouped)) # enumerate(tqdm(dfGrouped))
     return pd.concat(retLst)
 
