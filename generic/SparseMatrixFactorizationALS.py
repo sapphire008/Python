@@ -55,6 +55,19 @@ def R_op_rv(R, rv, op='plus'):
         raise(ValueError(f'Unknown operator {op}'))
     return R
 
+def sparse_normalize(R, axis=1):
+    """Normalize a sparse matrix along an axis"""
+    if axis==1:
+        R = R.tocsc()
+    else:
+        R = R.tocsr()
+    norm = R.copy()
+    norm.data = norm.data**2
+    norm = np.sqrt(norm.sum(axis=axis).A.flatten())
+    R.data /= np.take(norm, R.indices)
+
+    return R
+
 def sparse_mean(R, axis=0):
     """Compute mean of a sparse matrix along a certain axis"""
     R = R.tocsc()
