@@ -1498,6 +1498,46 @@ def cubic_trig(b, c, d):
     X = np.dstack([x1, x2, x3])
     return X
 
+
+def dict_list_to_list_dict(DL):
+	"""
+	Dict of list to list of dict
+	DL = {
+		"a": [5, 6, 7],
+		"b": [7, 6, 5],
+		"c": [2, 3, 4],
+	}
+	->
+	LD = [
+		{"a": 5, "b": 7, "c": 2},
+		{"a": 6, "b": 6, "c": 3},
+		{"a": 7, "b": 5, "c": 4},
+	]
+	"""
+	v = [dict(zip(DL,t)) for t in zip(*DL.values())]
+	return v
+
+
+
+def list_dict_to_dict_list(LD):
+	"""
+	Convert list of dicts to dict of list
+	LD = [
+		{"a": 5, "b": 7, "c": 2},
+		{"a": 6, "b": 6, "c": 3},
+		{"a": 7, "b": 5, "c": 4},
+	]
+	->
+	DL = {
+		"a": [5, 6, 7],
+		"b": [7, 6, 5],
+		"c": [2, 3, 4],
+	}
+	"""
+	v = {k: [dic[k] for dic in LD] for k in LD[0]}
+	return v
+
+
 if __name__ == '__main__':
 #    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
 #   A = ['a','b','a','c','a','b','c']
