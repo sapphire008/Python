@@ -724,8 +724,8 @@ def calculate_aic(n, mse, num_params):
     * mse: mean squared error
     * num_params: number of parameters of the model
     """
-	aic = n * np.log(mse) + 2 * num_params
-	return aic
+    aic = n * np.log(mse) + 2 * num_params
+    return aic
 
 def calculate_bic(n, mse, num_params):
     """calculate bic for regression
@@ -733,8 +733,8 @@ def calculate_bic(n, mse, num_params):
     * mse: mean squared error
     * num_params: number of parameters of the model
     """
-	bic = n * np.log(mse) + num_params * log(n)
-	return bic
+    bic = n * np.log(mse) + num_params * np.log(n)
+    return bic
 
 def serr(X, axis=0, toarray=False, printerr=False, returnOnError=None, *args, **kwargs):
     try:
@@ -1539,9 +1539,10 @@ def list_dict_to_dict_list(LD):
 
 
 if __name__ == '__main__':
-#    A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
-#   A = ['a','b','a','c','a','b','c']
-#    C, IA, IC = uniquerows(A)
+    import matplotlib.pyplot as plt
+    # A = np.array([[2, 3], [1,2], [1, 2], [3, 2], [4,5], [3,1], [1,2], [2,3]])
+    # A = ['a','b','a','c','a','b','c']
+    # C, IA, IC = uniquerows(A)
     x = np.arange(0, 10, 0.1)
     #f0 = lambda x, a, b, c: a * np.exp(b*x)+c
     f0 = lambda x, a, b, c, p, q: a + b * np.exp(p * x) + c * np.exp(q * x)
