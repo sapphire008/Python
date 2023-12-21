@@ -971,8 +971,10 @@ def fit_double_exp(x, y, sort=False):
 
     M[:2,2] = M[2, :2]
     M[2, 2] = np.sum(x**2)
+    M[3, 2] = np.sum(x)
 
     M[:3,3] = M[3,:3]
+    M[2, 3] = M[3, 2]
     M[3, 3] = n
 
     N[:, 0] = np.array([np.sum(SS * y), np.sum(S * y), np.sum(x * y), np.sum(y)])
