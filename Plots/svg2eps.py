@@ -77,6 +77,7 @@ def svg2eps_ai(source_file, target_file, \
     jsx_file_str = jsx_file_str.replace('{format_source_file}', source_file)
     jsx_file_str = jsx_file_str.replace('{format_target_file}', target_file).replace('\\','/')
     tmp_f = os.path.abspath(os.path.join(os.path.dirname(target_file), "tmp.jsx"))
+    # Write to a temporary location
     f = open(tmp_f, 'w')
     f.write(jsx_file_str)
     f.close()
@@ -85,10 +86,17 @@ def svg2eps_ai(source_file, target_file, \
     if os.path.isfile(target_file):
         os.remove(target_file)
 
-    # subprocess.check_call([illustrator_path, '-run', tmp_f])
-    cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
-    pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    # print(pro.stdout)
+    if sys.platform == "win32":
+        # subprocess.check_call([illustrator_path, '-run', tmp_f])
+        cmd = " ".join(['"'+illustrator_path+'"', '-run', '"'+tmp_f+'"'])
+        # Run
+        pro = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        
+    elif sys.platform == "darwin": # use osasscript
+        cmd = f"""osascript -e 'tell application "Adobe Illustrator" to do javascript (file "{tmp_f}")'"""
+        pro = subprocess.call(cmd, shell=True)
+    
+    print(pro.stdout)
     # continuously check if new files are updated
     time.sleep(5.0)
     sleep_iter = 5.0
