@@ -13,6 +13,7 @@ import six
 import re
 from pdb import set_trace
 from collections import OrderedDict
+from MATLAB import isempty
 # import matplotlib.pyplot as plt
 
 def readVBString(fid):
@@ -189,10 +190,10 @@ class NeuroData(object):
         # close file
         fid.close()
 
-    def TTL2Stim_old(self, TTLarray):
-        TTL = self.parseTTLArray_old(TTLarray)
-        TTL_trace = np.arange(0, duration+ts, ts)
-        return TTL_trace
+    # def TTL2Stim_old(self, TTLarray):
+    #     TTL = self.parseTTLArray_old(TTLarray)
+    #     TTL_trace = np.arange(0, duration+ts, ts)
+    #     return TTL_trace
         
         
     @staticmethod
@@ -594,8 +595,8 @@ class FigureData(object):
         self.meta['yunit'] = np.reshape(self.meta['yunit'],\
                                            (len(self.meta['xunit']),-1))
 
-    @staticmethod
-    def listintersect(*args):
+    @classmethod
+    def listintersect(cls, *args):
         """Find common elements in lists"""
         args = [x for x in args if x is not None] # get rid of None
         def LINT(A,B):  #short for list intersection
@@ -608,7 +609,7 @@ class FigureData(object):
             return(LINT(args[0],args[1]))
         else:
             newargs = tuple([LINT(args[0], args[1])]) + args[2:]
-            return(listintersect(*newargs))
+            return(cls.listintersect(*newargs))
 
     @staticmethod
     def sec2hhmmss(sec):

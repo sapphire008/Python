@@ -17,6 +17,7 @@ import os
 import operator
 import pandas as pd
 from collections import OrderedDict
+import matplotlib.pyplot as plt
 from pdb import set_trace
 
 def getfield(struct, *args): # layered /serial indexing
