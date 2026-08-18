@@ -16,6 +16,7 @@ Main window of Synapse
 import os
 import sys
 import re
+import csv
 import signal
 import numpy as np
 from pdb import set_trace
@@ -740,6 +741,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         self.scopeLayout = layout
         self.startpath=startpath
         self.loaded_database_path = None
+        self.table_from_database = False
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -795,6 +797,12 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         self.tableview.setHorizontalHeader(header)
         # self.tableview.setShowGrid(False)
         self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")
+        self.tableview.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.tableview.customContextMenuRequested.connect(self.onTableContextMenu)
+        delete_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence.Delete, self.tableview)
+        delete_shortcut.activated.connect(self.deleteSelectedDatabaseRows)
+        backspace_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Backspace), self.tableview)
+        backspace_shortcut.activated.connect(self.deleteSelectedDatabaseRows)
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
 
@@ -1037,6 +1045,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
             axis=1,
         )
         self.loaded_database_path = filename
+        self.table_from_database = True
         self._bindEpisodeTable(df)
         self.statusBar().showMessage("Loaded {} ({} episodes)".format(os.path.basename(filename), n_rows))
 
@@ -1117,8 +1126,124 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         # self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
         df = df.reindex(self.tableview.headers, axis=1)
+        self.table_from_database = False
         self._bindEpisodeTable(df, hidden_columns=self.tableview.hiddenColumnList)
         # self.tableview.clicked.connect(self.onItemSelected)
+
+    def _selectedSourceRows(self):
+        sm = self.tableview.selectionModel()
+        if sm is None:
+            return []
+        return sorted({self._sourceRow(idx) for idx in sm.selectedRows()})
+
+    def onTableContextMenu(self, pos):
+        index = self.tableview.indexAt(pos)
+        if index.isValid():
+            sm = self.tableview.selectionModel()
+            row_index = self.tableview.model().index(index.row(), 0)
+            if sm is not None and not sm.isSelected(row_index):
+                self.tableview.selectRow(index.row())
+        menu = QtWidgets.QMenu(self)
+        deleteAction = menu.addAction("Delete")
+        can_delete = (
+            bool(self._selectedSourceRows())
+            and bool(getattr(self, "table_from_database", False))
+            and bool(getattr(self, "loaded_database_path", None))
+        )
+        deleteAction.setEnabled(can_delete)
+        chosen = menu.exec_(self.tableview.viewport().mapToGlobal(pos))
+        if chosen == deleteAction:
+            self.deleteSelectedDatabaseRows()
+
+    def deleteSelectedDatabaseRows(self):
+        if not getattr(self, "table_from_database", False):
+            return
+        db_path = getattr(self, "loaded_database_path", None)
+        if not db_path:
+            QtWidgets.QMessageBox.information(
+                self, "Delete", "Delete is available after loading a database file."
+            )
+            return
+        rows = self._selectedSourceRows()
+        if not rows:
+            return
+        sequence = self.tableview.sequence
+        n = len(rows)
+        basename = os.path.basename(db_path)
+        if n == 1:
+            name = sequence.get("Name", [""])[rows[0]] if "Name" in sequence else ""
+            epi = sequence["Epi"][rows[0]]
+            label = "{} {}".format(name, epi).strip()
+            question = "Delete {} from {}?\n\nThis cannot be undone.".format(label, basename)
+        else:
+            question = "Delete {} episodes from {}?\n\nThis cannot be undone.".format(n, basename)
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "Delete",
+            question,
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
+        )
+        if reply != QtWidgets.QMessageBox.Yes:
+            return
+        paths = {
+            str(sequence["Dirs"][i]).replace("\\", "/")
+            for i in rows
+            if "Dirs" in sequence
+        }
+        cell_epi = set()
+        names = sequence.get("Name")
+        epis = sequence.get("Epi")
+        if names is not None and epis is not None:
+            cell_epi = {(str(names[i]), str(epis[i])) for i in rows}
+        try:
+            removed = self._removeRowsFromDatabaseFile(db_path, paths, cell_epi)
+        except Exception as err:
+            QtWidgets.QMessageBox.warning(self, "Delete", "Could not update the file:\n{}".format(err))
+            return
+        if removed == 0:
+            QtWidgets.QMessageBox.warning(self, "Delete", "No matching rows were found in {}.".format(basename))
+            return
+        self._loadDatabaseFile(db_path)
+        self.statusBar().showMessage("Deleted {} episode(s) from {}".format(removed, basename))
+
+    def _removeRowsFromDatabaseFile(self, db_path, paths, cell_epi):
+        lower = db_path.lower()
+        if lower.endswith(".csv"):
+            with open(db_path, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                fieldnames = reader.fieldnames
+                rows = list(reader)
+            if not fieldnames:
+                return 0
+            kept = []
+            removed = 0
+            for row in rows:
+                csv_path = str(row.get("path") or "").replace("\\", "/")
+                cell = str(row.get("Cell") or "")
+                epi = str(row.get("Episode") or "")
+                if (csv_path and csv_path in paths) or ((cell, epi) in cell_epi):
+                    removed += 1
+                    continue
+                kept.append(row)
+            with open(db_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(kept)
+            return removed
+        if lower.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(db_path)
+            cols = {c.lower(): c for c in df.columns}
+            drop = pd.Series(False, index=df.index)
+            if "path" in cols:
+                drop = drop | df[cols["path"]].astype(str).str.replace("\\", "/", regex=False).isin(paths)
+            if "cell" in cols and "episode" in cols:
+                pairs = list(zip(df[cols["cell"]].astype(str), df[cols["episode"]].astype(str)))
+                drop = drop | pd.Series([p in cell_epi for p in pairs], index=df.index)
+            removed = int(drop.sum())
+            df.loc[~drop.to_numpy()].to_excel(db_path, index=False)
+            return removed
+        raise ValueError("Unsupported database file type")
 
     @QtCore.pyqtSlot(QtCore.QItemSelection, QtCore.QItemSelection)
     def onItemSelected(self, selected, deselected):
