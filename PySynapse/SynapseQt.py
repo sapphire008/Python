@@ -624,7 +624,12 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         # TODO: Need to design this more carefully
         #raise(NotImplementedError())
         # Opens up the file explorer
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', '/', 'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)')#
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            'Open File',
+            os.path.join(__location__, 'database'),
+            'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)',
+        )
         rename_dict = {"Cell":"Name", "Episode":"Epi", "SweepWindow":"Duration","Drug":"Drug Name","DrugTime":"Drug Time","WCTime":"Time", "StimDescription":"Comment"}
         if ".csv" in filename:
             df = pd.read_csv(filename)

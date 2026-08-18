@@ -634,10 +634,10 @@ def get_cellpath(cell_label, episode='.{}', year_prefix='20'):
     if episode[0] != '.':
         episode = '.'+episode
 
-    dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_label)
+    dinfo = re.findall(r'([\w\s-]+).(\d+)([a-z_A-Z]+)(\d+).S(\d+).E(\d+)', cell_label)
 
     if not dinfo: # no episode
-        dinfo = re.findall('([\w\s]+).(\d+)([a-z_A-Z]+)(\d+)', cell_label)
+        dinfo = re.findall(r'([\w\s-]+).(\d+)([a-z_A-Z]+)(\d+)', cell_label)
     else:
         episode = ''
 
