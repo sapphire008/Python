@@ -13,6 +13,7 @@ import csv
 import os
 import re
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -26,8 +27,8 @@ DATABASE_DIR = ROOT / "database"
 TRACES_ROOT = None  # None = settings.yaml startpath
 PREFIX = "Neocortex"
 DRUG = 1
-STEP_MS = 2000.0
-STEP_TOL_MS = 250.0
+STEP_MS = 2000.0  # depolarizing step duration
+STEP_TOL_MS = 250.0  # allowed error on STEP_MS (e.g. 1750–2250 ms). Not the Rin pulse.
 PERSIST_MS = 12000.0  # recording and last spike after depolarizing step
 MIN_DEPOL_AMP = 20.0  # pA (or mV if VC waveform)
 MIN_HYPER_AMP = 10.0  # abs pA for Rin pulse
@@ -43,6 +44,8 @@ WAVE_MIN_DUR_MS = 80.0
 WAVE_AMP_EPS = 8.0
 HEADER_ONLY = False  # True = skip spike detection
 MAX_FILES = 0  # 0 = no limit
+N_WORKERS = 8  # 1 = sequential; keep modest on a network volume
+CHUNKSIZE = 32  # files per worker batch
 OUT_CSV = DATABASE_DIR / "persistent_activity.csv"
 # =============================================================================
 
@@ -60,9 +63,27 @@ SYNAPSE_DB_FIELDS = [
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 from util.ImportData import NeuroData, separate_cell_episode  # noqa: E402
 from util.MATLAB import getconsecutiveindex  # noqa: E402
 from util.spk_util import spk_count, spk_window  # noqa: E402
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    class tqdm:  # noqa: N801
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def update(self, n=1):
+            pass
+
+        def close(self):
+            pass
+
+        def set_postfix_str(self, *args, **kwargs):
+            pass
 
 DAT_RE = re.compile(r"\.S\d+\.E\d+\.dat$", re.IGNORECASE)
 
@@ -156,16 +177,15 @@ def pick_depolarizing_step(pulses, step_ms, tol_ms, min_amp):
     return hits[0]
 
 
-def pick_hyperpolarizing(pulses, depol, min_abs_amp, min_dur_ms=50.0, max_dur_ms=2000.0):
-    """Negative pulse, preferably before the depolarizing step (Rin probe)."""
+def pick_hyperpolarizing(pulses, depol, min_abs_amp):
+    """Negative pulse of any duration, preferably before the depolarizing step."""
     cands = []
     for p in pulses:
         if p is depol:
             continue
         if p["amp"] > -min_abs_amp:
             continue
-        dur = duration(p)
-        if dur < min_dur_ms or dur > max_dur_ms:
+        if duration(p) <= 0:
             continue
         before = 0 if p["end"] <= depol["start"] + 1 else 1
         cands.append((before, -p["start"], p))
@@ -280,7 +300,7 @@ def analyze_file(path):
             depol = pick_depolarizing_step(merged, STEP_MS, STEP_TOL_MS, MIN_DEPOL_AMP)
         hyper = pick_hyperpolarizing(pulses, depol, MIN_HYPER_AMP) if depol else None
         if hyper is None and depol is not None:
-            hyper = pick_hyperpolarizing(wave, depol, max(MIN_HYPER_AMP, 20.0), min_dur_ms=150.0)
+            hyper = pick_hyperpolarizing(wave, depol, max(MIN_HYPER_AMP, 20.0))
         stim_source = f"{stim_kind}{stim_ch}" if stim_ch else stim_kind
     else:
         hyper = pick_hyperpolarizing(pulses, depol, MIN_HYPER_AMP) if depol else None
@@ -382,21 +402,44 @@ def main():
     if not root.is_dir():
         sys.exit(f"Traces root does not exist: {root}")
 
+    print(f"Listing {PREFIX!r} .dat files under {root} ...")
+    files = list(iter_dat_files(root, PREFIX))
+    if MAX_FILES:
+        files = files[:MAX_FILES]
+    print(f"Scanning {len(files)} files  drug={DRUG}  workers={N_WORKERS}")
+
     hits = []
     n_seen = 0
     skip_counts = {}
-    print(f"Scanning {root}  prefix={PREFIX!r}  drug={DRUG}")
-    for path in iter_dat_files(root, PREFIX):
+    pbar = tqdm(
+        total=len(files),
+        unit="file",
+        dynamic_ncols=True,
+        mininterval=0.5,
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} scanned {postfix} [{elapsed}<{remaining}, {rate_fmt}]",
+    )
+
+    def consume(hit, reason):
+        nonlocal n_seen
         n_seen += 1
-        if MAX_FILES and n_seen > MAX_FILES:
-            break
-        if n_seen % 2000 == 0:
-            print(f"  ... {n_seen} files, {len(hits)} hits")
-        hit, reason = analyze_file(path)
         if hit is None:
             skip_counts[reason] = skip_counts.get(reason, 0) + 1
-            continue
-        hits.append(hit)
+        else:
+            hits.append(hit)
+        pbar.update(1)
+        if hasattr(pbar, "set_postfix_str"):
+            pbar.set_postfix_str(f"{len(hits)} hits", refresh=False)
+
+    try:
+        if N_WORKERS <= 1:
+            for path in files:
+                consume(*analyze_file(path))
+        else:
+            with ProcessPoolExecutor(max_workers=N_WORKERS) as pool:
+                for hit, reason in pool.map(analyze_file, files, chunksize=CHUNKSIZE):
+                    consume(hit, reason)
+    finally:
+        pbar.close()
 
     def _spike_count(h):
         n = h["n_spikes_post"]
