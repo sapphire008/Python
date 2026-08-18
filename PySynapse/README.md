@@ -59,13 +59,9 @@ Optional:
 
 * `Show`: if this column exists, only rows whose value is true (`1`, `True`) are loaded.
 
-SynapseQt rebuilds file paths as `startpath` + `get_cellpath(Cell, Episode)`, e.g.
+SynapseQt uses the `path` column when present (the finder script writes full `.dat` paths). Otherwise it rebuilds `startpath` + `get_cellpath(Cell, Episode)`. `Show` is a true/false flag (`1`/`0`), not a row index.
 
-```text
-2015/01.January/Data 29 Jan 2015/Neocortex C.29Jan15.S1.E24.dat
-```
-
-Any other columns are ignored by the GUI (the finder script keeps extra analysis fields in the same file for inspection). Set `Show` to `0` to hide a hit without deleting it.
+Any other columns are ignored by the GUI (the finder keeps extra analysis fields in the same file for inspection). Set `Show` to `0` to hide a hit without deleting it.
 
 ## Finding persistent-activity cells
 

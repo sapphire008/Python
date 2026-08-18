@@ -646,43 +646,70 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
             self.tableview.hiddenColumnList.append(column)
 
     def loadDatabase(self):
-        # TODO: Need to design this more carefully
-        #raise(NotImplementedError())
-        # Opens up the file explorer
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             'Open File',
             os.path.join(__location__, 'database'),
             'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)',
         )
-        rename_dict = {"Cell":"Name", "Episode":"Epi", "SweepWindow":"Duration","Drug":"Drug Name","DrugTime":"Drug Time","WCTime":"Time", "StimDescription":"Comment"}
-        if ".csv" in filename:
+        if not filename:
+            return
+        if filename.lower().endswith('.csv'):
             df = pd.read_csv(filename)
-        elif ".xlsx" in filename or "xls" in filename:
+        elif filename.lower().endswith(('.xlsx', '.xls')):
             df = pd.read_excel(filename)
         else:
             return
-        col_lower = [c.lower() for c in df.columns.tolist()]
-        if "show" in col_lower:
-            df = df.loc[df.iloc[:, col_lower.index("show")],:]
-        drop_columns = np.setdiff1d(df.columns.tolist(), list(rename_dict.keys()))
-        df = df.drop(drop_columns, axis=1).rename(columns=rename_dict)
+
+        cols = {c.lower(): c for c in df.columns}
+        if "show" in cols:
+            show = df[cols["show"]]
+            if show.dtype == bool:
+                mask = show
+            else:
+                mask = show.astype(str).str.strip().str.lower().isin(["1", "true", "yes", "t"])
+            df = df.loc[mask.to_numpy()].reset_index(drop=True)
+
+        paths = df[cols["path"]].tolist() if "path" in cols else None
+        if "drug_level" in cols:
+            drug_levels = df[cols["drug_level"]].tolist()
+        elif "drug level" in cols:
+            drug_levels = df[cols["drug level"]].tolist()
+        else:
+            drug_levels = None
+
+        rename_dict = {
+            "Cell": "Name",
+            "Episode": "Epi",
+            "SweepWindow": "Duration",
+            "Drug": "Drug Name",
+            "DrugTime": "Drug Time",
+            "WCTime": "Time",
+            "StimDescription": "Comment",
+        }
+        keep = [c for c in df.columns if c in rename_dict]
+        df = df[keep].rename(columns=rename_dict)
         df["Sampling Rate"] = 0.1
-        df["Drug Level"] = 0
+        df["Drug Level"] = drug_levels if drug_levels is not None else 0
         df.loc[df["Drug Name"].isnull(), "Drug Name"] = ""
         df["Time"] = [NeuroData.epiTime(ttt) for ttt in df["Time"]]
         df["Drug Time"] = [NeuroData.epiTime(ttt) for ttt in df["Drug Time"]]
-        # TODO: Tentitative path
-        df["Dirs"] = [os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/") for cb, ep in zip(df["Name"], df["Epi"])]
+        if paths is not None:
+            df["Dirs"] = [str(p).replace("\\", "/") for p in paths]
+        else:
+            df["Dirs"] = [
+                os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/")
+                for cb, ep in zip(df["Name"], df["Epi"])
+            ]
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
-        df = df.reindex(["Name", "Epi", "Time", "Duration", "Drug Name", "Drug Time", "Comment"], axis=1) # drop columns not to be displayed
-        # print('loaded')
-        # Populate the loaded data unto the table widget
+        df = df.reindex(
+            ["Name", "Epi", "Time", "Duration", "Drug Level", "Drug Name", "Drug Time", "Comment"],
+            axis=1,
+        )
         self.tableview.headers = df.columns.tolist()
         self.tableview.model = EpisodeTableModel(df)
         self.tableview.setModel(self.tableview.model)
         self.tableview.verticalHeader().hide()
-        # Show all columns
         for cc in range(len(self.tableview.headers)):
             self.tableview.showColumn(cc)
 
