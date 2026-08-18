@@ -81,7 +81,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
         # if use color for traaces
         self.colorfy = False
         # layout = [channel, stream, row, col]
-        self.layout =[['Voltage', 'A', 0, 0]] if not layout else layout# [['Voltage', 'A', 0, 0], ['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]]
+        self.layout = [['Voltage', 'A', 0, 0], ['Stimulus', 'A', 1, 0]] if not layout else layout
         # range of axes
         self.viewMode = 'keep'
         # freeze view range

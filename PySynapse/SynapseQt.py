@@ -481,6 +481,221 @@ class EpisodeTableModel(QtCore.QAbstractTableModel):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
 
+class EpisodeFilterProxy(QtCore.QSortFilterProxyModel):
+    """Filter episode rows by Drug Name using a Python regex."""
+
+    def __init__(self, parent=None):
+        super(EpisodeFilterProxy, self).__init__(parent)
+        self._regex = None
+        self._column_name = "Drug Name"
+
+    def setDrugNameFilter(self, pattern):
+        self._regex = None
+        if pattern:
+            try:
+                self._regex = re.compile(pattern)
+            except re.error:
+                self._regex = None
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        if self._regex is None:
+            return True
+        model = self.sourceModel()
+        if model is None or model.datatable is None:
+            return True
+        df = model.datatable
+        if self._column_name not in df.columns:
+            return True
+        val = df.iat[source_row, df.columns.get_loc(self._column_name)]
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            val = ""
+        return self._regex.search(str(val)) is not None
+
+
+class DrugNameFilterDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, pattern=""):
+        super(DrugNameFilterDialog, self).__init__(parent)
+        self.setWindowTitle("Filter Drug Name")
+        self.setModal(True)
+        self._pattern = pattern
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(QtWidgets.QLabel("Match Drug Name with regex:"))
+        self.edit = QtWidgets.QLineEdit(pattern)
+        self.edit.setPlaceholderText("e.g. CCh|ML297")
+        self.edit.setClearButtonEnabled(True)
+        self.edit.selectAll()
+        layout.addWidget(self.edit)
+        self.status = QtWidgets.QLabel("")
+        layout.addWidget(self.status)
+        buttons = QtWidgets.QDialogButtonBox()
+        buttons.addButton("Apply", QtWidgets.QDialogButtonBox.AcceptRole)
+        self.clear_btn = buttons.addButton("Clear", QtWidgets.QDialogButtonBox.ResetRole)
+        buttons.addButton(QtWidgets.QDialogButtonBox.Cancel)
+        layout.addWidget(buttons)
+        buttons.accepted.connect(self.tryAccept)
+        buttons.rejected.connect(self.reject)
+        self.clear_btn.clicked.connect(self.clearAndAccept)
+        self.edit.returnPressed.connect(self.tryAccept)
+
+    def pattern(self):
+        return self._pattern
+
+    def tryAccept(self):
+        text = self.edit.text().strip()
+        if not text:
+            self._pattern = ""
+            self.accept()
+            return
+        try:
+            re.compile(text)
+        except re.error as err:
+            self.status.setText("Invalid regex: {}".format(err))
+            self.status.setStyleSheet("color: #c0392b;")
+            return
+        self._pattern = text
+        self.accept()
+
+    def clearAndAccept(self):
+        self._pattern = ""
+        self.accept()
+
+
+class EpisodeFilterHeader(QtWidgets.QHeaderView):
+    """Show a filter funnel next to Drug Name on hover; click opens a dialog."""
+
+    filterRequested = QtCore.pyqtSignal(int, str)
+    FILTERABLE = {"Drug Name"}
+
+    def __init__(self, orientation, parent=None):
+        super(EpisodeFilterHeader, self).__init__(orientation, parent)
+        self.setSectionsClickable(True)
+        self.setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
+        self._hover_section = -1
+        self._active_filters = set()
+        self._icon_size = 12
+        self._icon_gap = 5
+
+    def setActiveFilter(self, column_name, active):
+        if active:
+            self._active_filters.add(column_name)
+        else:
+            self._active_filters.discard(column_name)
+        self.viewport().update()
+
+    def _sectionName(self, logicalIndex):
+        model = self.model()
+        if model is None:
+            return ""
+        return str(model.headerData(logicalIndex, self.orientation(), QtCore.Qt.DisplayRole) or "")
+
+    def _isFilterable(self, logicalIndex):
+        return logicalIndex >= 0 and self._sectionName(logicalIndex) in self.FILTERABLE
+
+    def _sectionRect(self, logicalIndex):
+        return QtCore.QRect(
+            self.sectionViewportPosition(logicalIndex),
+            0,
+            self.sectionSize(logicalIndex),
+            self.height(),
+        )
+
+    def _iconRect(self, section_rect, logicalIndex):
+        text = self._sectionName(logicalIndex)
+        fm = self.fontMetrics()
+        text_w = fm.width(text)
+        align = self.defaultAlignment()
+        if align & QtCore.Qt.AlignHCenter:
+            text_x = section_rect.center().x() - text_w // 2
+        else:
+            text_x = section_rect.left() + 6
+        x = text_x + text_w + self._icon_gap
+        max_x = section_rect.right() - self._icon_size - 3
+        x = min(x, max_x)
+        x = max(x, section_rect.left() + 2)
+        y = section_rect.center().y() - self._icon_size // 2
+        return QtCore.QRect(int(x), int(y), self._icon_size, self._icon_size)
+
+    def _shouldShowIcon(self, logicalIndex):
+        if not self._isFilterable(logicalIndex):
+            return False
+        name = self._sectionName(logicalIndex)
+        return logicalIndex == self._hover_section or name in self._active_filters
+
+    def paintSection(self, painter, rect, logicalIndex):
+        super(EpisodeFilterHeader, self).paintSection(painter, rect, logicalIndex)
+        if not self._shouldShowIcon(logicalIndex):
+            return
+        icon_rect = self._iconRect(rect, logicalIndex)
+        active = self._sectionName(logicalIndex) in self._active_filters
+        painter.save()
+        painter.setClipRect(rect)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        color = QtGui.QColor(31, 119, 180) if active else QtGui.QColor(90, 90, 90)
+        painter.setPen(QtGui.QPen(color, 1.2))
+        painter.setBrush(QtGui.QBrush(color))
+        x, y, w, h = icon_rect.x(), icon_rect.y(), float(icon_rect.width()), float(icon_rect.height())
+        path = QtGui.QPainterPath()
+        path.moveTo(x + 0.5, y + 1.5)
+        path.lineTo(x + w - 0.5, y + 1.5)
+        path.lineTo(x + w * 0.58, y + h * 0.55)
+        path.lineTo(x + w * 0.58, y + h - 1)
+        path.lineTo(x + w * 0.42, y + h - 1)
+        path.lineTo(x + w * 0.42, y + h * 0.55)
+        path.closeSubpath()
+        painter.drawPath(path)
+        painter.restore()
+
+    def mouseMoveEvent(self, event):
+        logical = self.logicalIndexAt(event.pos())
+        hover = logical if self._isFilterable(logical) else -1
+        if hover != self._hover_section:
+            old = self._hover_section
+            self._hover_section = hover
+            if old >= 0:
+                self.updateSection(old)
+            if self._hover_section >= 0:
+                self.updateSection(self._hover_section)
+        if self._hover_section >= 0:
+            icon_rect = self._iconRect(self._sectionRect(self._hover_section), self._hover_section)
+            if icon_rect.adjusted(-4, -4, 4, 4).contains(event.pos()):
+                self.setCursor(QtCore.Qt.PointingHandCursor)
+                self.setToolTip("Filter Drug Name")
+            else:
+                self.unsetCursor()
+                self.setToolTip("")
+        else:
+            self.unsetCursor()
+            self.setToolTip("")
+        super(EpisodeFilterHeader, self).mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        if self._hover_section >= 0:
+            old = self._hover_section
+            self._hover_section = -1
+            self.updateSection(old)
+        self.unsetCursor()
+        super(EpisodeFilterHeader, self).leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            logical = self.logicalIndexAt(event.pos())
+            if self._isFilterable(logical) and self._shouldShowIcon(logical):
+                icon_rect = self._iconRect(self._sectionRect(logical), logical)
+                if icon_rect.adjusted(-4, -4, 4, 4).contains(event.pos()):
+                    self.filterRequested.emit(logical, self._sectionName(logical))
+                    event.accept()
+                    return
+        super(EpisodeFilterHeader, self).mousePressEvent(event)
+
+    def sectionSizeFromContents(self, logicalIndex):
+        size = super(EpisodeFilterHeader, self).sectionSizeFromContents(logicalIndex)
+        if self._isFilterable(logicalIndex):
+            size.setWidth(size.width() + self._icon_size + self._icon_gap + 4)
+        return size
+
+
 # Episode Tableview delegate for selection and highlighting
 class TableviewDelegate(QtWidgets.QItemDelegate):
     def __init__(self, parent=None, *args):
@@ -520,6 +735,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         self.hideScopeToolbox = hideScopeToolbox
         self.scopeLayout = layout
         self.startpath=startpath
+        self.loaded_database_path = None
 
     def setupUi(self, MainWindow):
         """This function is converted from the .ui file from the designer"""
@@ -565,7 +781,14 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         self.tableview.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.tableview.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.tableview.setItemDelegate(TableviewDelegate(self.tableview))
-        self.tableview.horizontalHeader().setStretchLastSection(True)
+        self.tableview.headers = []
+        self.tableview.hiddenColumnList = []
+        self.tableview.proxy = EpisodeFilterProxy(self)
+        self.drug_name_filter = ""
+        header = EpisodeFilterHeader(QtCore.Qt.Horizontal, self.tableview)
+        header.setStretchLastSection(True)
+        header.filterRequested.connect(self.openDrugNameFilterDialog)
+        self.tableview.setHorizontalHeader(header)
         # self.tableview.setShowGrid(False)
         self.tableview.setStyleSheet("""QTableView{border : 20px solid white}""")
         self.horizontalLayout.addWidget(self.splitter)
@@ -581,6 +804,8 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         # Set up status bar
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
+        self.filter_status = QtWidgets.QLabel("")
+        self.statusbar.addPermanentWidget(self.filter_status)
         MainWindow.setStatusBar(self.statusbar)
 
         # Execution
@@ -597,11 +822,18 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         loadDBAction.setStatusTip('Load a database table from a .csv, .xlsx, or .xls file')
         loadDBAction.triggered.connect(self.loadDatabase)
         fileMenu.addAction(loadDBAction)
+
+        # File: Reload the last loaded database from disk
+        reloadDBAction = QtWidgets.QAction('Reload Database', self)
+        reloadDBAction.setShortcut('Ctrl+R')
+        reloadDBAction.setStatusTip('Reload the currently loaded database file from disk')
+        reloadDBAction.triggered.connect(self.reloadDatabase)
+        fileMenu.addAction(reloadDBAction)
         
-        # File: Refresh. Refresh currently selected item/directory
+        # File: Refresh. Refresh currently selected item/directory and the loaded database
         refreshAction = QtWidgets.QAction('Refresh', self)
         refreshAction.setShortcut('F5')
-        refreshAction.setStatusTip('Refresh currently selected item / directory')
+        refreshAction.setStatusTip('Refresh the selected directory and reload the current database')
         refreshAction.triggered.connect(self.refreshCurrentBranch)
         fileMenu.addAction(refreshAction)
         
@@ -639,21 +871,108 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         if self.tableview.isColumnHidden(column):
             self.tableview.showColumn(column)
             action.setChecked(True)
-            self.tableview.hiddenColumnList.remove(column)
+            if column in self.tableview.hiddenColumnList:
+                self.tableview.hiddenColumnList.remove(column)
         else:
             self.tableview.hideColumn(column)
             action.setChecked(False)
-            self.tableview.hiddenColumnList.append(column)
+            if column not in self.tableview.hiddenColumnList:
+                self.tableview.hiddenColumnList.append(column)
+
+    def _columnIndex(self, name):
+        headers = getattr(self.tableview, "headers", [])
+        try:
+            return headers.index(name)
+        except ValueError:
+            return None
+
+    def _sourceRow(self, index):
+        proxy = getattr(self.tableview, "proxy", None)
+        if proxy is not None and index.model() is proxy:
+            return proxy.mapToSource(index).row()
+        return index.row()
+
+    def openDrugNameFilterDialog(self, section, column_name):
+        dlg = DrugNameFilterDialog(self, pattern=self.drug_name_filter)
+        header = self.tableview.horizontalHeader()
+        dlg.adjustSize()
+        pos = header.mapToGlobal(QtCore.QPoint(
+            header.sectionViewportPosition(section),
+            header.height(),
+        ))
+        dlg.move(pos)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        self.drug_name_filter = dlg.pattern()
+        self.applyDrugNameFilter()
+
+    def applyDrugNameFilter(self):
+        pattern = getattr(self, "drug_name_filter", "") or ""
+        proxy = getattr(self.tableview, "proxy", None)
+        if proxy is not None:
+            proxy.setDrugNameFilter(pattern)
+        header = self.tableview.horizontalHeader()
+        if isinstance(header, EpisodeFilterHeader):
+            header.setActiveFilter("Drug Name", bool(pattern))
+        self.updateFilterStatus()
+        col = self._columnIndex("Drug Name")
+        if col is None:
+            return
+        if pattern:
+            self.tableview.showColumn(col)
+        elif col in getattr(self.tableview, "hiddenColumnList", []):
+            self.tableview.hideColumn(col)
+
+    def updateFilterStatus(self):
+        pattern = getattr(self, "drug_name_filter", "") or ""
+        if not pattern:
+            self.filter_status.setText("")
+            return
+        text = "Filter Drug Name: {}".format(pattern)
+        proxy = getattr(self.tableview, "proxy", None)
+        source = getattr(self.tableview, "model", None)
+        if proxy is not None and source is not None and source.datatable is not None:
+            text = "{}  ({}/{})".format(text, proxy.rowCount(), source.rowCount())
+        self.filter_status.setText(text)
+
+    def _bindEpisodeTable(self, df, hidden_columns=None):
+        self.tableview.headers = df.columns.tolist()
+        source = EpisodeTableModel(df.reset_index(drop=True))
+        self.tableview.model = source
+        self.tableview.proxy.setSourceModel(source)
+        self.tableview.setModel(self.tableview.proxy)
+        self.tableview.verticalHeader().hide()
+        if hidden_columns is None:
+            hidden_columns = []
+        self.tableview.hiddenColumnList = list(hidden_columns)
+        for cc in range(len(self.tableview.headers)):
+            self.tableview.setColumnHidden(cc, cc in self.tableview.hiddenColumnList)
+        self.applyDrugNameFilter()
+        self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
 
     def loadDatabase(self):
+        start_dir = os.path.dirname(self.loaded_database_path) if self.loaded_database_path else os.path.join(__location__, 'database')
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             'Open File',
-            os.path.join(__location__, 'database'),
+            start_dir,
             'Spreadsheet (*.csv *.xlsx *.xls);;All Files (*)',
         )
         if not filename:
             return
+        self._loadDatabaseFile(filename)
+
+    def reloadDatabase(self):
+        path = getattr(self, "loaded_database_path", None)
+        if not path:
+            self.statusBar().showMessage("No database loaded")
+            return
+        if not os.path.isfile(path):
+            QtWidgets.QMessageBox.warning(self, "Reload Database", "File not found:\n{}".format(path))
+            return
+        self._loadDatabaseFile(path)
+
+    def _loadDatabaseFile(self, filename):
         if filename.lower().endswith('.csv'):
             df = pd.read_csv(filename)
         elif filename.lower().endswith(('.xlsx', '.xls')):
@@ -702,25 +1021,24 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
                 for cb, ep in zip(df["Name"], df["Epi"])
             ]
         self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
+        n_rows = len(df)
         df = df.reindex(
             ["Name", "Epi", "Time", "Duration", "Drug Level", "Drug Name", "Drug Time", "Comment"],
             axis=1,
         )
-        self.tableview.headers = df.columns.tolist()
-        self.tableview.model = EpisodeTableModel(df)
-        self.tableview.setModel(self.tableview.model)
-        self.tableview.verticalHeader().hide()
-        for cc in range(len(self.tableview.headers)):
-            self.tableview.showColumn(cc)
-
-        self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
+        self.loaded_database_path = filename
+        self._bindEpisodeTable(df)
+        self.statusBar().showMessage("Loaded {} ({} episodes)".format(os.path.basename(filename), n_rows))
 
     def refreshCurrentBranch(self):
         # Get parent index
         index = self.treeview.selectionModel().currentIndex()
-        node = self.treeview.model.getNode(index)
-        if node.type == "directory":
-            self.treeview.model.refreshNode(index)
+        if index.isValid():
+            node = self.treeview.model.getNode(index)
+            if node.type == "directory":
+                self.treeview.model.refreshNode(index)
+        if getattr(self, "loaded_database_path", None):
+            self.reloadDatabase()
             
     def openSettingsWindow(self):
         if not hasattr(self, 'settingsWidget'):
@@ -789,14 +1107,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         # self.tableview.sequence['Name'] = self.tableview.sequence['Name'][0] # remove any duplication
         # get the subset of columns based on column settings
         df = df.reindex(self.tableview.headers, axis=1)
-        self.tableview.model = EpisodeTableModel(df)
-        self.tableview.setModel(self.tableview.model)
-        self.tableview.verticalHeader().hide()
-        # Hide some columns from display
-        for c in self.tableview.hiddenColumnList: # Drug Name, Drug Time, Dirs
-            self.tableview.setColumnHidden(c, True)
-        # Set behavior upon selection
-        self.tableview.selectionModel().selectionChanged.connect(self.onItemSelected)
+        self._bindEpisodeTable(df, hidden_columns=self.tableview.hiddenColumnList)
         # self.tableview.clicked.connect(self.onItemSelected)
 
     @QtCore.pyqtSlot(QtCore.QItemSelection, QtCore.QItemSelection)
@@ -806,19 +1117,22 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         if not selected and not deselected:
             return
         try:
-            ind = selected.indexes()[-1].row()
+            ind = self._sourceRow(selected.indexes()[-1])
         except:
-            ind = deselected.indexes()[-1].row()
+            ind = self._sourceRow(deselected.indexes()[-1])
         sequence = self.tableview.sequence
         drugName = sequence['Drug Name'][ind]
         if not drugName: # in case of empty string
             drugName = str(sequence['Drug Level'][ind])
         ep_info_str = "ts: {:0.1f} ms; Drug: {} ({})".format(sequence['Sampling Rate'][ind], drugName, sequence['Drug Time'][ind])
+        pattern = getattr(self, "drug_name_filter", "") or ""
+        if pattern:
+            ep_info_str = "{}; Filter Drug Name: {}".format(ep_info_str, pattern)
         self.statusBar().showMessage(ep_info_str)
         self.setWindowTitle("{}  {}".format(__version__, sequence['Dirs'][ind]))
         # Get selected row
         indexes = self.tableview.selectionModel().selectedRows()
-        rows = [index.row() for index in sorted(indexes)]
+        rows = [self._sourceRow(index) for index in sorted(indexes)]
         # if not rows: # When nothing is selected, keep the last selected item on the Scope
         #     return
         # Call scope window
