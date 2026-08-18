@@ -1656,7 +1656,7 @@ class Toolbox(QtWidgets.QWidget):
 
     def sizeHint(self):
         """Helps with initial dock window size"""
-        return QtCore.QSize(self.friend.frameGeometry().width() / 4.95, 20)
+        return QtCore.QSize(int(self.friend.frameGeometry().width() / 4.95), 20)
 
     # </editor-fold>
 
