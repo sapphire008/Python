@@ -33,6 +33,7 @@ PERSIST_MS = 12000.0  # recording and last spike after depolarizing step
 MIN_DEPOL_AMP = 20.0  # pA (or mV if VC waveform)
 MIN_HYPER_AMP = 10.0  # abs pA for Rin pulse
 REQUIRE_HYPERPOLARIZING = False  # True = Rin pulse required, not just preferred
+MAX_STIM_PULSES = 2  # Rin (optional) + 2 s depol; skip PulseC / extra steps
 MSH = -10.0  # min spike height [mV], Event Detection default
 MSD = 1.0  # min spike distance [ms]
 SPIKE_THRESH = 0.0
@@ -177,6 +178,42 @@ def pick_depolarizing_step(pulses, step_ms, tol_ms, min_amp):
     return hits[0]
 
 
+def unique_pulses(pulses, amp_eps=1.0):
+    """Non-zero pulses, de-duplicated by timing (DAC header + waveform can overlap)."""
+    out = []
+    seen = set()
+    for p in pulses:
+        if duration(p) <= 0 or abs(p["amp"]) < amp_eps:
+            continue
+        key = (round(p["start"] / 10.0), round(p["end"] / 10.0))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
+def is_depol_pulse(p, depol):
+    return abs(p["start"] - depol["start"]) < 50 and abs(p["end"] - depol["end"]) < 50
+
+
+def protocol_stim_ok(pulses, depol):
+    """Allow at most Rin + depol. Reject a negative step after the depolarizing pulse (PulseC)."""
+    real = unique_pulses(pulses)
+    if len(real) > MAX_STIM_PULSES:
+        return "too_many_stims"
+    for p in real:
+        if is_depol_pulse(p, depol):
+            continue
+        source = str(p.get("source", "")).lower()
+        follows = p["start"] >= depol["end"] - 1
+        if follows and p["amp"] < 0:
+            return "neg_after_depol"
+        if source == "pulsec" and p["amp"] < 0:
+            return "neg_pulsec"
+    return None
+
+
 def pick_hyperpolarizing(pulses, depol, min_abs_amp):
     """Negative pulse of any duration, preferably before the depolarizing step."""
     cands = []
@@ -278,7 +315,12 @@ def analyze_file(path):
         return None, "too_short_sweep"
 
     if HEADER_ONLY and depol is not None and depol["amp"] > 0:
+        reason = protocol_stim_ok(pulses, depol)
+        if reason:
+            return None, reason
         hyper = pick_hyperpolarizing(pulses, depol, MIN_HYPER_AMP)
+        if hyper is not None and hyper["start"] >= depol["end"] - 1:
+            return None, "neg_after_depol"
         if REQUIRE_HYPERPOLARIZING and hyper is None:
             return None, "no_hyper"
         return make_hit(path, header.Protocol, depol, hyper, "DAC"), None
@@ -312,6 +354,13 @@ def analyze_file(path):
         return None, "weak_depol"
     if sweep_ms - depol["end"] < PERSIST_MS:
         return None, "too_short_after_step"
+    stim_pulses = merged if stim is not None else pulses
+    reason = protocol_stim_ok(stim_pulses, depol)
+    if reason:
+        return None, reason
+    if hyper is not None and hyper["start"] >= depol["end"] - 1:
+        hyper = None
+        return None, "neg_after_depol"
     if REQUIRE_HYPERPOLARIZING and hyper is None:
         return None, "no_hyper"
 

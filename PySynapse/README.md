@@ -73,8 +73,9 @@ Criteria (edit the parameter block at the top of the script):
 2. Drug Level 1
 3. Stimulus channel has a ~2 s depolarizing step (usually DAC PulseB)
 4. Prefer a preceding hyperpolarizing Rin pulse (PulseA, e.g. −50 pA)
-5. At least 12 s of recording after the depolarizing step
-6. Spikes persist ≥ 12 s after the step (`spk_count` / Event Detection)
+5. At most two stimulus pulses (Rin + depol). Skip a negative PulseC or any negative step after the depolarizing pulse
+6. At least 12 s of recording after the depolarizing step
+7. Spikes persist ≥ 12 s after the step (`spk_count` / Event Detection)
 
 ```bash
 conda activate pysynapse
