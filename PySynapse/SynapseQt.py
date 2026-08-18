@@ -28,6 +28,7 @@ from util.ImportData import NeuroData, get_cellpath
 from util.spk_util import *
 from app.Scope import ScopeWindow
 from app.Settings import *
+from app.config import settings
 
 import sip
 sip.setapi('QVariant', 2)
@@ -522,7 +523,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         sizePolicy.setHeightForWidth(self.treeview.sizePolicy().hasHeightForWidth())
         self.treeview.setSizePolicy(sizePolicy)
         # self.treeview.setTextElideMode(QtCore.Qt.ElideNone)
-        self.treeview.header().setResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self.treeview.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.treeview.header().setStretchLastSection(False)
         self.treeview.setObjectName(_fromUtf8("treeview"))
 
@@ -777,16 +778,11 @@ if __name__ == '__main__':
     sys.excepthook = my_excepthook # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
     running_os = sys.platform[:3]
-    # w = Synapse_MainWindow()
-    if running_os == 'win':
-        w = Synapse_MainWindow(startpath='D:/Data/Traces', hideScopeToolbox=False)
-    elif running_os == 'dar':
-        w = Synapse_MainWindow(startpath='/Users/edward/Data/Traces', hideScopeToolbox=False)
-
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017', hideScopeToolbox=False, layout=[['Current', 'A', 1, 0], ['Stimulus', 'A', 1,0]])
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2016/11.November/Data 9 Nov 2016', hideScopeToolbox=False)
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/06.June/Data 30 Jun 2017', hideScopeToolbox=False)
-    # w = Synapse_MainWindow(startpath='D:/Data/Traces/2017/08.August/Data 8 Aug 2017') # voltage clamp
+    startpath = settings.startpath.get(running_os)
+    w = Synapse_MainWindow(
+        startpath=startpath,
+        hideScopeToolbox=settings.hide_scope_toolbox,
+    )
     w.show()
     # Connect upon closin
     # app.aboutToQuit.connect(restartpyshell)

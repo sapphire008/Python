@@ -419,7 +419,7 @@ class Toolbox(QtWidgets.QWidget):
         self.annotation_table.verticalHeader().setVisible(False)
         # self.annotation_table.horizontalHeader().setVisible(False)
         self.annotation_table.setHorizontalHeaderLabels(['Artist', 'Notes'])
-        self.annotation_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.annotation_table.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
         self.annotation_table.horizontalHeader().highlightSections()
         self.annotation_table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         # Change style sheet a little for Windows 10
@@ -720,7 +720,7 @@ class Toolbox(QtWidgets.QWidget):
         self.layout_table = QtGui.QTableWidget(0, 2)
         self.layout_table.verticalHeader().setVisible(False)
         self.layout_table.horizontalHeader().setVisible(False)
-        self.layout_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.layout_table.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
         for l in self.friend.layout: # current layout from scope
             self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
                                 current_stream=l[0], current_channel=l[1])

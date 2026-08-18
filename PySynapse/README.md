@@ -24,13 +24,25 @@ An interactive utility for electrophyiological data analyses.
 * Display the Maximum Pixel Intensity image
 * dF/F trace
 
-#########################################################################
-1. Dependencies:
-    - numpy
-    - pandas
-    - PyQt5
-    - pyqtgraph: for data display (trace and image)
-    - matplotlib: for exporting figures
+## Setup
+
+Uses conda (`environment.yml`). PyQt5 and pyqtgraph install more reliably this way than with pip/Poetry.
+
+```bash
+cd /Users/edward/Documents/Scripts/Python/PySynapse
+conda env create -f environment.yml
+conda activate pysynapse
+python SynapseQt.py
+```
+
+If the env already exists:
+
+```bash
+conda activate pysynapse
+python SynapseQt.py
+```
+
+Startup paths live in `settings.yaml` under `default.startpath` (`win` / `dar` / `lin`). Override locally with `settings.local.yaml` (gitignored) or `PYSYNAPSE_STARTPATH__DAR=/your/path`.
 
 2. To-dos:
     - Integrate Ben's clipboard program to make .ini files (Export .ini file)

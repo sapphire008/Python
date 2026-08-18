@@ -1,0 +1,6 @@
+default:
+  startpath:
+    win: D:/Data/Traces
+    dar: /Users/edward/
+    lin: /
+  hide_scope_toolbox: false

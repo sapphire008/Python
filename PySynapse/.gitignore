@@ -9,3 +9,9 @@ archive/
 
 # format file for PyCharm
 # .idea
+
+# machine-local dynaconf overrides
+settings.local.yaml
+
+
+.DS_Store
