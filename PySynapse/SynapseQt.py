@@ -942,7 +942,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
             return
         text = "Filter Drug Name: {}".format(pattern)
         proxy = getattr(self.tableview, "proxy", None)
-        source = getattr(self.tableview, "model", None)
+        source = getattr(self.tableview, "source_model", None)
         if proxy is not None and source is not None and source.datatable is not None:
             text = "{}  ({}/{})".format(text, proxy.rowCount(), source.rowCount())
         self.filter_status.setText(text)
@@ -950,7 +950,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
     def _bindEpisodeTable(self, df, hidden_columns=None):
         self.tableview.headers = df.columns.tolist()
         source = EpisodeTableModel(df.reset_index(drop=True))
-        self.tableview.model = source
+        self.tableview.source_model = source
         self.tableview.proxy.setSourceModel(source)
         self.tableview.setModel(self.tableview.proxy)
         self.tableview.verticalHeader().hide()
@@ -1140,8 +1140,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
         index = self.tableview.indexAt(pos)
         if index.isValid():
             sm = self.tableview.selectionModel()
-            row_index = self.tableview.model().index(index.row(), 0)
-            if sm is not None and not sm.isSelected(row_index):
+            if sm is not None and not sm.isSelected(index):
                 self.tableview.selectRow(index.row())
         menu = QtWidgets.QMenu(self)
         deleteAction = menu.addAction("Delete")

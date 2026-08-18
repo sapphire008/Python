@@ -330,6 +330,8 @@ class ScopeWindow(QtWidgets.QMainWindow):
             self.reissueArtists() # artists have been cleared. Add it back
             self.setDataViewRange(viewMode='keep' if self.freezeView else 'reset')
         else:
+            # Re-apply the range snapshot taken before traces were replaced.
+            # Reading back from the plot after draw causes the time window to drift.
             self.setDataViewRange(viewMode='keep')
 
         # Update the companion, Toolbox: Layout
@@ -373,6 +375,7 @@ class ScopeWindow(QtWidgets.QMainWindow):
                 # Make sure later viewboxes are linked in time domain
                 if l[2]>0 or l[3]>0:
                     p.setXLink(self.graphicsView.getItem(row=0, col=0))
+            p.disableAutoRange()
 
             # put an identifier on the trace
             if isinstance(info, tuple):
@@ -603,12 +606,12 @@ class ScopeWindow(QtWidgets.QMainWindow):
         if self.freezeView:
             self.setDataViewRange('keep')
         else:
+            # New streams (e.g. Current) are not in viewRange yet; reset
+            # applies saved X/Y and config defaults for missing streams.
             self.setDataViewRange('reset')
         # Redraw the artists
         self.reissueArtists()
         self.setDisplayTheme(theme)
-        # Force the new subplot to start with default view range
-        # self.setDataViewRange(viewMode='default')
 
     def removeSubplot(self, layout, exact_match=False):
         """Remove a data stream from the display"""
@@ -682,72 +685,132 @@ class ScopeWindow(QtWidgets.QMainWindow):
         # self.graphicsView.setForegroundBrush
         # change color / format of all objects
 
+    def _defaultAxisRanges(self):
+        options = readini(self.iniPath)
+        y_range = {
+            'Voltage': (float(options['voltRangeMin']), float(options['voltRangeMax'])),
+            'Current': (float(options['curRangeMin']), float(options['curRangeMax'])),
+            'Stimulus': (float(options['stimRangeMin']), float(options['stimRangeMax'])),
+        }
+        x_min, x_max = options['timeRangeMin'], options['timeRangeMax']
+        if x_min is None or isinstance(x_min, str):
+            x_min = 0.0
+        if x_max is None or isinstance(x_max, str):
+            x_max = None
+        else:
+            x_min, x_max = float(x_min), float(x_max)
+        return [x_min, x_max], y_range
+
+    @staticmethod
+    def _isUnsetYRange(y_range):
+        """True for pyqtgraph's unused ViewBox default of 0–1."""
+        try:
+            return abs(float(y_range[0])) < 1e-9 and abs(float(y_range[1]) - 1.0) < 1e-6
+        except (TypeError, IndexError, ValueError):
+            return True
+
+    def _trackUserRange(self, p, key):
+        """Remember pan/zoom from the mouse without picking up autorange drift."""
+        vb = p.getViewBox()
+        if getattr(vb, '_synapse_range_bound', False):
+            return
+        vb._synapse_range_bound = True
+
+        def _on_manual(*_args):
+            xr, yr = p.viewRange()
+            xr, yr = self._copyRange(xr), self._copyRange(yr)
+            self.viewRange[key] = [xr, yr]
+            for k in list(self.viewRange.keys()):
+                self.viewRange[k][0] = list(xr)
+
+        vb.sigRangeChangedManually.connect(_on_manual)
+
+    def _sharedXRange(self, default_x=None):
+        for X, _Y in self.viewRange.values():
+            if X is not None and len(X) == 2 and X[1] is not None:
+                return self._copyRange(X)
+        return None if default_x is None else list(default_x)
+
     def setDataViewRange(self, viewMode='default', xRange=None, yRange=None):
-        # print('view range %s'%self.viewMode)
+        requested_mode = viewMode
+        if not self.viewRange:
+            viewMode = 'default'
         self.viewMode = viewMode
-        if not self.viewRange.keys():
-            self.viewMode = 'default'
+        default_x, default_y = self._defaultAxisRanges()
+        first_plot = None
 
-        # Loop through all the subplots
         for n, l in enumerate(self.layout):
-            # get viewbox
-            p = self.graphicsView.getItem(row=l[2], col=l[3])
-            if l[2]>0 or l[3]>0:
-                p.setXLink(self.graphicsView.getItem(row=0, col=0))
-            #print(a.tickValues())
-            if self.viewMode == 'default':
-                # Make everything visible first, may help pervent failure 
-                # if the subsequent range calculation fails
-                p.autoRange()
-                # Find out the default yrange options
-                options = readini(self.iniPath)  # Read it real time
-                default_yRange_dict = {'Voltage': (options['voltRangeMin'], options['voltRangeMax']),
-                                       'Current': (options['curRangeMin'], options['curRangeMax']),
-                                       'Stimulus': (options['stimRangeMin'], options['stimRangeMax'])}
-                yRange = default_yRange_dict.get(l[0])
-                p.setYRange(yRange[0], yRange[1], padding=0)
-                default_xRange = [options['timeRangeMin'], options['timeRangeMax']]
-                if default_xRange[0] is None or isinstance(default_xRange[0], str):
-                    default_xRange[0] = 0
-                if default_xRange[1] is None or isinstance(default_xRange[1], str):
-                    default_xRange[1] = max([max(s.xData) for s in p.dataItems])
-                p.setXRange(default_xRange[0], default_xRange[1], padding=0)
-                # Update current viewRange
-                self.viewRange[l[0], l[1]] = p.viewRange()
-                if n == len(self.layout)-1: # update only after iterating through
-                    self.viewMode = viewMode
-            elif self.viewMode == 'auto':
-                p.autoRange()
-                # Update current viewRange
-                self.viewRange[l[0], l[1]] = p.viewRange()
-            elif self.viewMode == 'keep':
-                # Update current viewRange
-                self.viewRange[l[0], l[1]] = p.viewRange()
-                # no change in viewRange, but still link the views
-            elif self.viewMode == 'reset':
-                if (l[0], l[1]) not in self.viewRange.keys():
-                    self.getDataViewRange(layouts=[[l[0], l[1]]]) # update the data view range of now
-                if p.viewRange() != self.viewRange[l[0], l[1]]:
-                    X, Y = self.viewRange[l[0], l[1]]
-                    p.setXRange(X[0], X[1], padding=0)
-                    p.setYRange(Y[0], Y[1], padding=0)
-                    self.viewMode = 'keep'
-            elif self.viewMode == 'manual':
-                if xRange is not None:
-                    p.setXRange(xRange[n])
-                if yRange is not None:
-                    p.setYRange(yRange[n])
-            else:
-                raise(TypeError('Unrecognized view mode'))
-
-    def getDataViewRange(self, layouts=None):
-        for l in self.layout:
-            if layouts is not None and [l[0], l[1]] not in layouts:
-                continue # only update the specified layouts
             p = self.graphicsView.getItem(row=l[2], col=l[3])
             if p is None:
-                return
-            self.viewRange[l[0], l[1]] = p.viewRange()
+                continue
+            p.disableAutoRange()
+            self._trackUserRange(p, key)
+            if first_plot is None:
+                first_plot = p
+            elif l[2] > 0 or l[3] > 0:
+                p.setXLink(first_plot)
+
+            key = (l[0], l[1])
+            if viewMode == 'default':
+                yr = default_y.get(l[0])
+                xr = list(default_x)
+                if xr[1] is None and p.listDataItems():
+                    xr[1] = float(max(max(s.xData) for s in p.listDataItems()))
+                p.setYRange(yr[0], yr[1], padding=0)
+                if p is first_plot and xr[1] is not None:
+                    p.setXRange(xr[0], xr[1], padding=0)
+                self.viewRange[key] = [list(xr), list(yr)]
+            elif viewMode == 'auto':
+                p.enableAutoRange()
+                p.autoRange()
+                p.disableAutoRange()
+                xr, yr = p.viewRange()
+                self.viewRange[key] = [self._copyRange(xr), self._copyRange(yr)]
+            elif viewMode in ('keep', 'reset'):
+                if key in self.viewRange:
+                    xr, yr = self.viewRange[key]
+                    xr, yr = list(xr), list(yr)
+                    if self._isUnsetYRange(yr):
+                        yr = list(default_y.get(l[0], yr))
+                else:
+                    yr = list(default_y.get(l[0]))
+                    xr = self._sharedXRange(default_x)
+                    if xr is None or xr[1] is None:
+                        xr = self._copyRange(p.viewRange()[0])
+                p.setYRange(yr[0], yr[1], padding=0)
+                if p is first_plot:
+                    p.setXRange(xr[0], xr[1], padding=0)
+                self.viewRange[key] = [self._copyRange(xr), self._copyRange(yr)]
+            elif viewMode == 'manual':
+                if yRange is not None:
+                    p.setYRange(yRange[n][0], yRange[n][1], padding=0)
+                if xRange is not None and p is first_plot:
+                    p.setXRange(xRange[n][0], xRange[n][1], padding=0)
+            else:
+                raise TypeError('Unrecognized view mode')
+
+        if requested_mode == 'reset':
+            self.viewMode = 'keep'
+        else:
+            self.viewMode = requested_mode
+
+    def getDataViewRange(self, layouts=None):
+        first_x = None
+        for l in self.layout:
+            if layouts is not None and [l[0], l[1]] not in layouts:
+                continue
+            p = self.graphicsView.getItem(row=l[2], col=l[3])
+            if p is None:
+                continue
+            xr, yr = p.viewRange()
+            xr, yr = self._copyRange(xr), self._copyRange(yr)
+            if first_x is None:
+                first_x = xr
+            else:
+                xr = list(first_x)
+            if self._isUnsetYRange(yr) and (l[0], l[1]) in self.viewRange:
+                yr = self._copyRange(self.viewRange[l[0], l[1]][1])
+            self.viewRange[l[0], l[1]] = [xr, yr]
 
     def reissueArtists(self):
         """In case artists are removed, toggle back on the artists"""
