@@ -10,4 +10,4 @@ dependencies:
   - pyqt
   - pyqtgraph
   - scikit-image
-  - dynaconf
+  - pyobjc-framework-cocoa

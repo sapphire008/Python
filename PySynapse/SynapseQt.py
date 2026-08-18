@@ -58,7 +58,32 @@ except AttributeError:
 
 # Set some global variables
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-__version__ = "PySynapse 0.4"
+__version__ = "PySynapse 0.5"
+APP_ICON_FILE = os.path.join(__location__, 'resources', 'icons', 'Synapse-resizeimage.png')
+if not os.path.isfile(APP_ICON_FILE):
+    APP_ICON_FILE = os.path.join(__location__, 'resources', 'icons', 'Synapse.png')
+
+
+def icon_file(name):
+    return os.path.join(__location__, 'resources', 'icons', name)
+
+
+def apply_app_icon(app):
+    """Set the process icon. On macOS, window.setWindowIcon does not appear in
+    the title bar; the Dock icon must be set on QApplication (and NSApp)."""
+    icon = QtGui.QIcon(APP_ICON_FILE)
+    app.setWindowIcon(icon)
+    app.setApplicationName("PySynapse")
+    app.setApplicationDisplayName("PySynapse")
+    if sys.platform == 'darwin':
+        try:
+            from AppKit import NSApplication, NSImage
+            ns_img = NSImage.alloc().initWithContentsOfFile_(APP_ICON_FILE)
+            if ns_img is not None:
+                NSApplication.sharedApplication().setApplicationIconImage_(ns_img)
+        except Exception:
+            pass
+    return icon
 
 # Custom helper functions
 def sort_nicely(l):
@@ -337,7 +362,7 @@ class FileSystemTreeModel(QtCore.QAbstractItemModel):
                 iconimg = 'setting.png'
             else: # for debugging, should not reach this
                 raise(TypeError('Unrecognized node type'))
-            return QtGui.QIcon(QtGui.QPixmap('resources/icons/'+iconimg))
+            return QtGui.QIcon(QtGui.QPixmap(icon_file(iconimg)))
         elif role == QtCore.Qt.BackgroundRole: # insert highlight color here
             return(QtGui.QBrush(QtCore.Qt.transparent))
         else:
@@ -697,7 +722,7 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
     def retranslateUi(self, MainWindow):
         """Set window title and other miscellaneous"""
         MainWindow.setWindowTitle(_translate(__version__, __version__, None))
-        MainWindow.setWindowIcon(QtGui.QIcon('resources/icons/Synapse.png'))
+        MainWindow.setWindowIcon(QtGui.QIcon(APP_ICON_FILE))
 
     # ---------------- Data browser behaviors ---------------------------------
     def setDataBrowserTreeView(self, startpath=None):
@@ -784,6 +809,7 @@ if __name__ == '__main__':
     sys.excepthook = my_excepthook # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
     apply_app_theme(app)
+    apply_app_icon(app)
     # Ctrl+C (SIGINT) is otherwise stuck in Qt's C++ loop until some Python slot runs
     signal.signal(signal.SIGINT, lambda *args: QtWidgets.QApplication.quit())
     _wakeup = QtCore.QTimer()
