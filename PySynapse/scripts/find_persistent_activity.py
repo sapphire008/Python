@@ -490,12 +490,13 @@ def main():
     finally:
         pbar.close()
 
-    def _spike_count(h):
-        n = h["n_spikes_post"]
-        return int(n) if n not in ("", None) else 0
-
-    hits.sort(key=lambda h: (0 if h["hyper"] else 1, -_spike_count(h), h["path"]))
     rows = [row_from_hit(h) for h in hits]
+    rows.sort(
+        key=lambda r: (
+            [int(c) if c.isdigit() else c.lower() for c in re.split(r"([0-9]+)", str(r["Cell"]))],
+            [int(c) if c.isdigit() else c.lower() for c in re.split(r"([0-9]+)", str(r["Episode"]))],
+        )
+    )
     out = Path(OUT_CSV)
     out.parent.mkdir(parents=True, exist_ok=True)
     if rows:

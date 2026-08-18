@@ -93,6 +93,10 @@ def sort_nicely(l):
     l.sort( key=alphanum_key )
     return l
 
+def alphanum_key(s):
+    """Key for human-friendly sort of cell / episode names."""
+    return [int(c) if c.isdigit() else c.lower() for c in re.split(r'([0-9]+)', str(s))]
+
 def my_excepthook(type, value, tback):
     """This helps prevent program crashing upon an uncaught exception"""
     sys.__excepthook__(type, value, tback)
@@ -1020,7 +1024,13 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
                 os.path.join(self.startpath, get_cellpath(cb, ep)).replace("\\", "/")
                 for cb, ep in zip(df["Name"], df["Epi"])
             ]
-        self.tableview.sequence = df.reset_index(drop=True).to_dict('list')
+        df = df.reset_index(drop=True)
+        order = sorted(
+            range(len(df)),
+            key=lambda i: (alphanum_key(df["Name"].iat[i]), alphanum_key(df["Epi"].iat[i])),
+        )
+        df = df.iloc[order].reset_index(drop=True)
+        self.tableview.sequence = df.to_dict('list')
         n_rows = len(df)
         df = df.reindex(
             ["Name", "Epi", "Time", "Duration", "Drug Level", "Drug Name", "Drug Time", "Comment"],
