@@ -731,13 +731,34 @@ class Toolbox(QtWidgets.QWidget):
                            all_channels=['A','B','C','D'], \
                            current_stream='Voltage', current_channel='A'):
         """Create a row of 2 combo boxes, one for stream, one for channel"""
+        row = self.layout_table.rowCount()
+        # A new row should not duplicate Voltage A; pick the next unused stream
+        if row >= len(self.friend.layout):
+            used = {(l[0], l[1]) for l in self.friend.layout}
+            picked = False
+            # Prefer another stream on channel A (Voltage A + Stimulus A → Current A)
+            for s in all_streams:
+                if (s, 'A') not in used and 'A' in all_channels:
+                    current_stream, current_channel = s, 'A'
+                    picked = True
+                    break
+            if not picked:
+                for s in all_streams:
+                    for c in all_channels:
+                        if (s, c) not in used:
+                            current_stream, current_channel = s, c
+                            picked = True
+                            break
+                    if picked:
+                        break
         scomb = QtWidgets.QComboBox()
         scomb.addItems(all_streams)
-        scomb.setCurrentIndex(all_streams.index(current_stream))
+        if current_stream in all_streams:
+            scomb.setCurrentIndex(all_streams.index(current_stream))
         ccomb = QtWidgets.QComboBox()
         ccomb.addItems(all_channels)
-        ccomb.setCurrentIndex(all_channels.index(current_channel))
-        row = self.layout_table.rowCount()
+        if current_channel in all_channels:
+            ccomb.setCurrentIndex(all_channels.index(current_channel))
         self.layout_table.insertRow(row)
         self.layout_table.setCellWidget(row, 0, scomb) # Stream
         self.layout_table.setCellWidget(row, 1, ccomb) # Channel
