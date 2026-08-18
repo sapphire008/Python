@@ -13,7 +13,7 @@ import six
 import re
 from pdb import set_trace
 from collections import OrderedDict
-from MATLAB import isempty
+from util.MATLAB import isempty
 # import matplotlib.pyplot as plt
 
 def readVBString(fid):

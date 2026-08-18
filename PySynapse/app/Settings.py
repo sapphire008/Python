@@ -79,7 +79,63 @@ def readini(iniPath):
         f.close()
 
     return options
-    
+
+
+def _dark_fusion_palette():
+    pal = QtGui.QPalette()
+    pal.setColor(QtGui.QPalette.Window, QtGui.QColor(53, 53, 53))
+    pal.setColor(QtGui.QPalette.WindowText, QtCore.Qt.white)
+    pal.setColor(QtGui.QPalette.Base, QtGui.QColor(35, 35, 35))
+    pal.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(53, 53, 53))
+    pal.setColor(QtGui.QPalette.ToolTipBase, QtGui.QColor(53, 53, 53))
+    pal.setColor(QtGui.QPalette.ToolTipText, QtCore.Qt.white)
+    pal.setColor(QtGui.QPalette.Text, QtCore.Qt.white)
+    pal.setColor(QtGui.QPalette.Button, QtGui.QColor(53, 53, 53))
+    pal.setColor(QtGui.QPalette.ButtonText, QtCore.Qt.white)
+    pal.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
+    pal.setColor(QtGui.QPalette.Link, QtGui.QColor(31, 119, 180))
+    pal.setColor(QtGui.QPalette.Highlight, QtGui.QColor(31, 119, 180))
+    pal.setColor(QtGui.QPalette.HighlightedText, QtCore.Qt.white)
+    disabled = QtGui.QColor(127, 127, 127)
+    pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, disabled)
+    pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, disabled)
+    pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, disabled)
+    return pal
+
+
+def apply_app_theme(app, theme=None):
+    """Apply config.ini theme to Qt chrome and pyqtgraph.
+
+    `whiteboard` forces a light Fusion palette so macOS dark mode does not
+    take over the windows. `blackboard` and `dark` use a dark Fusion palette.
+    """
+    if theme is None:
+        ini_path = os.path.join(__location__, '../resources/config.ini')
+        theme = readini(ini_path).get('theme', 'whiteboard')
+    if isinstance(theme, str):
+        theme = theme.strip().lower()
+
+    plot = {
+        'whiteboard': {'background': 'w', 'foreground': 'k'},
+        'blackboard': {'background': 'k', 'foreground': 'w'},
+        'dark': {'background': '#999999', 'foreground': 'k'},
+    }.get(theme, {'background': 'w', 'foreground': 'k'})
+
+    app.setStyle('Fusion')
+    if theme == 'whiteboard':
+        app.setPalette(app.style().standardPalette())
+    else:
+        app.setPalette(_dark_fusion_palette())
+
+    try:
+        import pyqtgraph as pg
+        pg.setConfigOption('background', plot['background'])
+        pg.setConfigOption('foreground', plot['foreground'])
+    except ImportError:
+        pass
+    return theme
+
+
 def writeini(iniPath, options):
     """Write the config.ini to save the current settings"""
     with fileinput.input(iniPath, inplace=True) as f:

@@ -170,15 +170,13 @@ class AccordionItem(QGroupBox):
 
 
     def __drawTriangle(self, painter, x, y):
+        x, y = int(x), int(y)
         brush = QBrush(QColor(255, 255, 255, 160), Qt.SolidPattern)
         if not self.isCollapsed():
-            tl, tr, tp = QPoint(x + 9, y + 8), QPoint(x + 19, y + 8), QPoint(x + 14, y + 13.0)
-            points = [tl, tr, tp]
-            triangle = QPolygon(points)
+            points = [QPoint(x + 9, y + 8), QPoint(x + 19, y + 8), QPoint(x + 14, y + 13)]
         else:
-            tl, tr, tp = QPoint(x + 11, y + 6), QPoint(x + 16, y + 11), QPoint(x + 11, y + 16.0)
-            points = [tl, tr, tp]
-            triangle = QPolygon(points)
+            points = [QPoint(x + 11, y + 6), QPoint(x + 16, y + 11), QPoint(x + 11, y + 16)]
+        triangle = QPolygon(points)
         currentBrush = painter.brush()
         painter.setBrush(brush)
         painter.drawPolygon(triangle)
@@ -188,6 +186,12 @@ class AccordionItem(QGroupBox):
     def paintEvent( self, event ):
         painter = QPainter()
         painter.begin(self)
+        try:
+            self._paintAccordion(painter)
+        finally:
+            painter.end()
+
+    def _paintAccordion(self, painter):
         painter.setRenderHint(painter.Antialiasing)
         font = painter.font()
         font.setBold(True)
@@ -322,8 +326,6 @@ class AccordionItem(QGroupBox):
 
             for y in (cy - 3, cy, cy + 3):
                 painter.drawLine(l, y, r, y)
-
-        painter.end()
 
 
     def setCollapsed( self, state=True ):

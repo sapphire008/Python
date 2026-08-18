@@ -1,6 +1,6 @@
 default:
   startpath:
     win: D:/Data/Traces
-    dar: /Users/edward/
+    dar: /Volumes/Assets/Edward/Data/Traces
     lin: /
   hide_scope_toolbox: false

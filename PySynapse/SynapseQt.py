@@ -16,6 +16,7 @@ Main window of Synapse
 import os
 import sys
 import re
+import signal
 import numpy as np
 from pdb import set_trace
 import subprocess
@@ -777,6 +778,12 @@ class Synapse_MainWindow(QtWidgets.QMainWindow):
 if __name__ == '__main__':
     sys.excepthook = my_excepthook # helps prevent uncaught exception crashing the GUI
     app = QtWidgets.QApplication(sys.argv)
+    apply_app_theme(app)
+    # Ctrl+C (SIGINT) is otherwise stuck in Qt's C++ loop until some Python slot runs
+    signal.signal(signal.SIGINT, lambda *args: QtWidgets.QApplication.quit())
+    _wakeup = QtCore.QTimer()
+    _wakeup.start(250)
+    _wakeup.timeout.connect(lambda: None)
     running_os = sys.platform[:3]
     startpath = settings.startpath.get(running_os)
     w = Synapse_MainWindow(

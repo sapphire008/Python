@@ -13,6 +13,8 @@ old = True # load old data format
 # colors = readini(os.path.join(__location__,'../resources/config.ini'))['colors']
 ignoreFirstTTL = True # Ignore the first set of TTL Data when parsing TTL pulse protocols
 
+from PyQt5 import QtCore, QtWidgets
+
 from app.AccordionWidget import AccordionWidget
 from app.Annotations import *
 from util.spk_util import *
@@ -30,7 +32,7 @@ except AttributeError:
         return s
 
 try:
-    _encoding = QtGui.QApplication.UnicodeUTF8
+    _encoding = QtWidgets.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
         return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
@@ -77,28 +79,28 @@ class Toolbox(QtWidgets.QWidget):
     # --------- Trace arithmetic tools ---------------------------------------
     def arithmeticWidget(self):
         """Setting widget for trace manipulation"""
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("ArithmeticWidgetFrame"))
         # widgetFrame.layout().setSpacing(0)
 
-        calculateButton = QtGui.QPushButton("Calculate")
+        calculateButton = QtWidgets.QPushButton("Calculate")
         # Remove baseline from the trace check box
-        nullCheckBox = QtGui.QCheckBox("Null")
+        nullCheckBox = QtWidgets.QCheckBox("Null")
         nullCheckBox.setToolTip("Remove baseline")
         # null baseline range
-        rangeTextBox = QtGui.QLineEdit()
+        rangeTextBox = QtWidgets.QLineEdit()
         rangeTextBox.setToolTip("Range of baseline.\nEnter a single number or a range [min, max] in ms")
         rangeTextBox.setText("0")
         # Range unit label
-        rangeUnitLabel = QtGui.QLabel("ms")
+        rangeUnitLabel = QtWidgets.QLabel("ms")
 
         # Apply filtering before calculation
-        filtCheckBox = QtGui.QCheckBox("Apply filter before calculation")
+        filtCheckBox = QtWidgets.QCheckBox("Apply filter before calculation")
         filtCheckBox.setToolTip('Apply a filter, defined in the "Filter" tool onto each episode, before doing any calculation')
 
         # Formula
-        formulaTextBox = QtGui.QLineEdit()
+        formulaTextBox = QtWidgets.QLineEdit()
         formulaTextBox.setPlaceholderText("Formula")
         Tooltips = "Examples:\n"
         Tooltips += "Mean: (S1.E1 + S1.E2 + S1.E3) / 3\n"
@@ -109,7 +111,7 @@ class Toolbox(QtWidgets.QWidget):
         formulaTextBox.setToolTip(Tooltips)
 
         # Report box
-        arithReportBox = QtGui.QLabel("Arithmetic Results")
+        arithReportBox = QtWidgets.QLabel("Arithmetic Results")
         arithReportBox.setStyleSheet("background-color: white")
         arithReportBox.setWordWrap(True)
 
@@ -393,16 +395,16 @@ class Toolbox(QtWidgets.QWidget):
     # TODO: when add a TTL object in the table, also display the detailed description of the object
     def annotationWidget(self):
         """Adding annotation items on the graph"""
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("AnnotationWidgetFrame"))
         widgetFrame.layout().setSpacing(0)
         self.setAnnotationTable()
-        addButton = QtGui.QPushButton("Add") # Add an annotation object
+        addButton = QtWidgets.QPushButton("Add") # Add an annotation object
         addButton.clicked.connect(self.addAnnotationRow)
-        removeButton = QtGui.QPushButton("Remove") # Remove an annotation object
+        removeButton = QtWidgets.QPushButton("Remove") # Remove an annotation object
         removeButton.clicked.connect(self.removeAnnotationRow)
-        editButton = QtGui.QPushButton("Edit") # Edit an annotation object
+        editButton = QtWidgets.QPushButton("Edit") # Edit an annotation object
         editButton.clicked.connect(self.editAnnotationArtist)
         # Add the buttons
         widgetFrame.layout().addWidget(addButton, 1, 0)
@@ -415,13 +417,13 @@ class Toolbox(QtWidgets.QWidget):
 
     def setAnnotationTable(self):
         """"(Re)initialize the annotation table"""
-        self.annotation_table = QtGui.QTableWidget(0, 2)
+        self.annotation_table = QtWidgets.QTableWidget(0, 2)
         self.annotation_table.verticalHeader().setVisible(False)
         # self.annotation_table.horizontalHeader().setVisible(False)
         self.annotation_table.setHorizontalHeaderLabels(['Artist', 'Notes'])
-        self.annotation_table.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
+        self.annotation_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         self.annotation_table.horizontalHeader().highlightSections()
-        self.annotation_table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.annotation_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         # Change style sheet a little for Windows 10
         if sys.platform[:3]== 'win' and sys.getwindowsversion().major == 10: # fix the problem that in Windows 10, bottom border of header is not displayed
             self.annotation_table.setStyleSheet("""
@@ -473,7 +475,7 @@ class Toolbox(QtWidgets.QWidget):
             if annSet.artist.keys(): # if properties are properly specified, draw the artist
                 # Set Artist table item
                 self.annotationArtists, artist_name = append_num_to_repeated_str(self.annotationArtists, annSet.type)
-                AT_item = QtGui.QTableWidgetItem(artist_name)
+                AT_item = QtWidgets.QTableWidgetItem(artist_name)
                 AT_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable) # can be checked | can be selected
                 AT_item.setCheckState(QtCore.Qt.Checked) # newly added items are always checked
                 # Add to the table
@@ -645,7 +647,7 @@ class Toolbox(QtWidgets.QWidget):
         item = self.annotation_table.item(row, 0)
         # check item type
         if not hasattr(item, '_artistProp') or item._artistProp['type'] not in AnnotationSetting.ann_obj:
-            notepad = QtGui.QTableWidgetItem()
+            notepad = QtWidgets.QTableWidgetItem()
             notepad.setText("This item is not editable")
             self.annotation_table.setItem(row, 1, notepad)
             return
@@ -657,7 +659,7 @@ class Toolbox(QtWidgets.QWidget):
                 # Remove the old artist
                 self.eraseAnnotationArtist(artist=item._artistProp)
                 artistProperty = annSet.artist
-                AT_item = QtGui.QTableWidgetItem(artistProperty['name'])
+                AT_item = QtWidgets.QTableWidgetItem(artistProperty['name'])
                 AT_item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)  # can be checked | can be selected
                 AT_item.setCheckState(QtCore.Qt.Checked)  # newly added items are always checked
                 AT_item._artistProp = artistProperty
@@ -694,8 +696,8 @@ class Toolbox(QtWidgets.QWidget):
             return self.buildTextFrame(text="No Data Loaded")
 
         # Initialize the layout widget
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("LayoutWidgetFrame"))
         widgetFrame.layout().setSpacing(0)
         all_streams = sorted(set([l[0] for l in all_layouts]))
@@ -704,9 +706,9 @@ class Toolbox(QtWidgets.QWidget):
         # Layout setting table
         self.setLayoutTable(all_streams, all_channels)
         # Buttons for adding and removing channels and streams
-        addButton = QtGui.QPushButton("Add") # Add a channel
+        addButton = QtWidgets.QPushButton("Add") # Add a channel
         addButton.clicked.connect(lambda: self.addLayoutRow(all_streams=all_streams, all_channels=all_channels))
-        removeButton = QtGui.QPushButton("Remove") # Remove a channel
+        removeButton = QtWidgets.QPushButton("Remove") # Remove a channel
         removeButton.clicked.connect(self.removeLayoutRow)
         # Add the buttons
         widgetFrame.layout().addWidget(addButton, 1, 0)
@@ -717,10 +719,10 @@ class Toolbox(QtWidgets.QWidget):
 
     def setLayoutTable(self, all_streams, all_channels):
         # (Re)initialize the layout table
-        self.layout_table = QtGui.QTableWidget(0, 2)
+        self.layout_table = QtWidgets.QTableWidget(0, 2)
         self.layout_table.verticalHeader().setVisible(False)
         self.layout_table.horizontalHeader().setVisible(False)
-        self.layout_table.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
+        self.layout_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         for l in self.friend.layout: # current layout from scope
             self.addLayoutRow(all_streams=all_streams, all_channels=all_channels,\
                                 current_stream=l[0], current_channel=l[1])
@@ -729,10 +731,10 @@ class Toolbox(QtWidgets.QWidget):
                            all_channels=['A','B','C','D'], \
                            current_stream='Voltage', current_channel='A'):
         """Create a row of 2 combo boxes, one for stream, one for channel"""
-        scomb = QtGui.QComboBox()
+        scomb = QtWidgets.QComboBox()
         scomb.addItems(all_streams)
         scomb.setCurrentIndex(all_streams.index(current_stream))
-        ccomb = QtGui.QComboBox()
+        ccomb = QtWidgets.QComboBox()
         ccomb.addItems(all_channels)
         ccomb.setCurrentIndex(all_channels.index(current_channel))
         row = self.layout_table.rowCount()
@@ -781,10 +783,10 @@ class Toolbox(QtWidgets.QWidget):
 
     def buildTextFrame(self, text="Not Available"):
         """Simply displaying some text inside a frame"""
-        someFrame = QtGui.QFrame(self)
-        someFrame.setLayout(QtGui.QVBoxLayout())
+        someFrame = QtWidgets.QFrame(self)
+        someFrame.setLayout(QtWidgets.QVBoxLayout())
         someFrame.setObjectName("Banner")
-        labelarea = QtGui.QLabel(text)
+        labelarea = QtWidgets.QLabel(text)
         someFrame.layout().addWidget(labelarea)
         return someFrame
 
@@ -796,30 +798,30 @@ class Toolbox(QtWidgets.QWidget):
         """This returns the initialized curve fitting widget
         """
         # initialize the widget
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("CurveFittingWidgetFrame"))
         widgetFrame.layout().setSpacing(10)
         # Curve fitting button
-        fitButton = QtGui.QPushButton("Curve Fit")
+        fitButton = QtWidgets.QPushButton("Curve Fit")
         # Window
-        windowLabel = QtGui.QLabel("Window")
+        windowLabel = QtWidgets.QLabel("Window")
         windowLabel.setToolTip("Overwrite manual Region Selection")
-        windowText = QtGui.QLineEdit()
+        windowText = QtWidgets.QLineEdit()
         windowText.setToolTip("window in ms [start, end]")
         windowText.setPlaceholderText("0")
         # Extrapolate
-        extrapolLabel = QtGui.QLabel("Extrapolate")
-        extrapolText = QtGui.QLineEdit()
+        extrapolLabel = QtWidgets.QLabel("Extrapolate")
+        extrapolText = QtWidgets.QLineEdit()
         extrapolText.setToolTip("* No extrapolation: leave blank;\n* Extrapolate backwards 500 ms: -500;\n* Extrapolate forward 500 ms: 500;\n* Extrapolate both directions: [-500, 500];")
         extrapolText.setPlaceholderText("0")
         # Type of curve to fit dropdown box
-        curveTypeComboBox = QtGui.QComboBox()
+        curveTypeComboBox = QtWidgets.QComboBox()
         curveTypeComboBox.addItems(['Exponential', 'Polynomial', 'Power'])
         # Center and scale
-        # csCheckBox = QtGui.QCheckBox("Center and scale")
+        # csCheckBox = QtWidgets.QCheckBox("Center and scale")
         # Report box
-        cfReportBox = QtGui.QTextEdit("Curve Fit Results")
+        cfReportBox = QtWidgets.QTextEdit("Curve Fit Results")
         cfReportBox.setStyleSheet("background-color: white")
 
         # Arrange the widget
@@ -857,21 +859,21 @@ class Toolbox(QtWidgets.QWidget):
 
     def getCFSettingTable(self, widgetFrame, windowText, extrapolText, cfReportBox, curve):
         if curve == 'Exponential':
-            eqLabel = QtGui.QLabel("Equation:")
-            eqComboBox = QtGui.QComboBox()
+            eqLabel = QtWidgets.QLabel("Equation:")
+            eqComboBox = QtWidgets.QComboBox()
             eqComboBox.addItems(['a*exp(b*x)+c','a*exp(b*x)', 'a*exp(b*x)+c*exp(d*x)'])
             eqComboBox.currentIndexChanged.connect(lambda: self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText()))
             self.CFsettingTable = {(self.cfsr,0): eqLabel, (self.cfsr,1): eqComboBox}
             # Call it once at startup to get initialization parameters
             self.setExpCFInitializationParams(widgetFrame, cfReportBox, eqComboBox.currentText())
         elif curve == 'Power':
-            eqLabel = QtGui.QLabel("Equation")
-            eqComboBox = QtGui.QComboBox()
+            eqLabel = QtWidgets.QLabel("Equation")
+            eqComboBox = QtWidgets.QComboBox()
             eqComboBox.addItems(['a*x^b', 'a*x^b+c'])
             self.CFsettingTable = {(self.cfsr,0): eqLabel, (self.cfsr,1): eqComboBox}
         elif curve == 'Polynomial':
-            degLabel = QtGui.QLabel("Degree:")
-            degText = QtGui.QLineEdit("1")
+            degLabel = QtWidgets.QLabel("Degree:")
+            degText = QtWidgets.QLineEdit("1")
             self.CFsettingTable = {(self.cfsr,0):degLabel, (self.cfsr,1): degText}
 
         self.CFsettingTable.update({'window':windowText, 'extrapolate':extrapolText})
@@ -890,12 +892,12 @@ class Toolbox(QtWidgets.QWidget):
     def getExpCFParamTable(self, equation='a*exp(b*x)+c'):
         cfsr = self.cfsr
         if equation == 'a*exp(b*x)+c':
-            a0_label = QtGui.QLabel('a0')
-            a0_text = QtGui.QLineEdit('auto')
-            b0_label = QtGui.QLabel('b0')
-            b0_text = QtGui.QLineEdit('auto')
-            c0_label = QtGui.QLabel('c0')
-            c0_text = QtGui.QLineEdit('0')
+            a0_label = QtWidgets.QLabel('a0')
+            a0_text = QtWidgets.QLineEdit('auto')
+            b0_label = QtWidgets.QLabel('b0')
+            b0_text = QtWidgets.QLineEdit('auto')
+            c0_label = QtWidgets.QLabel('c0')
+            c0_text = QtWidgets.QLineEdit('0')
             self.CFsettingTable[(cfsr+1, 0)] = a0_label
             self.CFsettingTable[(cfsr+1, 1)] = a0_text
             self.CFsettingTable[(cfsr+2, 0)] = b0_label
@@ -903,23 +905,23 @@ class Toolbox(QtWidgets.QWidget):
             self.CFsettingTable[(cfsr+3, 0)] = c0_label
             self.CFsettingTable[(cfsr+3, 1)] = c0_text
         elif equation == 'a*exp(b*x)':
-            a0_label = QtGui.QLabel('a0')
-            a0_text = QtGui.QLineEdit('auto')
-            b0_label = QtGui.QLabel('b0')
-            b0_text = QtGui.QLineEdit('auto')
+            a0_label = QtWidgets.QLabel('a0')
+            a0_text = QtWidgets.QLineEdit('auto')
+            b0_label = QtWidgets.QLabel('b0')
+            b0_text = QtWidgets.QLineEdit('auto')
             self.CFsettingTable[(cfsr+1, 0)] = a0_label
             self.CFsettingTable[(cfsr+1, 1)] = a0_text
             self.CFsettingTable[(cfsr+2, 0)] = b0_label
             self.CFsettingTable[(cfsr+2, 1)] = b0_text
         elif equation == 'a*exp(b*x)+c*exp(d*x)':
-            a0_label = QtGui.QLabel('a0')
-            a0_text = QtGui.QLineEdit('auto')
-            b0_label = QtGui.QLabel('b0')
-            b0_text = QtGui.QLineEdit('auto')
-            c0_label = QtGui.QLabel('c0')
-            c0_text = QtGui.QLineEdit('auto')
-            d0_label = QtGui.QLabel('d0')
-            d0_text = QtGui.QLineEdit('auto')
+            a0_label = QtWidgets.QLabel('a0')
+            a0_text = QtWidgets.QLineEdit('auto')
+            b0_label = QtWidgets.QLabel('b0')
+            b0_text = QtWidgets.QLineEdit('auto')
+            c0_label = QtWidgets.QLabel('c0')
+            c0_text = QtWidgets.QLineEdit('auto')
+            d0_label = QtWidgets.QLabel('d0')
+            d0_text = QtWidgets.QLineEdit('auto')
             self.CFsettingTable[(cfsr+1, 0)] = a0_label
             self.CFsettingTable[(cfsr+1, 1)] = a0_text
             self.CFsettingTable[(cfsr+2, 0)] = b0_label
@@ -1111,22 +1113,22 @@ class Toolbox(QtWidgets.QWidget):
     def eventDetectionWidget(self):
         """This returns the initialized event detection widget"""
         # Initalize the widget
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("EventDetectionWidgetFrame"))
         widgetFrame.layout().setSpacing(10)
         # Detect spikes button
-        detectButton = QtGui.QPushButton("Detect")
+        detectButton = QtWidgets.QPushButton("Detect")
         # Type of Event detection to run
         # Summary box
-        detectReportBox = QtGui.QLabel("Event Detection Results")
+        detectReportBox = QtWidgets.QLabel("Event Detection Results")
         detectReportBox.setStyleSheet("background-color: white")
         detectReportBox.setWordWrap(True)
         # Even type selection
-        eventTypeComboBox = QtGui.QComboBox()
+        eventTypeComboBox = QtWidgets.QComboBox()
         eventTypeComboBox.addItems(['Action Potential', 'Cell Attached Spike', 'EPSP', 'IPSP', 'EPSC','IPSC'])
         # Asking to draw on the plot
-        drawCheckBox = QtGui.QCheckBox("Mark Events")
+        drawCheckBox = QtWidgets.QCheckBox("Mark Events")
         drawCheckBox.stateChanged.connect(self.clearEvents)
 
         # Arrange the widget
@@ -1157,47 +1159,47 @@ class Toolbox(QtWidgets.QWidget):
     def getEDSettingTable(self, event='Action Potential'):
         """return a table for settings of each even detection"""
         if event == 'Action Potential':
-            minHeightLabel = QtGui.QLabel("Min Height")
+            minHeightLabel = QtWidgets.QLabel("Min Height")
             minHeightLabel.setToolTip("Minimum amplitude of the AP")
-            minHeightTextEdit = QtGui.QLineEdit("-10")
-            minHeightUnitLabel = QtGui.QLabel("mV")
-            minDistLabel = QtGui.QLabel("Min Dist")
+            minHeightTextEdit = QtWidgets.QLineEdit("-10")
+            minHeightUnitLabel = QtWidgets.QLabel("mV")
+            minDistLabel = QtWidgets.QLabel("Min Dist")
             minDistLabel.setToolTip("Minimum distance between detected APs")
-            minDistTextEdit = QtGui.QLineEdit("1")
-            minDistUnitLabel = QtGui.QLabel("ms")
-            threshLabel = QtGui.QLabel("Threshold")
+            minDistTextEdit = QtWidgets.QLineEdit("1")
+            minDistUnitLabel = QtWidgets.QLabel("ms")
+            threshLabel = QtWidgets.QLabel("Threshold")
             threshLabel.setToolTip("Finds peaks that are at least greater than both adjacent samples by the threshold, TH. TH is a real-valued scalar greater than or equal to zero. The default value of TH is zero.")
-            threshTextEdit = QtGui.QLineEdit("0")
-            threshTextUnitLabel = QtGui.QLabel("mV")
+            threshTextEdit = QtWidgets.QLineEdit("0")
+            threshTextUnitLabel = QtWidgets.QLabel("mV")
             self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit,
                             (3,2): minHeightUnitLabel, (4,0):minDistLabel,
                             (4,1): minDistTextEdit, (4,2): minDistUnitLabel,
                             (5,0): threshLabel, (5,1): threshTextEdit, (5,2): threshTextUnitLabel}
         elif event in ['EPSP', 'IPSP', 'EPSC','IPSC']:
-            ampLabel = QtGui.QLabel("Amplitude")
+            ampLabel = QtWidgets.QLabel("Amplitude")
             ampLabel.setToolTip("Minimum amplitude of the event")
-            ampTextEdit =  QtGui.QLineEdit("0.5")
-            ampUnitLabel = QtGui.QLabel("mV")
-            riseTimeLabel = QtGui.QLabel("Rise Time")
+            ampTextEdit =  QtWidgets.QLineEdit("0.5")
+            ampUnitLabel = QtWidgets.QLabel("mV")
+            riseTimeLabel = QtWidgets.QLabel("Rise Time")
             riseTimeLabel.setToolTip("Rise time of PSP template")
-            riseTimeTextEdit = QtGui.QLineEdit("1")
-            riseTimeUnitLabel = QtGui.QLabel("ms")
-            decayTimeLabel = QtGui.QLabel("Decay Time")
+            riseTimeTextEdit = QtWidgets.QLineEdit("1")
+            riseTimeUnitLabel = QtWidgets.QLabel("ms")
+            decayTimeLabel = QtWidgets.QLabel("Decay Time")
             decayTimeLabel.setToolTip("Decay time of the PSP template")
-            decayTimeTextEdit =  QtGui.QLineEdit("4")
-            decayTimeUnitLabel = QtGui.QLabel("ms")
-            criterionLabel = QtGui.QLabel("Criterion")
+            decayTimeTextEdit =  QtWidgets.QLineEdit("4")
+            decayTimeUnitLabel = QtWidgets.QLabel("ms")
+            criterionLabel = QtWidgets.QLabel("Criterion")
             criterionLabel.setToolTip("Detection statistical criterion: \n'se': standard error\n'corr': correlation")
-            criterionTextEdit =  QtGui.QLineEdit("se")
-            criterionUnitLabel = QtGui.QLabel("")
-            threshLabel = QtGui.QLabel("Threshold")
+            criterionTextEdit =  QtWidgets.QLineEdit("se")
+            criterionUnitLabel = QtWidgets.QLabel("")
+            threshLabel = QtWidgets.QLabel("Threshold")
             threshLabel.setToolTip("Threshold of statistical criterion")
-            threshTextEdit =  QtGui.QLineEdit("3")
-            threshUnitLabel = QtGui.QLabel("")
-            stepLabel = QtGui.QLabel("Step")
+            threshTextEdit =  QtWidgets.QLineEdit("3")
+            threshUnitLabel = QtWidgets.QLabel("")
+            stepLabel = QtWidgets.QLabel("Step")
             stepLabel.setToolTip("Step size to convolve the template with the trace")
-            stepTextEdit =  QtGui.QLineEdit("20")
-            stepUnitLabel = QtGui.QLabel("")
+            stepTextEdit =  QtWidgets.QLineEdit("20")
+            stepUnitLabel = QtWidgets.QLabel("")
 
             self.EDsettingTable = {(3,0):ampLabel, (3,1):ampTextEdit, (3,2):ampUnitLabel,
                                    (4,0):riseTimeLabel, (4,1):riseTimeTextEdit, (4,2):riseTimeUnitLabel,
@@ -1209,25 +1211,25 @@ class Toolbox(QtWidgets.QWidget):
 
 
         elif event == 'Cell Attached Spike':
-            minHeightLabel = QtGui.QLabel("Min Height")
+            minHeightLabel = QtWidgets.QLabel("Min Height")
             minHeightLabel.setToolTip("Minimum amplitude of the spike")
-            minHeightTextEdit = QtGui.QLineEdit("30")
-            minHeightUnitLabel = QtGui.QLabel("pA")
+            minHeightTextEdit = QtWidgets.QLineEdit("30")
+            minHeightUnitLabel = QtWidgets.QLabel("pA")
 
-            maxHeightLabel = QtGui.QLabel("Min Height")
+            maxHeightLabel = QtWidgets.QLabel("Min Height")
             maxHeightLabel.setToolTip("Minimum amplitude of the spike")
-            maxHeightTextEdit = QtGui.QLineEdit("300")
-            maxHeightUnitLabel = QtGui.QLabel("pA")
+            maxHeightTextEdit = QtWidgets.QLineEdit("300")
+            maxHeightUnitLabel = QtWidgets.QLabel("pA")
 
-            minDistLabel = QtGui.QLabel("Min Dist")
+            minDistLabel = QtWidgets.QLabel("Min Dist")
             minDistLabel.setToolTip("Minimum distance between detected spikes")
-            minDistTextEdit = QtGui.QLineEdit("10")
-            minDistUnitLabel = QtGui.QLabel("ms")
+            minDistTextEdit = QtWidgets.QLineEdit("10")
+            minDistUnitLabel = QtWidgets.QLabel("ms")
 
-            basefiltLabel = QtGui.QLabel("Filter Window")
+            basefiltLabel = QtWidgets.QLabel("Filter Window")
             basefiltLabel.setToolTip("median filter preprocessing window")
-            basefiltTextEdit = QtGui.QLineEdit("20")
-            basefiltUnitLabel = QtGui.QLabel("ms")
+            basefiltTextEdit = QtWidgets.QLineEdit("20")
+            basefiltUnitLabel = QtWidgets.QLabel("ms")
 
             self.EDsettingTable = {(3,0): minHeightLabel, (3,1): minHeightTextEdit, (3,2): minHeightUnitLabel,
                                    (4,0): maxHeightLabel, (4,1): maxHeightTextEdit, (4,2): maxHeightUnitLabel,
@@ -1387,13 +1389,13 @@ class Toolbox(QtWidgets.QWidget):
     #<editor-fold desc="Filter widget">
     def filterWidget(self):
         """Inplace Filter traces"""
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("Filter"))
 
-        filter_checkbox = QtGui.QCheckBox('Apply Filter')
+        filter_checkbox = QtWidgets.QCheckBox('Apply Filter')
         filter_checkbox.setToolTip('Apply inplace filtering to current trace')
-        self.filtertype_comboBox = QtGui.QComboBox()
+        self.filtertype_comboBox = QtWidgets.QComboBox()
         self.filtertype_comboBox.addItems(['Butter'])
 
         widgetFrame.layout().addWidget(filter_checkbox, 0, 0, 1, 2)
@@ -1418,14 +1420,14 @@ class Toolbox(QtWidgets.QWidget):
 
     def getFiltSettingTable(self, filterType):
         if filterType.lower() == 'butter':
-            order_label = QtGui.QLabel("Order")
+            order_label = QtWidgets.QLabel("Order")
             order_label.setToolTip("Filter order")
-            order_text = QtGui.QLineEdit("3")
-            Wn_label = QtGui.QLabel("Wn")
+            order_text = QtWidgets.QLineEdit("3")
+            Wn_label = QtWidgets.QLabel("Wn")
             Wn_label.setToolTip("Normalized cutoff frequency, between 0 and 1")
-            Wn_text = QtGui.QLineEdit("0.2")
-            Btype_label = QtGui.QLabel("Type")
-            Btype_combobox = QtGui.QComboBox()
+            Wn_text = QtWidgets.QLineEdit("0.2")
+            Btype_label = QtWidgets.QLabel("Type")
+            Btype_combobox = QtWidgets.QComboBox()
             Btype_combobox.addItems(["low","high", "band"])
             self.FiltSettingTable = {(3,0): order_label, (3,1): order_text, (4,0): Wn_label, (4,1): Wn_text,
                                      (5,0): Btype_label, (5,1): Btype_combobox}
@@ -1471,17 +1473,17 @@ class Toolbox(QtWidgets.QWidget):
     # <editor-fold desc="Function widget">
     def functionWidget(self):
         """Apply a function to selected regions and print out the summary"""
-        widgetFrame = QtGui.QFrame(self)
-        widgetFrame.setLayout(QtGui.QGridLayout())
+        widgetFrame = QtWidgets.QFrame(self)
+        widgetFrame.setLayout(QtWidgets.QGridLayout())
         widgetFrame.setObjectName(_fromUtf8("FunctionWidgetFrame"))
         widgetFrame.layout().setSpacing(10)
         # Apply button
-        applyButton = QtGui.QPushButton("Apply")
+        applyButton = QtWidgets.QPushButton("Apply")
         # Select from a list of pre-existing tools, or enter a custom function
-        functionComboBox = QtGui.QComboBox()
+        functionComboBox = QtWidgets.QComboBox()
         functionComboBox.addItems(['mean', 'std', 'diff', 'rms', 'series resistance', 'Rin', 'Rin2', 'mean time']) #  'custom'
         # Summary box
-        functionReportBox = QtGui.QLabel("Apply a function")
+        functionReportBox = QtWidgets.QLabel("Apply a function")
         functionReportBox.setStyleSheet("background-color: white")
         functionReportBox.setWordWrap(True)
         # Arrange the widget
@@ -1521,14 +1523,14 @@ class Toolbox(QtWidgets.QWidget):
     def getFASettingTable(self, func='mean', functionReportBox=None):
         """Return a table for settings of each function to be applied"""
         if func == "Rin":
-            useCurrent_checkBox = QtGui.QCheckBox("Use current instead")
+            useCurrent_checkBox = QtWidgets.QCheckBox("Use current instead")
             useCurrent_checkBox.setToolTip("Check to use current to calculate input resistance instead")
-            windowSize_label = QtGui.QLabel("Window (ms)")
-            windowSize_textbox = QtGui.QLineEdit("25")
+            windowSize_label = QtWidgets.QLabel("Window (ms)")
+            windowSize_textbox = QtWidgets.QLineEdit("25")
             self.FASettingTable = {(2,0):useCurrent_checkBox, (3,0):windowSize_label, (4,0):windowSize_textbox}
 
         elif func =='custom':
-            customFuncTextEdit = QtGui.QLineEdit()
+            customFuncTextEdit = QtWidgets.QLineEdit()
             customFuncTextEdit.setPlaceholderText("Custom Function")
             customFuncTextEdit.setToolTip("Enter a custom function to be applied")
             self.FASettingTable = {(2,0):customFuncTextEdit}
